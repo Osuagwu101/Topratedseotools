@@ -1,0 +1,129 @@
+import { Router, type IRouter } from "express";
+import { getAuth } from "@clerk/express";
+import { db, ordersTable, toolCredentialsTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
+
+const router: IRouter = Router();
+
+// Returns an HTML page that auto-submits a login form to the tool's login URL.
+// Only available to users with an active subscription for the requested product.
+router.get("/tools/:productId/autologin", async (req, res): Promise<void> => {
+  const auth = getAuth(req);
+  const userId = auth?.userId;
+
+  if (!userId) {
+    res.status(401).send("<h1>Unauthorized</h1><p>Please log in to SubsHub first.</p>");
+    return;
+  }
+
+  const productId = parseInt(req.params.productId, 10);
+  if (isNaN(productId)) {
+    res.status(400).send("<h1>Invalid product</h1>");
+    return;
+  }
+
+  // Check user has active subscription
+  const [activeOrder] = await db
+    .select({ id: ordersTable.id })
+    .from(ordersTable)
+    .where(
+      and(
+        eq(ordersTable.clerkUserId, userId),
+        eq(ordersTable.productId, productId),
+        eq(ordersTable.status, "success"),
+      )
+    );
+
+  if (!activeOrder) {
+    res.status(403).send(`
+      <!DOCTYPE html>
+      <html>
+      <head><title>No Active Subscription</title></head>
+      <body style="font-family:sans-serif;text-align:center;padding:60px;">
+        <h2>No active subscription</h2>
+        <p>You don't have an active subscription for this tool.</p>
+        <a href="/">Return to SubsHub</a>
+      </body>
+      </html>
+    `);
+    return;
+  }
+
+  // Fetch credentials
+  const [cred] = await db
+    .select()
+    .from(toolCredentialsTable)
+    .where(eq(toolCredentialsTable.productId, productId));
+
+  if (!cred || !cred.loginUrl || !cred.username || !cred.password) {
+    res.status(503).send(`
+      <!DOCTYPE html>
+      <html>
+      <head><title>Not Ready</title></head>
+      <body style="font-family:sans-serif;text-align:center;padding:60px;">
+        <h2>Login not yet configured</h2>
+        <p>The admin hasn't set up auto-login for this tool yet. Please check back soon.</p>
+        <a href="/">Return to SubsHub</a>
+      </body>
+      </html>
+    `);
+    return;
+  }
+
+  const usernameField = cred.usernameField ?? "email";
+  const passwordField = cred.passwordField ?? "password";
+
+  res.setHeader("Content-Type", "text/html");
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connecting...</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f7f8f9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 16px;
+      color: #0f2217;
+    }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 4px solid #e5e7eb;
+      border-top-color: #24A45A;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    h2 { font-size: 1.25rem; font-weight: 700; }
+    p { color: #6b7280; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <div class="spinner"></div>
+  <h2>Connecting you to ${cred.usernameField ? "the tool" : "the tool"}…</h2>
+  <p>You will be redirected automatically. Please wait.</p>
+
+  <form id="f" method="POST" action="${cred.loginUrl}" style="display:none;">
+    <input name="${usernameField}" value="${escapeHtml(cred.username)}" />
+    <input name="${passwordField}" value="${escapeHtml(cred.password)}" />
+  </form>
+  <script>
+    // Give the spinner a moment to render, then submit
+    setTimeout(function() { document.getElementById('f').submit(); }, 800);
+  </script>
+</body>
+</html>`);
+});
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+export default router;

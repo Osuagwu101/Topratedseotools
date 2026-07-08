@@ -4,6 +4,8 @@ import productsRouter from "./products";
 import ordersRouter from "./orders";
 import paystackRouter from "./paystack";
 import usersRouter from "./users";
+import adminRouter from "./admin";
+import autologinRouter from "./autologin";
 
 const router: IRouter = Router();
 
@@ -12,5 +14,7 @@ router.use(productsRouter);
 router.use(ordersRouter);
 router.use(paystackRouter);
 router.use(usersRouter);
+router.use(adminRouter);
+router.use(autologinRouter);
 
 export default router;

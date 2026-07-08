@@ -103,7 +103,10 @@ export const GetMyOrdersResponseItem = zod.object({
   "status": zod.string(),
   "reference": zod.string(),
   "createdAt": zod.string(),
-  "billingPeriod": zod.string()
+  "billingPeriod": zod.string(),
+  "credUsername": zod.string().nullish(),
+  "credPassword": zod.string().nullish(),
+  "isAutoLogin": zod.boolean().nullish()
 })
 export const GetMyOrdersResponse = zod.array(GetMyOrdersResponseItem)
 

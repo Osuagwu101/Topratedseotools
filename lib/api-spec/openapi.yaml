@@ -277,6 +277,15 @@ components:
           type: string
         billingPeriod:
           type: string
+        credUsername:
+          type: string
+          nullable: true
+        credPassword:
+          type: string
+          nullable: true
+        isAutoLogin:
+          type: boolean
+          nullable: true
 
     PaymentVerification:
       type: object

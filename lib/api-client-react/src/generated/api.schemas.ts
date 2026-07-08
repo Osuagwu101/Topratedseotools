@@ -59,6 +59,9 @@ export interface UserOrder {
   reference: string;
   createdAt: string;
   billingPeriod: string;
+  credUsername?: string | null;
+  credPassword?: string | null;
+  isAutoLogin?: boolean | null;
 }
 
 export interface PaymentVerification {

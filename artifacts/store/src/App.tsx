@@ -11,6 +11,7 @@ import ProductDetail from "@/pages/product";
 import Checkout from "@/pages/checkout";
 import Success from "@/pages/success";
 import Dashboard from "@/pages/dashboard";
+import AdminPanel from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -167,6 +168,7 @@ function Router() {
       <Route path="/success" component={Success} />
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
+      <Route path="/admin" component={AdminPanel} />
       <Route component={NotFound} />
     </Switch>
   );
