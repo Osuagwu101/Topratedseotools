@@ -1,7 +1,6 @@
 import { Router, type IRouter, type RequestHandler } from "express";
 import { db, toolCredentialsTable, productsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { z } from "zod/v4";
 
 const router: IRouter = Router();
 
@@ -35,26 +34,34 @@ router.get("/admin/products", requireAdmin, async (_req, res): Promise<void> => 
   );
 });
 
-const CredentialBody = z.object({
-  productId: z.number().int(),
-  username: z.string().optional(),
-  password: z.string().optional(),
-  loginUrl: z.string().optional(),
-  usernameField: z.string().optional(),
-  passwordField: z.string().optional(),
-  isAutoLogin: z.boolean().optional(),
-  notes: z.string().optional(),
-});
-
 // Create or update credential for a product
 router.post("/admin/credentials", requireAdmin, async (req, res): Promise<void> => {
-  const parsed = CredentialBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+  const body = req.body as {
+    productId?: unknown;
+    username?: unknown;
+    password?: unknown;
+    loginUrl?: unknown;
+    usernameField?: unknown;
+    passwordField?: unknown;
+    isAutoLogin?: unknown;
+    notes?: unknown;
+  };
+
+  const productId = typeof body.productId === "number" ? body.productId : null;
+  if (!productId) {
+    res.status(400).json({ error: "productId is required and must be a number" });
     return;
   }
 
-  const { productId, ...fields } = parsed.data;
+  const fields = {
+    username: typeof body.username === "string" ? body.username : undefined,
+    password: typeof body.password === "string" ? body.password : undefined,
+    loginUrl: typeof body.loginUrl === "string" ? body.loginUrl : undefined,
+    usernameField: typeof body.usernameField === "string" ? body.usernameField : undefined,
+    passwordField: typeof body.passwordField === "string" ? body.passwordField : undefined,
+    isAutoLogin: typeof body.isAutoLogin === "boolean" ? body.isAutoLogin : undefined,
+    notes: typeof body.notes === "string" ? body.notes : undefined,
+  };
 
   const existing = await db
     .select()
