@@ -5,15 +5,18 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SiGrammarly, SiNordvpn, SiOpenai, SiCapcut, SiSemrush } from "react-icons/si";
+import { SiGrammarly, SiNordvpn, SiSemrush } from "react-icons/si";
+import { Video, Bot, Shield, Pencil } from "lucide-react";
 
 function getIconForProduct(name: string) {
   const n = name.toLowerCase();
   if (n.includes("grammarly")) return <SiGrammarly className="w-8 h-8 text-[#11A683]" />;
-  if (n.includes("chatgpt")) return <SiOpenai className="w-8 h-8 text-[#10A37F]" />;
+  if (n.includes("chatgpt")) return <Bot className="w-8 h-8 text-[#10A37F]" />;
   if (n.includes("nordvpn")) return <SiNordvpn className="w-8 h-8 text-[#4687FF]" />;
-  if (n.includes("capcut")) return <SiCapcut className="w-8 h-8 text-white" />;
+  if (n.includes("capcut")) return <Video className="w-8 h-8 text-white" />;
   if (n.includes("semrush")) return <SiSemrush className="w-8 h-8 text-[#FF642D]" />;
+  if (n.includes("stealth")) return <Shield className="w-8 h-8 text-purple-400" />;
+  if (n.includes("quill") || n.includes("phrasly") || n.includes("turnitin")) return <Pencil className="w-8 h-8 text-blue-400" />;
   return <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">{name[0]}</div>;
 }
 
