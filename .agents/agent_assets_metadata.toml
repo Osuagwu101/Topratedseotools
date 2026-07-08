@@ -1,0 +1,14 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "yZS2IkpAe1FOx8fsKAH11"
+uri = "file://artifacts/store/public/logos/stealthwriter.png"
+type = "image"
+title = "stealthwriter logo"
+
+[[generated]]
+id = "3q4LGT78XQGWG52FfWwSq"
+uri = "file://artifacts/store/public/logos/quillbot.png"
+type = "image"
+title = "quillbot logo clean"

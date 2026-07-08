@@ -1,34 +1,45 @@
 import { useListProducts } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { Layout } from "@/components/layout";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SiGrammarly, SiNordvpn, SiSemrush } from "react-icons/si";
-import { Video, Bot, Shield, Pencil } from "lucide-react";
 
-function getIconForProduct(name: string) {
-  const n = name.toLowerCase();
-  if (n.includes("grammarly")) return <SiGrammarly className="w-12 h-12 text-white" />;
-  if (n.includes("chatgpt")) return <Bot className="w-12 h-12 text-white" />;
-  if (n.includes("nordvpn")) return <SiNordvpn className="w-12 h-12 text-white" />;
-  if (n.includes("capcut")) return <Video className="w-12 h-12 text-white" />;
-  if (n.includes("semrush")) return <SiSemrush className="w-12 h-12 text-white" />;
-  if (n.includes("stealth")) return <Shield className="w-12 h-12 text-white" />;
-  if (n.includes("quill") || n.includes("phrasly") || n.includes("turnitin")) return <Pencil className="w-12 h-12 text-white" />;
-  return <div className="w-12 h-12 flex items-center justify-center text-white font-heading text-3xl">{name[0]}</div>;
-}
+const LOGOS: Record<string, string> = {
+  grammarly:     "/logos/grammarly.png",
+  quillbot:      "/logos/quillbot.png",
+  phrasly:       "/logos/phrasly2.png",
+  chatgpt:       "/logos/chatgpt.png",
+  stealthwriter: "/logos/stealthwriter.png",
+  nordvpn:       "/logos/nordvpn.png",
+  semrush:       "/logos/semrush.png",
+  capcut:        "/logos/capcut.png",
+  turnitin:      "/logos/turnitin.png",
+};
 
-function getGradientForProduct(name: string) {
+const BG_COLORS: Record<string, string> = {
+  grammarly:     "#E8FFF3",
+  quillbot:      "#EEF4FF",
+  phrasly:       "#FFF4EC",
+  chatgpt:       "#F0FDF4",
+  stealthwriter: "#F3F0FF",
+  nordvpn:       "#E8F0FF",
+  semrush:       "#FFF7E8",
+  capcut:        "#F0F0F0",
+  turnitin:      "#FFF0F0",
+};
+
+function getLogoKey(name: string): string {
   const n = name.toLowerCase();
-  if (n.includes("grammarly")) return "from-teal-400 to-emerald-500";
-  if (n.includes("chatgpt")) return "from-green-500 to-emerald-600";
-  if (n.includes("nordvpn")) return "from-blue-500 to-blue-700";
-  if (n.includes("capcut")) return "from-gray-800 to-gray-900";
-  if (n.includes("semrush")) return "from-orange-400 to-red-500";
-  if (n.includes("stealth")) return "from-purple-500 to-indigo-600";
-  if (n.includes("quill") || n.includes("phrasly") || n.includes("turnitin")) return "from-blue-400 to-indigo-500";
-  return "from-primary to-green-600";
+  if (n.includes("grammarly")) return "grammarly";
+  if (n.includes("quillbot")) return "quillbot";
+  if (n.includes("phrasly")) return "phrasly";
+  if (n.includes("chatgpt")) return "chatgpt";
+  if (n.includes("stealth")) return "stealthwriter";
+  if (n.includes("nord")) return "nordvpn";
+  if (n.includes("semrush")) return "semrush";
+  if (n.includes("capcut")) return "capcut";
+  if (n.includes("turnitin")) return "turnitin";
+  return "";
 }
 
 export default function Home() {
@@ -44,7 +55,12 @@ export default function Home() {
           <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto font-medium">
             Shared, affordable access to the world's best AI and productivity tools. Join thousands of students and professionals scaling their work today.
           </p>
-          <Button size="lg" className="rounded-xl px-10 h-14 text-lg font-bold bg-primary hover:bg-primary/90 text-white uppercase tracking-widest shadow-md hover:shadow-lg transition-all" data-testid="button-browse-tools">
+          <Button
+            size="lg"
+            className="rounded-xl px-10 h-14 text-lg font-bold bg-primary hover:bg-primary/90 text-white uppercase tracking-widest shadow-md hover:shadow-lg transition-all"
+            data-testid="button-browse-tools"
+            asChild
+          >
             <a href="#catalog">Browse Tools</a>
           </Button>
         </div>
@@ -59,44 +75,70 @@ export default function Home() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <Skeleton key={i} className="h-[400px] rounded-2xl bg-white border border-border shadow-sm" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
+              <Skeleton key={i} className="h-[340px] rounded-2xl bg-gray-100" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {products?.map((product) => (
-              <Card key={product.id} className="h-full bg-white border-2 border-transparent hover:border-primary/50 shadow-md hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden flex flex-col group relative">
-                <div className={`h-36 bg-gradient-to-br ${getGradientForProduct(product.name)} flex items-center justify-center`}>
-                   {getIconForProduct(product.name)}
-                </div>
-                
-                <CardHeader className="text-center pb-2 pt-6">
-                  <CardTitle className="text-2xl font-bold font-sans text-foreground uppercase tracking-tight">{product.name}</CardTitle>
-                  <div className="text-xs font-bold text-accent uppercase tracking-widest mt-2 bg-accent/10 py-1 px-3 rounded-full inline-block mx-auto">{product.category}</div>
-                </CardHeader>
-                
-                <CardContent className="text-center pb-6 pt-2 flex-grow flex flex-col justify-end">
-                  <div className="mt-4 flex flex-col items-center justify-center">
-                    <span className="text-4xl font-heading text-primary mb-1">
-                      ₦{(product.priceKobo / 100).toLocaleString()}
-                    </span>
-                    <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest">
-                      / {product.billingPeriod === 'monthly' ? 'month' : 'check'}
-                    </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {products?.map((product) => {
+              const key = getLogoKey(product.name);
+              const logoSrc = LOGOS[key] ?? "";
+              const bgColor = BG_COLORS[key] ?? "#F7F8FA";
+
+              return (
+                <div
+                  key={product.id}
+                  className="bg-white border-2 border-gray-100 hover:border-primary/60 shadow-sm hover:shadow-lg transition-all duration-300 rounded-2xl overflow-hidden flex flex-col group"
+                >
+                  <div
+                    className="h-40 flex items-center justify-center p-6"
+                    style={{ backgroundColor: bgColor }}
+                  >
+                    {logoSrc ? (
+                      <img
+                        src={logoSrc}
+                        alt={product.name + " logo"}
+                        className="max-h-20 max-w-[160px] w-auto h-auto object-contain drop-shadow-sm"
+                      />
+                    ) : (
+                      <span className="text-4xl font-heading font-bold text-primary">
+                        {product.name[0]}
+                      </span>
+                    )}
                   </div>
-                </CardContent>
-                
-                <CardFooter className="pt-0 pb-6 px-6">
-                  <Link href={`/products/${product.id}`} className="w-full" data-testid={`link-product-${product.id}`}>
-                    <Button className="w-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-white rounded-lg uppercase tracking-widest shadow-sm group-hover:shadow-md transition-all">
-                      Buy Now
-                    </Button>
-                  </Link>
-                </CardFooter>
-              </Card>
-            ))}
+
+                  <div className="flex flex-col flex-grow px-5 pt-4 pb-5 text-center">
+                    <h3 className="text-lg font-bold font-sans text-foreground mb-1">
+                      {product.name}
+                    </h3>
+                    <span className="text-xs font-bold text-accent uppercase tracking-widest mb-3 bg-accent/10 py-0.5 px-2 rounded-full inline-block mx-auto">
+                      {product.category}
+                    </span>
+
+                    <div className="mt-auto mb-4">
+                      <span className="text-3xl font-heading text-primary font-bold">
+                        ₦{(product.priceKobo / 100).toLocaleString()}
+                      </span>
+                      <span className="text-xs text-muted-foreground font-semibold uppercase tracking-widest block mt-0.5">
+                        / {product.billingPeriod === "monthly" ? "month" : "check"}
+                      </span>
+                    </div>
+
+                    <Link
+                      href={`/products/${product.id}`}
+                      className="w-full"
+                      data-testid={`link-product-${product.id}`}
+                    >
+                      <Button className="w-full h-11 text-sm font-bold bg-primary hover:bg-primary/90 text-white rounded-lg uppercase tracking-widest shadow-sm group-hover:shadow-md transition-all">
+                        Buy Now
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
