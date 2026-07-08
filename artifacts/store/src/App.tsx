@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryCache, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Home from "@/pages/home";
@@ -13,8 +13,78 @@ import Success from "@/pages/success";
 import Dashboard from "@/pages/dashboard";
 import AdminPanel from "@/pages/admin";
 import NotFound from "@/pages/not-found";
+import { setDeviceId, ApiError } from "@workspace/api-client-react";
+import { PhoneOff } from "lucide-react";
 
-const queryClient = new QueryClient();
+// ── Device ID ────────────────────────────────────────────────────────────────
+function getOrCreateDeviceId(): string {
+  const key = "subshub_device_id";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
+setDeviceId(getOrCreateDeviceId());
+
+// ── Suspension store (module-level, subscribed via useSyncExternalStore) ─────
+let _isSuspended = false;
+let _suspendedListeners: Array<() => void> = [];
+
+function markSuspended() {
+  if (_isSuspended) return;
+  _isSuspended = true;
+  _suspendedListeners.forEach((l) => l());
+}
+
+function subscribeToSuspension(listener: () => void) {
+  _suspendedListeners.push(listener);
+  return () => {
+    _suspendedListeners = _suspendedListeners.filter((l) => l !== listener);
+  };
+}
+
+function useIsSuspended() {
+  return useSyncExternalStore(subscribeToSuspension, () => _isSuspended);
+}
+
+// ── QueryClient with global suspension detection ──────────────────────────────
+const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => {
+      if (error instanceof ApiError && error.status === 403) {
+        const data = error.data as Record<string, unknown> | null;
+        if (data?.error === "account_suspended") markSuspended();
+      }
+    },
+  }),
+});
+
+// ── Suspension screen ─────────────────────────────────────────────────────────
+function SuspendedScreen() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F7F8F9] px-6 text-center">
+      <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-12 max-w-md w-full">
+        <div className="w-16 h-16 rounded-2xl bg-red-100 flex items-center justify-center mx-auto mb-6">
+          <PhoneOff className="w-8 h-8 text-red-500" />
+        </div>
+        <h1 className="text-2xl font-bold text-foreground mb-3">Account Suspended</h1>
+        <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+          Your account has been suspended because it was accessed from too many devices.
+          Please contact the administrator to restore access.
+        </p>
+        <a
+          href="mailto:admin@subshub.com"
+          className="inline-block bg-primary hover:bg-primary/90 text-white font-bold rounded-xl px-8 py-3 text-sm transition-colors"
+        >
+          Contact Administrator
+        </a>
+      </div>
+    </div>
+  );
+}
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
@@ -52,7 +122,7 @@ const clerkAppearance = {
     colorInput: "#f9fafb",
     colorInputForeground: "#0f2217",
     colorNeutral: "#e5e7eb",
-    fontFamily: "'Poppins', sans-serif",
+    fontFamily: "'Times New Roman', Times, serif",
     borderRadius: "9px",
   },
   elements: {
@@ -176,6 +246,7 @@ function Router() {
 
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
+  const isSuspended = useIsSuspended();
 
   return (
     <ClerkProvider
@@ -204,7 +275,7 @@ function ClerkProviderWithRoutes() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <ClerkQueryClientCacheInvalidator />
-          <Router />
+          {isSuspended ? <SuspendedScreen /> : <Router />}
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>

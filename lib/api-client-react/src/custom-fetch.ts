@@ -17,6 +17,15 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _deviceId: string | null = null;
+
+/**
+ * Register a device ID to be sent as `X-Device-Id` on every request.
+ * Used for per-user device tracking and session limit enforcement.
+ */
+export function setDeviceId(id: string | null): void {
+  _deviceId = id;
+}
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -356,6 +365,11 @@ export async function customFetch<T = unknown>(
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
     }
+  }
+
+  // Attach device ID for session-limit tracking.
+  if (_deviceId && !headers.has("x-device-id")) {
+    headers.set("x-device-id", _deviceId);
   }
 
   const requestInfo = { method, url: resolveUrl(input) };

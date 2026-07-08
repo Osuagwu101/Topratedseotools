@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Save, ShieldCheck, Lock } from "lucide-react";
+import { Eye, EyeOff, Save, ShieldCheck, Lock, Monitor, Trash2 } from "lucide-react";
 
 interface Credential {
   id?: number;
@@ -21,6 +21,21 @@ interface ProductWithCred {
   name: string;
   category?: string;
   credential: Credential | null;
+}
+
+interface DeviceEntry {
+  deviceId: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+}
+
+interface UserDeviceSession {
+  userId: string;
+  deviceCount: number;
+  devices: DeviceEntry[];
+  suspended: boolean;
 }
 
 const BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -42,6 +57,22 @@ async function saveCredential(secret: string, body: Credential): Promise<void> {
       Authorization: `Bearer ${secret}`,
     },
     body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+async function fetchDeviceSessions(secret: string): Promise<UserDeviceSession[]> {
+  const res = await fetch(`${API}/admin/device-sessions`, {
+    headers: { Authorization: `Bearer ${secret}` },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function clearDeviceSessions(secret: string, userId: string): Promise<void> {
+  const res = await fetch(`${API}/admin/device-sessions/${encodeURIComponent(userId)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${secret}` },
   });
   if (!res.ok) throw new Error(await res.text());
 }
@@ -198,12 +229,123 @@ function CredentialRow({
   );
 }
 
+function DeviceSessionsPanel({ secret }: { secret: string }) {
+  const { toast } = useToast();
+  const [sessions, setSessions] = useState<UserDeviceSession[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [clearing, setClearing] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchDeviceSessions(secret);
+      setSessions(data);
+    } catch (e) {
+      toast({ title: "Error loading sessions", description: String(e), variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleClear = async (userId: string) => {
+    setClearing(userId);
+    try {
+      await clearDeviceSessions(secret, userId);
+      toast({ title: "Sessions cleared", description: "User can now log in again." });
+      await load();
+    } catch (e) {
+      toast({ title: "Error", description: String(e), variant: "destructive" });
+    } finally {
+      setClearing(null);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-2xl font-heading font-bold text-foreground uppercase">
+            Device <span className="text-primary">Sessions</span>
+          </h2>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Users are limited to 3 devices. Suspended accounts appear in red. Clear sessions to unsuspend.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={load}
+          disabled={loading}
+          className="text-xs font-semibold"
+        >
+          {loading ? "Loading…" : "Refresh"}
+        </Button>
+      </div>
+
+      {sessions.length === 0 && !loading && (
+        <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center text-muted-foreground text-sm">
+          No device sessions yet. Sessions appear when users make authenticated requests.
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {sessions.map((s) => (
+          <div
+            key={s.userId}
+            className={`bg-white border rounded-2xl p-5 shadow-sm ${s.suspended ? "border-red-200 bg-red-50/30" : "border-gray-100"}`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <Monitor className="w-4 h-4 text-gray-400 shrink-0" />
+                  <span className="font-mono text-xs text-gray-500 truncate">{s.userId}</span>
+                  {s.suspended ? (
+                    <span className="shrink-0 text-xs font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+                      SUSPENDED
+                    </span>
+                  ) : (
+                    <span className="shrink-0 text-xs font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                      {s.deviceCount} / 3 devices
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 space-y-1">
+                  {s.devices.map((d) => (
+                    <div key={d.deviceId} className="text-xs text-gray-500 flex gap-3 flex-wrap">
+                      <span className="font-mono">{d.ipAddress ?? "unknown IP"}</span>
+                      <span className="text-gray-400 truncate max-w-xs">{d.userAgent?.slice(0, 60) ?? "unknown browser"}</span>
+                      <span className="text-gray-400">last seen {new Date(d.lastSeenAt).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleClear(s.userId)}
+                disabled={clearing === s.userId}
+                className="shrink-0 border-red-200 text-red-600 hover:bg-red-50 font-semibold text-xs gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {clearing === s.userId ? "Clearing…" : "Clear Sessions"}
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPanel() {
   const [secret, setSecret] = useState(() => sessionStorage.getItem("admin_secret") ?? "");
   const [secretInput, setSecretInput] = useState("");
   const [products, setProducts] = useState<ProductWithCred[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [tab, setTab] = useState<"credentials" | "devices">("credentials");
   const { toast } = useToast();
 
   const authenticated = !!secret;
@@ -296,36 +438,59 @@ export default function AdminPanel() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 md:px-6 py-10 max-w-5xl">
-        <div className="mb-8">
-          <h2 className="text-2xl font-heading font-bold text-foreground uppercase">
-            Tool <span className="text-primary">Credentials</span>
-          </h2>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Set login credentials per tool. Active subscribers will see these on their dashboard.
-            Enable "One-Click Auto-Login" for Phrasly and StealthWriter.
-          </p>
+      <div className="container mx-auto px-4 md:px-6 max-w-5xl">
+        <div className="flex gap-1 mt-6 mb-8 bg-gray-100 rounded-xl p-1 w-fit">
+          <button
+            onClick={() => setTab("credentials")}
+            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "credentials" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            Tool Credentials
+          </button>
+          <button
+            onClick={() => setTab("devices")}
+            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "devices" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            Device Sessions
+          </button>
         </div>
+      </div>
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-medium">
-            {error}
-          </div>
+      <main className="container mx-auto px-4 md:px-6 pb-10 max-w-5xl">
+        {tab === "credentials" && (
+          <>
+            <div className="mb-8">
+              <h2 className="text-2xl font-heading font-bold text-foreground uppercase">
+                Tool <span className="text-primary">Credentials</span>
+              </h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Set login credentials per tool. Active subscribers will see these on their dashboard.
+                Enable "One-Click Auto-Login" for Phrasly and StealthWriter.
+              </p>
+            </div>
+
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-medium">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {products.map((p) => (
+                <CredentialRow
+                  key={p.id}
+                  product={p}
+                  secret={secret}
+                  onSaved={() => {
+                    toast({ title: "Refreshing…" });
+                    load(secret);
+                  }}
+                />
+              ))}
+            </div>
+          </>
         )}
 
-        <div className="space-y-4">
-          {products.map((p) => (
-            <CredentialRow
-              key={p.id}
-              product={p}
-              secret={secret}
-              onSaved={() => {
-                toast({ title: "Refreshing…" });
-                load(secret);
-              }}
-            />
-          ))}
-        </div>
+        {tab === "devices" && <DeviceSessionsPanel secret={secret} />}
       </main>
     </div>
   );
