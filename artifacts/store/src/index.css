@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Potta+One&family=Poppins:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -40,8 +39,8 @@
   --color-destructive-foreground: hsl(var(--destructive-foreground));
   --color-destructive-border: var(--destructive-border);
 
-  --font-sans: "Poppins", system-ui, sans-serif;
-  --font-heading: "Potta One", cursive;
+  --font-sans: "Times New Roman", Times, serif;
+  --font-heading: "Times New Roman", Times, serif;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
