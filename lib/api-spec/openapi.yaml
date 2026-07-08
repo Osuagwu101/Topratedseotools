@@ -10,6 +10,12 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: products
+    description: Subscription products
+  - name: orders
+    description: Orders
+  - name: paystack
+    description: Paystack payment operations
 paths:
   /healthz:
     get:
@@ -24,6 +30,127 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      summary: List all subscription products
+      responses:
+        "200":
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+
+  /products/{id}:
+    get:
+      operationId: getProduct
+      tags: [products]
+      summary: Get a single product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          description: Not found
+
+  /orders:
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: Create a new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Validation error
+
+  /orders/{id}:
+    get:
+      operationId: getOrder
+      tags: [orders]
+      summary: Get an order by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Not found
+
+  /paystack/initialize:
+    post:
+      operationId: initializePayment
+      tags: [paystack]
+      summary: Initialize a Paystack payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInit"
+      responses:
+        "200":
+          description: Paystack authorization URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentInitResponse"
+        "400":
+          description: Validation error
+
+  /paystack/verify/{reference}:
+    get:
+      operationId: verifyPayment
+      tags: [paystack]
+      summary: Verify a Paystack payment
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payment verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentVerification"
+        "400":
+          description: Verification failed
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +161,92 @@ components:
       required:
         - status
 
+    Product:
+      type: object
+      required: [id, name, description, priceKobo, billingPeriod, category]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        priceKobo:
+          type: integer
+          description: Price in kobo (1 NGN = 100 kobo)
+        billingPeriod:
+          type: string
+          description: "monthly or per_check"
+        category:
+          type: string
+        features:
+          type: array
+          items:
+            type: string
+        popular:
+          type: boolean
+
+    OrderInput:
+      type: object
+      required: [productId, customerEmail, customerName]
+      properties:
+        productId:
+          type: integer
+        customerEmail:
+          type: string
+        customerName:
+          type: string
+
+    Order:
+      type: object
+      required: [id, productId, customerEmail, customerName, amountKobo, status, reference, createdAt]
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+        customerEmail:
+          type: string
+        customerName:
+          type: string
+        amountKobo:
+          type: integer
+        status:
+          type: string
+        reference:
+          type: string
+        createdAt:
+          type: string
+
+    PaymentInit:
+      type: object
+      required: [orderId, email, amountKobo]
+      properties:
+        orderId:
+          type: integer
+        email:
+          type: string
+        amountKobo:
+          type: integer
+
+    PaymentInitResponse:
+      type: object
+      required: [authorizationUrl, reference]
+      properties:
+        authorizationUrl:
+          type: string
+        reference:
+          type: string
+
+    PaymentVerification:
+      type: object
+      required: [status, reference, amount]
+      properties:
+        status:
+          type: string
+        reference:
+          type: string
+        amount:
+          type: integer
+        orderId:
+          type: ["integer", "null"]
