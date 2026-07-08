@@ -50,6 +50,17 @@ export interface PaymentInitResponse {
   reference: string;
 }
 
+export interface UserOrder {
+  id: number;
+  productId: number;
+  productName: string;
+  amountKobo: number;
+  status: string;
+  reference: string;
+  createdAt: string;
+  billingPeriod: string;
+}
+
 export interface PaymentVerification {
   status: string;
   reference: string;

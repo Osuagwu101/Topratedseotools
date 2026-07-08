@@ -93,6 +93,22 @@ export const GetOrderResponse = zod.object({
 
 
 /**
+ * @summary Get the current authenticated user's orders
+ */
+export const GetMyOrdersResponseItem = zod.object({
+  "id": zod.number(),
+  "productId": zod.number(),
+  "productName": zod.string(),
+  "amountKobo": zod.number(),
+  "status": zod.string(),
+  "reference": zod.string(),
+  "createdAt": zod.string(),
+  "billingPeriod": zod.string()
+})
+export const GetMyOrdersResponse = zod.array(GetMyOrdersResponseItem)
+
+
+/**
  * @summary Initialize a Paystack payment
  */
 export const InitializePaymentBody = zod.object({

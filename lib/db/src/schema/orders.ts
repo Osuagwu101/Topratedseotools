@@ -10,6 +10,7 @@ export const ordersTable = pgTable("orders", {
   amountKobo: integer("amount_kobo").notNull(),
   status: text("status").notNull().default("pending"),
   reference: text("reference").notNull(),
+  clerkUserId: text("clerk_user_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

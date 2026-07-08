@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { getAuth } from "@clerk/express";
 import { db, ordersTable, productsTable } from "@workspace/db";
 import {
   CreateOrderBody,
@@ -30,6 +31,10 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   const reference = `SUB-${crypto.randomBytes(8).toString("hex").toUpperCase()}`;
 
+  // Associate order with logged-in user if authenticated
+  const auth = getAuth(req);
+  const clerkUserId = auth?.userId ?? null;
+
   const [order] = await db
     .insert(ordersTable)
     .values({
@@ -39,6 +44,7 @@ router.post("/orders", async (req, res): Promise<void> => {
       amountKobo: product.priceKobo,
       status: "pending",
       reference,
+      clerkUserId,
     })
     .returning();
 

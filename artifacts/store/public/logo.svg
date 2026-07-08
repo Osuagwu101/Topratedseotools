@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" fill="none">
+  <rect width="200" height="60" rx="8" fill="#ffffff"/>
+  <circle cx="28" cy="30" r="18" fill="#24A45A"/>
+  <text x="28" y="36" font-family="Arial, sans-serif" font-size="18" font-weight="800" fill="white" text-anchor="middle">S</text>
+  <text x="56" y="38" font-family="Arial, sans-serif" font-size="22" font-weight="800" fill="#1a2e22">Subs</text>
+  <text x="97" y="38" font-family="Arial, sans-serif" font-size="22" font-weight="800" fill="#24A45A">Hub</text>
+</svg>

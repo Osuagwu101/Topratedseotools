@@ -16,6 +16,8 @@ tags:
     description: Orders
   - name: paystack
     description: Paystack payment operations
+  - name: users
+    description: User account operations
 paths:
   /healthz:
     get:
@@ -108,6 +110,23 @@ paths:
                 $ref: "#/components/schemas/Order"
         "404":
           description: Not found
+
+  /users/me/orders:
+    get:
+      operationId: getMyOrders
+      tags: [users]
+      summary: Get the current authenticated user's orders
+      responses:
+        "200":
+          description: List of user orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserOrder"
+        "401":
+          description: Unauthorized
 
   /paystack/initialize:
     post:
@@ -236,6 +255,27 @@ components:
         authorizationUrl:
           type: string
         reference:
+          type: string
+
+    UserOrder:
+      type: object
+      required: [id, productId, productName, amountKobo, status, reference, createdAt, billingPeriod]
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+        productName:
+          type: string
+        amountKobo:
+          type: integer
+        status:
+          type: string
+        reference:
+          type: string
+        createdAt:
+          type: string
+        billingPeriod:
           type: string
 
     PaymentVerification:
