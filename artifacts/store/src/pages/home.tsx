@@ -2,7 +2,6 @@ import { useListProducts } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { Layout } from "@/components/layout";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SiGrammarly, SiNordvpn, SiSemrush } from "react-icons/si";
@@ -10,14 +9,26 @@ import { Video, Bot, Shield, Pencil } from "lucide-react";
 
 function getIconForProduct(name: string) {
   const n = name.toLowerCase();
-  if (n.includes("grammarly")) return <SiGrammarly className="w-8 h-8 text-[#11A683]" />;
-  if (n.includes("chatgpt")) return <Bot className="w-8 h-8 text-[#10A37F]" />;
-  if (n.includes("nordvpn")) return <SiNordvpn className="w-8 h-8 text-[#4687FF]" />;
-  if (n.includes("capcut")) return <Video className="w-8 h-8 text-white" />;
-  if (n.includes("semrush")) return <SiSemrush className="w-8 h-8 text-[#FF642D]" />;
-  if (n.includes("stealth")) return <Shield className="w-8 h-8 text-purple-400" />;
-  if (n.includes("quill") || n.includes("phrasly") || n.includes("turnitin")) return <Pencil className="w-8 h-8 text-blue-400" />;
-  return <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">{name[0]}</div>;
+  if (n.includes("grammarly")) return <SiGrammarly className="w-12 h-12 text-white" />;
+  if (n.includes("chatgpt")) return <Bot className="w-12 h-12 text-white" />;
+  if (n.includes("nordvpn")) return <SiNordvpn className="w-12 h-12 text-white" />;
+  if (n.includes("capcut")) return <Video className="w-12 h-12 text-white" />;
+  if (n.includes("semrush")) return <SiSemrush className="w-12 h-12 text-white" />;
+  if (n.includes("stealth")) return <Shield className="w-12 h-12 text-white" />;
+  if (n.includes("quill") || n.includes("phrasly") || n.includes("turnitin")) return <Pencil className="w-12 h-12 text-white" />;
+  return <div className="w-12 h-12 flex items-center justify-center text-white font-heading text-3xl">{name[0]}</div>;
+}
+
+function getGradientForProduct(name: string) {
+  const n = name.toLowerCase();
+  if (n.includes("grammarly")) return "from-teal-400 to-emerald-500";
+  if (n.includes("chatgpt")) return "from-green-500 to-emerald-600";
+  if (n.includes("nordvpn")) return "from-blue-500 to-blue-700";
+  if (n.includes("capcut")) return "from-gray-800 to-gray-900";
+  if (n.includes("semrush")) return "from-orange-400 to-red-500";
+  if (n.includes("stealth")) return "from-purple-500 to-indigo-600";
+  if (n.includes("quill") || n.includes("phrasly") || n.includes("turnitin")) return "from-blue-400 to-indigo-500";
+  return "from-primary to-green-600";
 }
 
 export default function Home() {
@@ -25,76 +36,66 @@ export default function Home() {
 
   return (
     <Layout>
-      <section className="relative pt-24 pb-32 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-background to-background" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-accent/10 via-transparent to-transparent" />
-        <div className="container mx-auto px-4 md:px-6 relative z-10 text-center max-w-4xl">
-          <Badge variant="outline" className="mb-6 border-primary/30 text-primary bg-primary/10 px-4 py-1.5 rounded-full text-sm font-medium tracking-wide">
-            Premium Tools, Nigerian Prices
-          </Badge>
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8 text-balance text-foreground leading-[1.1]">
-            Unlock your <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">productivity</span> without breaking the bank.
+      <section className="pt-20 pb-16 bg-white border-b border-border shadow-sm text-center">
+        <div className="container mx-auto px-4 md:px-6 max-w-5xl">
+          <h1 className="text-4xl md:text-6xl font-heading tracking-tight mb-6 text-foreground leading-[1.2] uppercase">
+            PREMIUM <span className="text-primary">GROUP BUY</span> <span className="text-accent">SEO TOOLS</span>
           </h1>
-          <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto font-medium">
             Shared, affordable access to the world's best AI and productivity tools. Join thousands of students and professionals scaling their work today.
           </p>
-          <div className="flex gap-4 justify-center">
-            <Button size="lg" className="rounded-full px-8 h-14 text-base font-semibold shadow-[0_0_40px_8px_rgba(139,92,246,0.3)] hover:shadow-[0_0_60px_12px_rgba(139,92,246,0.4)] transition-all bg-primary hover:bg-primary/90 text-white" data-testid="button-browse-tools">
-              <a href="#catalog">Browse Tools</a>
-            </Button>
-          </div>
+          <Button size="lg" className="rounded-xl px-10 h-14 text-lg font-bold bg-primary hover:bg-primary/90 text-white uppercase tracking-widest shadow-md hover:shadow-lg transition-all" data-testid="button-browse-tools">
+            <a href="#catalog">Browse Tools</a>
+          </Button>
         </div>
       </section>
 
-      <section id="catalog" className="container mx-auto px-4 md:px-6 py-24">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-4">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight mb-2">Available Subscriptions</h2>
-            <p className="text-muted-foreground">Instant access delivered to your email.</p>
-          </div>
+      <section id="catalog" className="container mx-auto px-4 md:px-6 py-20">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-heading tracking-tight mb-4 uppercase text-foreground">
+            <span className="text-primary">Choose Your</span> Tool
+          </h2>
+          <div className="w-24 h-1.5 bg-accent mx-auto rounded-full"></div>
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Skeleton key={i} className="h-[300px] rounded-2xl bg-card border border-white/5" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <Skeleton key={i} className="h-[400px] rounded-2xl bg-white border border-border shadow-sm" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {products?.map((product) => (
-              <Link key={product.id} href={`/products/${product.id}`} data-testid={`link-product-${product.id}`}>
-                <Card className="h-full border-white/10 bg-card/40 backdrop-blur-sm hover:bg-card/80 transition-all duration-300 hover:border-primary/50 group cursor-pointer overflow-hidden relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <CardHeader className="flex flex-row items-center gap-4 pb-2 relative z-10">
-                    <div className="p-3 rounded-xl bg-background border border-white/10 shadow-inner">
-                      {getIconForProduct(product.name)}
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl group-hover:text-primary transition-colors">{product.name}</CardTitle>
-                      <div className="text-sm text-muted-foreground capitalize">{product.category}</div>
-                    </div>
-                    {product.popular && (
-                      <Badge className="ml-auto bg-accent/20 text-accent hover:bg-accent/30 border-none rounded-full px-3">
-                        Hot
-                      </Badge>
-                    )}
-                  </CardHeader>
-                  <CardContent className="relative z-10">
-                    <p className="text-muted-foreground text-sm line-clamp-2 mt-2">{product.description}</p>
-                    <div className="mt-6 flex items-baseline gap-1">
-                      <span className="text-3xl font-bold tracking-tight">₦{(product.priceKobo / 100).toLocaleString()}</span>
-                      <span className="text-muted-foreground text-sm font-medium">/{product.billingPeriod === 'monthly' ? 'mo' : 'check'}</span>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="pt-4 border-t border-white/5 mt-auto relative z-10">
-                    <span className="text-primary font-medium text-sm group-hover:underline underline-offset-4 flex items-center gap-1">
-                      View Details 
-                      <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
+              <Card key={product.id} className="h-full bg-white border-2 border-transparent hover:border-primary/50 shadow-md hover:shadow-xl transition-all duration-300 rounded-2xl overflow-hidden flex flex-col group relative">
+                <div className={`h-36 bg-gradient-to-br ${getGradientForProduct(product.name)} flex items-center justify-center`}>
+                   {getIconForProduct(product.name)}
+                </div>
+                
+                <CardHeader className="text-center pb-2 pt-6">
+                  <CardTitle className="text-2xl font-bold font-sans text-foreground uppercase tracking-tight">{product.name}</CardTitle>
+                  <div className="text-xs font-bold text-accent uppercase tracking-widest mt-2 bg-accent/10 py-1 px-3 rounded-full inline-block mx-auto">{product.category}</div>
+                </CardHeader>
+                
+                <CardContent className="text-center pb-6 pt-2 flex-grow flex flex-col justify-end">
+                  <div className="mt-4 flex flex-col items-center justify-center">
+                    <span className="text-4xl font-heading text-primary mb-1">
+                      ₦{(product.priceKobo / 100).toLocaleString()}
                     </span>
-                  </CardFooter>
-                </Card>
-              </Link>
+                    <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest">
+                      / {product.billingPeriod === 'monthly' ? 'month' : 'check'}
+                    </span>
+                  </div>
+                </CardContent>
+                
+                <CardFooter className="pt-0 pb-6 px-6">
+                  <Link href={`/products/${product.id}`} className="w-full" data-testid={`link-product-${product.id}`}>
+                    <Button className="w-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-white rounded-lg uppercase tracking-widest shadow-sm group-hover:shadow-md transition-all">
+                      Buy Now
+                    </Button>
+                  </Link>
+                </CardFooter>
+              </Card>
             ))}
           </div>
         )}
