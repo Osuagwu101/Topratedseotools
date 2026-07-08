@@ -5,8 +5,8 @@ import { eq, and } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-// Returns an HTML page that auto-submits a login form to the tool's login URL.
-// Only available to users with an active subscription for the requested product.
+// For isAutoLogin tools: redirect straight to the reverse proxy so all traffic
+// comes from the server's single IP. Falls back to form-submit for non-proxy tools.
 router.get("/tools/:productId/autologin", async (req, res): Promise<void> => {
   const auth = getAuth(req);
   const userId = auth?.userId;
@@ -54,6 +54,12 @@ router.get("/tools/:productId/autologin", async (req, res): Promise<void> => {
     .select()
     .from(toolCredentialsTable)
     .where(eq(toolCredentialsTable.productId, productId));
+
+  // For isAutoLogin tools redirect to the reverse proxy (single IP / device)
+  if (cred?.isAutoLogin) {
+    res.redirect(302, `/api/proxy/${productId}/`);
+    return;
+  }
 
   if (!cred || !cred.loginUrl || !cred.username || !cred.password) {
     res.status(503).send(`

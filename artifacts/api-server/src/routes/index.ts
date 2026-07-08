@@ -6,6 +6,7 @@ import paystackRouter from "./paystack";
 import usersRouter from "./users";
 import adminRouter from "./admin";
 import autologinRouter from "./autologin";
+import proxyRouter from "./proxy";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(paystackRouter);
 router.use(usersRouter);
 router.use(adminRouter);
 router.use(autologinRouter);
+router.use(proxyRouter);
 
 export default router;

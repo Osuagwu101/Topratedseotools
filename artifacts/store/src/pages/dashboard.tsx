@@ -280,14 +280,14 @@ export default function Dashboard() {
                         {hasAutoLogin && (
                           <div className="mt-4">
                             <a
-                              href={`${BASE_PATH}/api/tools/${order.productId}/autologin`}
+                              href={`${BASE_PATH}/api/proxy/${order.productId}/`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center justify-center gap-2 w-full h-10 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-xl transition-colors"
                               onClick={() =>
                                 toast({
                                   title: `Opening ${order.productName}…`,
-                                  description: "You'll be logged in automatically.",
+                                  description: "Logging in from a single secure IP…",
                                 })
                               }
                             >
@@ -295,7 +295,7 @@ export default function Dashboard() {
                               Launch {order.productName}
                             </a>
                             <p className="text-center text-xs text-muted-foreground mt-2">
-                              One-click login — opens in a new tab
+                              All traffic routed through our server — one IP, one device
                             </p>
                           </div>
                         )}
