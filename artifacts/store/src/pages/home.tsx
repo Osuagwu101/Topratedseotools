@@ -1,5 +1,6 @@
 import { useListProducts } from "@workspace/api-client-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@clerk/react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -44,6 +45,8 @@ function getLogoKey(name: string): string {
 
 export default function Home() {
   const { data: products, isLoading } = useListProducts();
+  const { isSignedIn } = useAuth();
+  const [, setLocation] = useLocation();
 
   return (
     <Layout>
@@ -126,15 +129,19 @@ export default function Home() {
                       </span>
                     </div>
 
-                    <Link
-                      href={`/products/${product.id}`}
-                      className="w-full"
+                    <Button
+                      className="w-full h-11 text-sm font-bold bg-primary hover:bg-primary/90 text-white rounded-lg uppercase tracking-widest shadow-sm group-hover:shadow-md transition-all"
                       data-testid={`link-product-${product.id}`}
+                      onClick={() => {
+                        if (isSignedIn) {
+                          setLocation(`/products/${product.id}`);
+                        } else {
+                          setLocation(`/sign-in`);
+                        }
+                      }}
                     >
-                      <Button className="w-full h-11 text-sm font-bold bg-primary hover:bg-primary/90 text-white rounded-lg uppercase tracking-widest shadow-sm group-hover:shadow-md transition-all">
-                        Buy Now
-                      </Button>
-                    </Link>
+                      Buy Now
+                    </Button>
                   </div>
                 </div>
               );

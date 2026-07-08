@@ -1,5 +1,6 @@
 import { useGetProduct } from "@workspace/api-client-react";
-import { Link, useRoute } from "wouter";
+import { Link, useRoute, useLocation } from "wouter";
+import { useAuth } from "@clerk/react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,7 +34,9 @@ function getGradientForProduct(name: string) {
 export default function ProductDetail() {
   const [, params] = useRoute("/products/:id");
   const productId = params?.id ? parseInt(params.id, 10) : 0;
-  
+  const { isSignedIn } = useAuth();
+  const [, setLocation] = useLocation();
+
   const { data: product, isLoading } = useGetProduct(productId, {
     query: { enabled: !!productId }
   });
@@ -133,11 +136,19 @@ export default function ProductDetail() {
                   </div>
                 </div>
                 
-                <Link href={`/checkout?productId=${product.id}`}>
-                  <Button className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary/90 text-white rounded-xl uppercase tracking-wider shadow-md hover:shadow-lg transition-all" data-testid="button-subscribe">
-                    Buy Now
-                  </Button>
-                </Link>
+                <Button
+                  className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary/90 text-white rounded-xl uppercase tracking-wider shadow-md hover:shadow-lg transition-all"
+                  data-testid="button-subscribe"
+                  onClick={() => {
+                    if (isSignedIn) {
+                      setLocation(`/checkout?productId=${product.id}`);
+                    } else {
+                      setLocation(`/sign-in`);
+                    }
+                  }}
+                >
+                  Buy Now
+                </Button>
                 <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-6 flex items-center justify-center gap-2">
                    Secured by Paystack
                 </div>

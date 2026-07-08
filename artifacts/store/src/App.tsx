@@ -144,13 +144,26 @@ function ProtectedDashboard() {
   );
 }
 
+function ProtectedCheckout() {
+  return (
+    <>
+      <Show when="signed-in">
+        <Checkout />
+      </Show>
+      <Show when="signed-out">
+        <Redirect to="/sign-in" />
+      </Show>
+    </>
+  );
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={HomeRedirect} />
       <Route path="/dashboard" component={ProtectedDashboard} />
       <Route path="/products/:id" component={ProductDetail} />
-      <Route path="/checkout" component={Checkout} />
+      <Route path="/checkout" component={ProtectedCheckout} />
       <Route path="/success" component={Success} />
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
