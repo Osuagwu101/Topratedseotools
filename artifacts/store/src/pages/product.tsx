@@ -15,6 +15,7 @@ function getIconForProduct(name: string) {
   if (n.includes("capcut")) return <Video className="w-20 h-20 text-white" />;
   if (n.includes("semrush")) return <SiSemrush className="w-20 h-20 text-white" />;
   if (n.includes("stealth") || n.includes("writehuman") || n.includes("write human")) return <Shield className="w-20 h-20 text-white" />;
+  if (n.includes("jenni")) return <Pencil className="w-20 h-20 text-white" />;
   if (n.includes("quill") || n.includes("phrasly") || n.includes("turnitin")) return <Pencil className="w-20 h-20 text-white" />;
   return <div className="w-20 h-20 flex items-center justify-center text-white font-heading text-5xl">{name[0]}</div>;
 }
@@ -28,6 +29,7 @@ function getGradientForProduct(name: string) {
   if (n.includes("semrush")) return "from-orange-400 to-red-500";
   if (n.includes("stealth")) return "from-purple-500 to-indigo-600";
   if (n.includes("writehuman") || n.includes("write human")) return "from-emerald-400 to-teal-600";
+  if (n.includes("jenni")) return "from-purple-400 to-pink-500";
   if (n.includes("quill") || n.includes("phrasly") || n.includes("turnitin")) return "from-blue-400 to-indigo-500";
   return "from-primary to-green-600";
 }

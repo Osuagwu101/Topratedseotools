@@ -16,6 +16,7 @@ const LOGOS: Record<string, string> = {
   capcut:        "/logos/capcut.png",
   turnitin:      "/logos/turnitin.png",
   writehuman:    "/logos/writehuman.png",
+  jenni:         "/logos/jenni.png",
 };
 
 const BG_COLORS: Record<string, string> = {
@@ -29,6 +30,7 @@ const BG_COLORS: Record<string, string> = {
   capcut:        "#F0F0F0",
   turnitin:      "#FFF0F0",
   writehuman:    "#F0FFF8",
+  jenni:         "#FFF5FF",
 };
 
 function getLogoKey(name: string): string {
@@ -43,6 +45,7 @@ function getLogoKey(name: string): string {
   if (n.includes("capcut")) return "capcut";
   if (n.includes("turnitin")) return "turnitin";
   if (n.includes("writehuman") || n.includes("write human")) return "writehuman";
+  if (n.includes("jenni")) return "jenni";
   return "";
 }
 
