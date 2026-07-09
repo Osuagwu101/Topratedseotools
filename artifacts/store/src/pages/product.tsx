@@ -135,7 +135,7 @@ export default function ProductDetail() {
                   </div>
                   <div className="flex justify-between py-3 border-b border-border">
                     <span className="text-muted-foreground">Payment</span>
-                    <span>Monnify</span>
+                    <span>Paystack</span>
                   </div>
                 </div>
                 
@@ -153,7 +153,7 @@ export default function ProductDetail() {
                   Buy Now
                 </Button>
                 <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-6 flex items-center justify-center gap-2">
-                   Secured by Monnify
+                   Secured by Paystack
                 </div>
               </div>
             </div>

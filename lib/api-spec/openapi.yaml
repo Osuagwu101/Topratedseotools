@@ -15,7 +15,7 @@ tags:
   - name: orders
     description: Orders
   - name: payments
-    description: Monnify payment operations
+    description: Paystack payment operations
   - name: users
     description: User account operations
 paths:
@@ -128,11 +128,11 @@ paths:
         "401":
           description: Unauthorized
 
-  /monnify/initialize:
+  /paystack/initialize:
     post:
       operationId: initializePayment
       tags: [payments]
-      summary: Initialize a Monnify payment
+      summary: Initialize a Paystack payment
       requestBody:
         required: true
         content:
@@ -141,7 +141,7 @@ paths:
               $ref: "#/components/schemas/PaymentInit"
       responses:
         "200":
-          description: Monnify checkout URL
+          description: Paystack checkout URL
           content:
             application/json:
               schema:
@@ -149,11 +149,11 @@ paths:
         "400":
           description: Validation error
 
-  /monnify/verify/{reference}:
+  /paystack/verify/{reference}:
     get:
       operationId: verifyPayment
       tags: [payments]
-      summary: Verify a Monnify payment
+      summary: Verify a Paystack payment
       parameters:
         - name: reference
           in: path
