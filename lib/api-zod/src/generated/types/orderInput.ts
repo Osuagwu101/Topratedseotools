@@ -10,4 +10,6 @@ export interface OrderInput {
   productId: number;
   customerEmail: string;
   customerName: string;
+  /** 1, 3, or 12 — defaults to 1 */
+  durationMonths?: number;
 }

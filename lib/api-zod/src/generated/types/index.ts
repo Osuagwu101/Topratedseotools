@@ -12,5 +12,7 @@ export * from './orderInput';
 export * from './paymentInit';
 export * from './paymentInitResponse';
 export * from './paymentVerification';
+export * from './paystackWebhookPayload';
+export * from './paystackWebhookPayloadData';
 export * from './product';
 export * from './userOrder';

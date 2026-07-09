@@ -149,6 +149,23 @@ paths:
         "400":
           description: Validation error
 
+  /paystack/webhook:
+    post:
+      operationId: paystackWebhook
+      tags: [payments]
+      summary: Paystack webhook — activates orders/entitlements on successful payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaystackWebhookPayload"
+      responses:
+        "200":
+          description: Webhook processed
+        "400":
+          description: Invalid signature or payload
+
   /paystack/verify/{reference}:
     get:
       operationId: verifyPayment
@@ -192,7 +209,13 @@ components:
           type: string
         priceKobo:
           type: integer
-          description: Price in kobo (1 NGN = 100 kobo)
+          description: 1-month price in kobo (1 NGN = 100 kobo)
+        price3MonthKobo:
+          type: ["integer", "null"]
+          description: 3-month price in kobo, if configured
+        price12MonthKobo:
+          type: ["integer", "null"]
+          description: 12-month price in kobo, if configured
         billingPeriod:
           type: string
           description: "monthly or per_check"
@@ -215,10 +238,13 @@ components:
           type: string
         customerName:
           type: string
+        durationMonths:
+          type: integer
+          description: "1, 3, or 12 — defaults to 1"
 
     Order:
       type: object
-      required: [id, productId, customerEmail, customerName, amountKobo, status, reference, createdAt]
+      required: [id, productId, customerEmail, customerName, amountKobo, status, reference, createdAt, durationMonths]
       properties:
         id:
           type: integer
@@ -236,6 +262,8 @@ components:
           type: string
         createdAt:
           type: string
+        durationMonths:
+          type: integer
 
     PaymentInit:
       type: object
@@ -259,7 +287,7 @@ components:
 
     UserOrder:
       type: object
-      required: [id, productId, productName, amountKobo, status, reference, createdAt, billingPeriod]
+      required: [id, productId, productName, amountKobo, status, reference, createdAt, billingPeriod, durationMonths]
       properties:
         id:
           type: integer
@@ -277,6 +305,10 @@ components:
           type: string
         billingPeriod:
           type: string
+        durationMonths:
+          type: integer
+        expiresAt:
+          type: ["string", "null"]
         credUsername:
           type: string
           nullable: true
@@ -286,6 +318,22 @@ components:
         isAutoLogin:
           type: boolean
           nullable: true
+
+    PaystackWebhookPayload:
+      type: object
+      required: [event]
+      properties:
+        event:
+          type: string
+        data:
+          type: object
+          properties:
+            reference:
+              type: string
+            amount:
+              type: integer
+            status:
+              type: string
 
     PaymentVerification:
       type: object

@@ -10,8 +10,18 @@ export interface Product {
   id: number;
   name: string;
   description: string;
-  /** Price in kobo (1 NGN = 100 kobo) */
+  /** 1-month price in kobo (1 NGN = 100 kobo) */
   priceKobo: number;
+  /**
+     * 3-month price in kobo, if configured
+     * @nullable
+     */
+  price3MonthKobo?: number | null;
+  /**
+     * 12-month price in kobo, if configured
+     * @nullable
+     */
+  price12MonthKobo?: number | null;
   /** monthly or per_check */
   billingPeriod: string;
   category: string;

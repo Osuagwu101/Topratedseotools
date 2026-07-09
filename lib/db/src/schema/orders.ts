@@ -9,8 +9,9 @@ export const ordersTable = pgTable("orders", {
   customerName: text("customer_name").notNull(),
   amountKobo: integer("amount_kobo").notNull(),
   status: text("status").notNull().default("pending"),
-  reference: text("reference").notNull(),
+  reference: text("reference").notNull().unique(),
   clerkUserId: text("clerk_user_id"),
+  durationMonths: integer("duration_months").notNull().default(1),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

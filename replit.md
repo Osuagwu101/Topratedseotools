@@ -33,17 +33,22 @@ A subscription services storefront where users can browse and purchase monthly a
 ## Architecture decisions
 
 - Paystack payment flow: create order → initialize payment (server builds checkout with DB-sourced amount/email) → redirect to Paystack checkout → customer returns to `/success?reference=...` → verify on return
-- Verify route re-checks the amount actually paid against the order's `amountKobo`; underpayment marks the order `failed`/`underpaid` instead of `success`
+- The Paystack **webhook** (`POST /api/paystack/webhook`) is the source of truth for activation — it verifies the signature (HMAC SHA512 of the raw body), re-verifies the transaction server-side, then calls the shared `activateOrderByReference` helper. The client-triggered `/paystack/verify/:reference` route calls the same helper, so both paths produce identical, idempotent results (safe against Paystack's webhook retries and user double-visits)
+- Verify/webhook re-check the amount actually paid against the order's `amountKobo`; underpayment marks the order `failed`/`underpaid` instead of `success`
+- `tool_entitlements` table (not `orders.status` alone) is the access-control source: one row per activated order with `status` + `expiresAt`. Dashboard and the auto-login proxy both check `expiresAt > now()`, so expired subscriptions lose access automatically without a cron job
+- Orders have a `durationMonths` (1/3/12) captured at creation; entitlement `expiresAt` is computed as `now() + durationMonths` at activation time
 - Prices stored in kobo (1 NGN = 100 kobo) throughout, matching Paystack's API (which also expects/returns amounts in kobo) — no unit conversion needed for Paystack, unlike the brief Monnify migration
 - `billingPeriod` is either "monthly" or "per_check" (Turnitin)
-- Orders get a unique `reference` (SUB-XXXX) at creation time, used as Paystack's `reference` for matching
+- Orders get a unique `reference` (SUB-XXXX, DB-unique) at creation time, used as Paystack's `reference` for matching
+- Logged-in checkout skips the name/email form entirely — customer name/email are sourced from the Clerk profile, since there is no guest-checkout path
 
 ## Product
 
-All 9 subscription products are pre-seeded:
+All 11 subscription products are pre-seeded with tiered pricing (1/3/12 months, `priceKobo`/`price3MonthKobo`/`price12MonthKobo` — the latter two are nullable and checkout only shows durations that have a configured price):
 - Grammarly (₦2,500/mo), Quillbot (₦2,500/mo), Phrasly (₦8,500/mo)
 - ChatGPT (₦8,500/mo), StealthWriter (₦17,000/mo), NordVPN (₦18,000/mo)
-- SEMrush (₦3,000/mo), CapCut (₦5,000/mo), Turnitin (₦2,300/check)
+- SEMrush (₦3,000/mo), CapCut (₦5,000/mo), Turnitin (₦2,300/check, 1-month pricing only)
+- WriteHuman (₦8,500/mo), Jenni AI (₦7,500/mo)
 
 ## User preferences
 

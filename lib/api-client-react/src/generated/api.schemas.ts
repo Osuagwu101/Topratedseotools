@@ -13,8 +13,18 @@ export interface Product {
   id: number;
   name: string;
   description: string;
-  /** Price in kobo (1 NGN = 100 kobo) */
+  /** 1-month price in kobo (1 NGN = 100 kobo) */
   priceKobo: number;
+  /**
+     * 3-month price in kobo, if configured
+     * @nullable
+     */
+  price3MonthKobo?: number | null;
+  /**
+     * 12-month price in kobo, if configured
+     * @nullable
+     */
+  price12MonthKobo?: number | null;
   /** monthly or per_check */
   billingPeriod: string;
   category: string;
@@ -26,6 +36,8 @@ export interface OrderInput {
   productId: number;
   customerEmail: string;
   customerName: string;
+  /** 1, 3, or 12 — defaults to 1 */
+  durationMonths?: number;
 }
 
 export interface Order {
@@ -37,6 +49,7 @@ export interface Order {
   status: string;
   reference: string;
   createdAt: string;
+  durationMonths: number;
 }
 
 export interface PaymentInit {
@@ -59,9 +72,23 @@ export interface UserOrder {
   reference: string;
   createdAt: string;
   billingPeriod: string;
+  durationMonths: number;
+  /** @nullable */
+  expiresAt?: string | null;
   credUsername?: string | null;
   credPassword?: string | null;
   isAutoLogin?: boolean | null;
+}
+
+export type PaystackWebhookPayloadData = {
+  reference?: string;
+  amount?: number;
+  status?: string;
+};
+
+export interface PaystackWebhookPayload {
+  event: string;
+  data?: PaystackWebhookPayloadData;
 }
 
 export interface PaymentVerification {

@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import { db, ordersTable } from "@workspace/db";
 import {
   InitializePaymentBody,
@@ -7,7 +7,9 @@ import {
   VerifyPaymentResponse,
 } from "@workspace/api-zod";
 import { eq } from "drizzle-orm";
+import crypto from "crypto";
 import { logger } from "../lib/logger";
+import { activateOrderByReference, markOrderFailed } from "../lib/activateOrder";
 
 const router: IRouter = Router();
 
@@ -48,7 +50,7 @@ router.post("/paystack/initialize", async (req, res): Promise<void> => {
       }),
     });
 
-    const paystackData = await paystackRes.json() as {
+    const paystackData = (await paystackRes.json()) as {
       status: boolean;
       data?: { authorization_url: string; reference: string };
       message?: string;
@@ -64,11 +66,82 @@ router.post("/paystack/initialize", async (req, res): Promise<void> => {
       InitializePaymentResponse.parse({
         authorizationUrl: paystackData.data.authorization_url,
         reference: paystackData.data.reference,
-      })
+      }),
     );
   } catch (err) {
     logger.error({ err }, "Paystack API error");
     res.status(500).json({ error: "Failed to initialize payment" });
+  }
+});
+
+// Paystack webhook — the source of truth for payment activation. Configure this URL
+// (`/api/paystack/webhook`) in the Paystack dashboard. Paystack retries on non-200
+// responses, so this handler must be idempotent (see activateOrderByReference).
+router.post("/paystack/webhook", async (req, res): Promise<void> => {
+  const signature = req.headers["x-paystack-signature"];
+  const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
+
+  if (!PAYSTACK_SECRET_KEY || !rawBody || typeof signature !== "string") {
+    logger.error("Paystack webhook missing signature or raw body");
+    res.status(400).send("Invalid request");
+    return;
+  }
+
+  const expectedSignature = crypto
+    .createHmac("sha512", PAYSTACK_SECRET_KEY)
+    .update(rawBody)
+    .digest("hex");
+
+  if (expectedSignature !== signature) {
+    logger.error("Paystack webhook signature mismatch — rejecting");
+    res.status(400).send("Invalid signature");
+    return;
+  }
+
+  const event = req.body as {
+    event?: string;
+    data?: { reference?: string; amount?: number };
+  };
+
+  const reference = event.data?.reference;
+  if (!reference) {
+    res.status(400).send("Missing reference");
+    return;
+  }
+
+  try {
+    if (event.event === "charge.success") {
+      // Never trust the webhook body amount alone — re-verify server-side with Paystack.
+      const verifyRes = await fetch(
+        `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
+        { headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` } },
+      );
+      const verifyData = (await verifyRes.json()) as {
+        status: boolean;
+        data?: { status: string; amount: number };
+      };
+
+      if (verifyData.status && verifyData.data?.status === "success") {
+        const result = await activateOrderByReference(reference, verifyData.data.amount);
+        logger.info({ reference, result: result.outcome }, "Paystack webhook processed");
+      } else {
+        await markOrderFailed(reference);
+        logger.error({ reference, verifyData }, "Paystack webhook charge.success but re-verify failed");
+      }
+    } else if (
+      event.event === "charge.failed" ||
+      event.event === "charge.dispute.create" ||
+      event.event === "transaction.reversed"
+    ) {
+      await markOrderFailed(reference);
+    }
+
+    // Always 200 once handled (or intentionally ignored) so Paystack stops retrying.
+    res.status(200).send("ok");
+  } catch (err) {
+    logger.error({ err, reference }, "Paystack webhook processing error");
+    // Non-200 so Paystack retries later — the handler is idempotent.
+    res.status(500).send("error");
   }
 });
 
@@ -82,13 +155,16 @@ router.get("/paystack/verify/:reference", async (req, res): Promise<void> => {
   const { reference } = params.data;
 
   try {
-    const paystackRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
-      headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+    const paystackRes = await fetch(
+      `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+        },
       },
-    });
+    );
 
-    const paystackData = await paystackRes.json() as {
+    const paystackData = (await paystackRes.json()) as {
       status: boolean;
       data?: {
         status: string;
@@ -103,40 +179,17 @@ router.get("/paystack/verify/:reference", async (req, res): Promise<void> => {
       return;
     }
 
-    let txStatus = paystackData.data.status;
-
+    let txStatus: string = paystackData.data.status;
     let orderId: number | null = null;
 
     if (txStatus === "success") {
-      const [order] = await db
-        .select()
-        .from(ordersTable)
-        .where(eq(ordersTable.reference, reference));
-
-      if (order) {
-        orderId = order.id;
-
-        if (paystackData.data.amount < order.amountKobo) {
-          req.log.error(
-            {
-              reference,
-              paidAmount: paystackData.data.amount,
-              expectedAmount: order.amountKobo,
-            },
-            "Paystack verify amount mismatch — refusing to activate order"
-          );
-          txStatus = "underpaid";
-          await db
-            .update(ordersTable)
-            .set({ status: "failed" })
-            .where(eq(ordersTable.reference, reference));
-        } else {
-          await db
-            .update(ordersTable)
-            .set({ status: "success" })
-            .where(eq(ordersTable.reference, reference));
-        }
+      const result = await activateOrderByReference(reference, paystackData.data.amount);
+      orderId = result.orderId;
+      if (result.outcome === "underpaid") {
+        txStatus = "underpaid";
       }
+      // "activated" and "already_active" both reflect a successful, entitled order —
+      // this mirrors whatever the webhook already produced (or will produce shortly).
     }
 
     res.json(
@@ -145,7 +198,7 @@ router.get("/paystack/verify/:reference", async (req, res): Promise<void> => {
         reference: paystackData.data.reference,
         amount: paystackData.data.amount,
         orderId,
-      })
+      }),
     );
   } catch (err) {
     logger.error({ err }, "Paystack verify error");

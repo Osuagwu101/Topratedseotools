@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { getAuth } from "@clerk/express";
-import { db, ordersTable, productsTable, toolCredentialsTable } from "@workspace/db";
+import { db, ordersTable, productsTable, toolCredentialsTable, toolEntitlementsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -24,23 +24,34 @@ router.get("/users/me/orders", async (req, res): Promise<void> => {
       status: ordersTable.status,
       reference: ordersTable.reference,
       createdAt: ordersTable.createdAt,
+      durationMonths: ordersTable.durationMonths,
       credUsername: toolCredentialsTable.username,
       credPassword: toolCredentialsTable.password,
       isAutoLogin: toolCredentialsTable.isAutoLogin,
+      entitlementStatus: toolEntitlementsTable.status,
+      expiresAt: toolEntitlementsTable.expiresAt,
     })
     .from(ordersTable)
     .innerJoin(productsTable, eq(ordersTable.productId, productsTable.id))
     .leftJoin(toolCredentialsTable, eq(toolCredentialsTable.productId, ordersTable.productId))
+    .leftJoin(toolEntitlementsTable, eq(toolEntitlementsTable.orderId, ordersTable.id))
     .where(eq(ordersTable.clerkUserId, userId))
     .orderBy(ordersTable.createdAt);
 
   res.json(
     rows.map((r) => {
-      const isActive = r.status === "success";
+      const now = new Date();
+      const isEntitled =
+        r.entitlementStatus === "active" && !!r.expiresAt && r.expiresAt > now;
+      // An order is "active" for display purposes only while its entitlement is
+      // both marked active and not yet expired.
+      const isActive = r.status === "success" && isEntitled;
       return {
         ...r,
         createdAt: r.createdAt.toISOString(),
-        // Only expose credentials for active subscriptions.
+        expiresAt: r.expiresAt ? r.expiresAt.toISOString() : null,
+        status: r.status === "success" && !isEntitled && r.expiresAt ? "expired" : r.status,
+        // Only expose credentials for active (non-expired) subscriptions.
         // For auto-login tools, omit raw password (auto-login endpoint handles it).
         credUsername: isActive ? r.credUsername : null,
         credPassword: isActive && !r.isAutoLogin ? r.credPassword : null,

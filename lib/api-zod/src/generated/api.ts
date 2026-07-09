@@ -24,7 +24,9 @@ export const ListProductsResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string(),
-  "priceKobo": zod.number().describe('Price in kobo (1 NGN = 100 kobo)'),
+  "priceKobo": zod.number().describe('1-month price in kobo (1 NGN = 100 kobo)'),
+  "price3MonthKobo": zod.number().nullish().describe('3-month price in kobo, if configured'),
+  "price12MonthKobo": zod.number().nullish().describe('12-month price in kobo, if configured'),
   "billingPeriod": zod.string().describe('monthly or per_check'),
   "category": zod.string(),
   "features": zod.array(zod.string()).optional(),
@@ -44,7 +46,9 @@ export const GetProductResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string(),
-  "priceKobo": zod.number().describe('Price in kobo (1 NGN = 100 kobo)'),
+  "priceKobo": zod.number().describe('1-month price in kobo (1 NGN = 100 kobo)'),
+  "price3MonthKobo": zod.number().nullish().describe('3-month price in kobo, if configured'),
+  "price12MonthKobo": zod.number().nullish().describe('12-month price in kobo, if configured'),
   "billingPeriod": zod.string().describe('monthly or per_check'),
   "category": zod.string(),
   "features": zod.array(zod.string()).optional(),
@@ -58,7 +62,8 @@ export const GetProductResponse = zod.object({
 export const CreateOrderBody = zod.object({
   "productId": zod.number(),
   "customerEmail": zod.string(),
-  "customerName": zod.string()
+  "customerName": zod.string(),
+  "durationMonths": zod.number().optional().describe('1, 3, or 12 — defaults to 1')
 })
 
 export const CreateOrderResponse = zod.object({
@@ -69,7 +74,8 @@ export const CreateOrderResponse = zod.object({
   "amountKobo": zod.number(),
   "status": zod.string(),
   "reference": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "durationMonths": zod.number()
 })
 
 
@@ -88,7 +94,8 @@ export const GetOrderResponse = zod.object({
   "amountKobo": zod.number(),
   "status": zod.string(),
   "reference": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "durationMonths": zod.number()
 })
 
 
@@ -104,6 +111,8 @@ export const GetMyOrdersResponseItem = zod.object({
   "reference": zod.string(),
   "createdAt": zod.string(),
   "billingPeriod": zod.string(),
+  "durationMonths": zod.number(),
+  "expiresAt": zod.string().nullish(),
   "credUsername": zod.string().nullish(),
   "credPassword": zod.string().nullish(),
   "isAutoLogin": zod.boolean().nullish()
@@ -124,6 +133,21 @@ export const InitializePaymentResponse = zod.object({
   "authorizationUrl": zod.string(),
   "reference": zod.string()
 })
+
+
+/**
+ * @summary Paystack webhook — activates orders/entitlements on successful payment
+ */
+export const PaystackWebhookBody = zod.object({
+  "event": zod.string(),
+  "data": zod.object({
+  "reference": zod.string().optional(),
+  "amount": zod.number().optional(),
+  "status": zod.string().optional()
+}).optional()
+})
+
+export const PaystackWebhookResponse = zod.unknown()
 
 
 /**

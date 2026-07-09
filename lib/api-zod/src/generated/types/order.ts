@@ -15,4 +15,5 @@ export interface Order {
   status: string;
   reference: string;
   createdAt: string;
+  durationMonths: number;
 }

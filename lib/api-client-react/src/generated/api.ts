@@ -26,6 +26,7 @@ import type {
   PaymentInit,
   PaymentInitResponse,
   PaymentVerification,
+  PaystackWebhookPayload,
   Product,
   UserOrder
 } from './api.schemas';
@@ -583,6 +584,77 @@ export const useInitializePayment = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getInitializePaymentMutationOptions(options));
+    }
+
+export const getPaystackWebhookUrl = () => {
+
+
+
+
+  return `/api/paystack/webhook`
+}
+
+/**
+ * @summary Paystack webhook — activates orders/entitlements on successful payment
+ */
+export const paystackWebhook = async (paystackWebhookPayload: PaystackWebhookPayload, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getPaystackWebhookUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(paystackWebhookPayload)
+  }
+);}
+
+
+
+
+
+export const getPaystackWebhookMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof paystackWebhook>>, TError,{data: BodyType<PaystackWebhookPayload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof paystackWebhook>>, TError,{data: BodyType<PaystackWebhookPayload>}, TContext> => {
+
+const mutationKey = ['paystackWebhook'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof paystackWebhook>>, {data: BodyType<PaystackWebhookPayload>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  paystackWebhook(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PaystackWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof paystackWebhook>>>
+    export type PaystackWebhookMutationBody = BodyType<PaystackWebhookPayload>
+    export type PaystackWebhookMutationError = ErrorType<void>
+
+    /**
+ * @summary Paystack webhook — activates orders/entitlements on successful payment
+ */
+export const usePaystackWebhook = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof paystackWebhook>>, TError,{data: BodyType<PaystackWebhookPayload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof paystackWebhook>>,
+        TError,
+        {data: BodyType<PaystackWebhookPayload>},
+        TContext
+      > => {
+      return useMutation(getPaystackWebhookMutationOptions(options));
     }
 
 export const getVerifyPaymentUrl = (reference: string,) => {

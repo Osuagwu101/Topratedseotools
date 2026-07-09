@@ -15,6 +15,9 @@ export interface UserOrder {
   reference: string;
   createdAt: string;
   billingPeriod: string;
+  durationMonths: number;
+  /** @nullable */
+  expiresAt?: string | null;
   credUsername?: string | null;
   credPassword?: string | null;
   isAutoLogin?: boolean | null;

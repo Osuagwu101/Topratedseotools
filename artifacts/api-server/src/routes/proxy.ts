@@ -14,8 +14,8 @@
 
 import { Router, type RequestHandler } from "express";
 import { getAuth } from "@clerk/express";
-import { db, ordersTable, toolCredentialsTable, productsTable } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
+import { db, toolEntitlementsTable, toolCredentialsTable, productsTable } from "@workspace/db";
+import { and, eq, gt } from "drizzle-orm";
 
 const router = Router();
 
@@ -146,17 +146,18 @@ async function checkAccess(
   userId: string,
   productId: number,
 ): Promise<boolean> {
-  const [order] = await db
-    .select({ id: ordersTable.id })
-    .from(ordersTable)
+  const [entitlement] = await db
+    .select({ id: toolEntitlementsTable.id })
+    .from(toolEntitlementsTable)
     .where(
       and(
-        eq(ordersTable.clerkUserId, userId),
-        eq(ordersTable.productId, productId),
-        eq(ordersTable.status, "success"),
+        eq(toolEntitlementsTable.clerkUserId, userId),
+        eq(toolEntitlementsTable.productId, productId),
+        eq(toolEntitlementsTable.status, "active"),
+        gt(toolEntitlementsTable.expiresAt, new Date()),
       ),
     );
-  return !!order;
+  return !!entitlement;
 }
 
 // ── Proxy handler ────────────────────────────────────────────────────────────

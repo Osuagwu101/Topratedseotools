@@ -80,6 +80,14 @@ function StatusBadge({ status }: { status: string }) {
       </span>
     );
   }
+  if (status === "expired") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-gray-600">
+        <XCircle className="w-3.5 h-3.5" />
+        Expired
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">
       <XCircle className="w-3.5 h-3.5" />
@@ -279,6 +287,16 @@ export default function Dashboard() {
                                 day: "numeric",
                               })}
                             </p>
+                            {order.expiresAt && (
+                              <p className="text-xs text-muted-foreground mt-0.5 font-semibold">
+                                Renews / expires{" "}
+                                {new Date(order.expiresAt).toLocaleDateString("en-NG", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </p>
+                            )}
                           </div>
                         </div>
 

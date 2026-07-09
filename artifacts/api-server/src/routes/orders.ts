@@ -35,16 +35,29 @@ router.post("/orders", async (req, res): Promise<void> => {
   const auth = getAuth(req);
   const clerkUserId = auth?.userId ?? null;
 
+  const durationMonths = parsed.data.durationMonths ?? 1;
+  const priceByDuration: Record<number, number | null> = {
+    1: product.priceKobo,
+    3: product.price3MonthKobo,
+    12: product.price12MonthKobo,
+  };
+  const amountKobo = priceByDuration[durationMonths];
+  if (durationMonths !== 1 && (amountKobo === undefined || amountKobo === null)) {
+    res.status(400).json({ error: `No price configured for ${durationMonths}-month duration` });
+    return;
+  }
+
   const [order] = await db
     .insert(ordersTable)
     .values({
       productId: parsed.data.productId,
       customerEmail: parsed.data.customerEmail,
       customerName: parsed.data.customerName,
-      amountKobo: product.priceKobo,
+      amountKobo: amountKobo ?? product.priceKobo,
       status: "pending",
       reference,
       clerkUserId,
+      durationMonths,
     })
     .returning();
 
