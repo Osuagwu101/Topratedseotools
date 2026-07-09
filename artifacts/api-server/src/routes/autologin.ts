@@ -1,8 +1,6 @@
 import { Router, type IRouter } from "express";
 import { getAuth } from "@clerk/express";
-import { db, toolCredentialsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
-import { hasActiveEntitlement } from "../lib/activateOrder";
+import { resolveServerForUser } from "../lib/toolAccess";
 
 const router: IRouter = Router();
 
@@ -23,10 +21,11 @@ router.get("/tools/:productId/autologin", async (req, res): Promise<void> => {
     return;
   }
 
-  // Check user has an active, non-expired entitlement (same source of truth as the proxy).
-  const hasAccess = await hasActiveEntitlement(userId, productId);
+  // Resolve the specific server credential set assigned to this user's active
+  // entitlement (same source of truth as the proxy).
+  const server = await resolveServerForUser(userId, productId);
 
-  if (!hasAccess) {
+  if (!server) {
     res.status(403).send(`
       <!DOCTYPE html>
       <html>
@@ -41,19 +40,13 @@ router.get("/tools/:productId/autologin", async (req, res): Promise<void> => {
     return;
   }
 
-  // Fetch credentials
-  const [cred] = await db
-    .select()
-    .from(toolCredentialsTable)
-    .where(eq(toolCredentialsTable.productId, productId));
-
   // For isAutoLogin tools redirect to the reverse proxy (single IP / device)
-  if (cred?.isAutoLogin) {
+  if (server.isAutoLogin) {
     res.redirect(302, `/api/proxy/${productId}/`);
     return;
   }
 
-  if (!cred || !cred.loginUrl || !cred.username || !cred.password) {
+  if (!server.loginUrl || !server.username || !server.password) {
     res.status(503).send(`
       <!DOCTYPE html>
       <html>
@@ -68,8 +61,8 @@ router.get("/tools/:productId/autologin", async (req, res): Promise<void> => {
     return;
   }
 
-  const usernameField = cred.usernameField ?? "email";
-  const passwordField = cred.passwordField ?? "password";
+  const usernameField = server.usernameField ?? "email";
+  const passwordField = server.passwordField ?? "password";
 
   res.setHeader("Content-Type", "text/html");
   res.send(`<!DOCTYPE html>
@@ -105,12 +98,12 @@ router.get("/tools/:productId/autologin", async (req, res): Promise<void> => {
 </head>
 <body>
   <div class="spinner"></div>
-  <h2>Connecting you to ${cred.usernameField ? "the tool" : "the tool"}…</h2>
+  <h2>Connecting you to the tool…</h2>
   <p>You will be redirected automatically. Please wait.</p>
 
-  <form id="f" method="POST" action="${cred.loginUrl}" style="display:none;">
-    <input name="${usernameField}" value="${escapeHtml(cred.username)}" />
-    <input name="${passwordField}" value="${escapeHtml(cred.password)}" />
+  <form id="f" method="POST" action="${server.loginUrl}" style="display:none;">
+    <input name="${usernameField}" value="${escapeHtml(server.username)}" />
+    <input name="${passwordField}" value="${escapeHtml(server.password)}" />
   </form>
   <script>
     // Give the spinner a moment to render, then submit

@@ -7,16 +7,18 @@
  *
  * Flow:
  *  1. User (authenticated + active sub) hits /api/proxy/:productId/*
- *  2. Server checks/refreshes a server-side session for that tool
+ *  2. Server resolves which tool_server credential set their entitlement was
+ *     granted against (falls back to the product's first auto-login server for
+ *     legacy entitlements with no serverId), then checks/refreshes a
+ *     server-side session for that specific server.
  *  3. Every request is forwarded from our server with the cached session
  *  4. HTML + JS responses are rewritten so all links go back through our proxy
  */
 
 import { Router, type RequestHandler } from "express";
 import { getAuth } from "@clerk/express";
-import { db, toolCredentialsTable, productsTable } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
-import { hasActiveEntitlement } from "../lib/activateOrder";
+import { toolServersTable } from "@workspace/db";
+import { resolveServerForUser } from "../lib/toolAccess";
 
 const router = Router();
 
@@ -25,7 +27,7 @@ const DEVICE_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
   "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 
-// ── Server-side session cache ────────────────────────────────────────────────
+// ── Server-side session cache — keyed by tool_servers.id ─────────────────────
 interface ToolSession {
   cookie: string;
   authHeader: string;
@@ -34,27 +36,22 @@ interface ToolSession {
 
 const sessions = new Map<number, ToolSession>();
 
-async function loginToTool(productId: number): Promise<ToolSession | null> {
-  const [cred] = await db
-    .select()
-    .from(toolCredentialsTable)
-    .where(eq(toolCredentialsTable.productId, productId));
-
-  if (!cred?.loginUrl || !cred.username || !cred.password) return null;
+async function loginToTool(server: typeof toolServersTable.$inferSelect): Promise<ToolSession | null> {
+  if (!server.loginUrl || !server.username || !server.password) return null;
 
   let toolOrigin: string;
   try {
-    toolOrigin = new URL(cred.loginUrl).origin;
+    toolOrigin = new URL(server.loginUrl).origin;
   } catch {
     return null;
   }
 
   const body = JSON.stringify({
-    [cred.usernameField ?? "email"]: cred.username,
-    [cred.passwordField ?? "password"]: cred.password,
+    [server.usernameField ?? "email"]: server.username,
+    [server.passwordField ?? "password"]: server.password,
   });
 
-  const loginRes = await fetch(cred.loginUrl, {
+  const loginRes = await fetch(server.loginUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -99,18 +96,18 @@ async function loginToTool(productId: number): Promise<ToolSession | null> {
   return { cookie, authHeader, expiresAt: Date.now() + 25 * 60 * 1000 };
 }
 
-async function getSession(productId: number): Promise<ToolSession | null> {
-  const cached = sessions.get(productId);
+async function getSession(server: typeof toolServersTable.$inferSelect): Promise<ToolSession | null> {
+  const cached = sessions.get(server.id);
   if (cached && cached.expiresAt > Date.now()) return cached;
 
-  const session = await loginToTool(productId);
-  if (session) sessions.set(productId, session);
+  const session = await loginToTool(server);
+  if (session) sessions.set(server.id, session);
   return session;
 }
 
 // Invalidate cached session (called when we detect auth failure)
-function invalidateSession(productId: number): void {
-  sessions.delete(productId);
+function invalidateSession(serverId: number): void {
+  sessions.delete(serverId);
 }
 
 // ── URL rewriter ─────────────────────────────────────────────────────────────
@@ -157,39 +154,28 @@ const proxyHandler: RequestHandler = async (req, res): Promise<void> => {
     return;
   }
 
-  // Subscription check
-  const hasAccess = await hasActiveEntitlement(auth.userId, productId);
-  if (!hasAccess) {
+  // Resolve entitlement + the specific server credential set assigned to it
+  const server = await resolveServerForUser(auth.userId, productId);
+  if (!server) {
     res.status(403).send("No active subscription for this tool.");
     return;
   }
 
-  // Look up credential config
-  const [cred] = await db
-    .select()
-    .from(toolCredentialsTable)
-    .where(
-      and(
-        eq(toolCredentialsTable.productId, productId),
-        eq(toolCredentialsTable.isAutoLogin, true),
-      ),
-    );
-
-  if (!cred?.loginUrl) {
+  if (!server.loginUrl) {
     res.status(503).send("Tool not configured for proxy login. Contact admin.");
     return;
   }
 
   let toolOrigin: string;
   try {
-    toolOrigin = new URL(cred.loginUrl).origin;
+    toolOrigin = new URL(server.loginUrl).origin;
   } catch {
     res.status(503).send("Invalid tool login URL configured.");
     return;
   }
 
   // Get (or refresh) server-side session
-  let session = await getSession(productId);
+  let session = await getSession(server);
   if (!session) {
     res.status(503).send(
       "Could not establish session — check credentials in admin panel.",
@@ -238,8 +224,8 @@ const proxyHandler: RequestHandler = async (req, res): Promise<void> => {
 
   // If the tool returned 401/403, our session may have expired — retry once
   if (toolRes.status === 401 || toolRes.status === 403) {
-    invalidateSession(productId);
-    session = await getSession(productId);
+    invalidateSession(server.id);
+    session = await getSession(server);
     if (session) {
       if (session.cookie) fwdHeaders["Cookie"] = session.cookie;
       if (session.authHeader) fwdHeaders["Authorization"] = session.authHeader;
@@ -263,7 +249,7 @@ const proxyHandler: RequestHandler = async (req, res): Promise<void> => {
       : [];
   if (newCookies.length > 0) {
     const merged = newCookies.map((c: string) => c.split(";")[0]).join("; ");
-    const existing = sessions.get(productId);
+    const existing = sessions.get(server.id);
     if (existing) {
       existing.cookie = merged;
     }

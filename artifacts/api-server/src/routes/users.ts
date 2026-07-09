@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { getAuth } from "@clerk/express";
-import { db, ordersTable, productsTable, toolCredentialsTable, toolEntitlementsTable } from "@workspace/db";
+import { db, ordersTable, productsTable, toolServersTable, toolEntitlementsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -25,16 +25,16 @@ router.get("/users/me/orders", async (req, res): Promise<void> => {
       reference: ordersTable.reference,
       createdAt: ordersTable.createdAt,
       durationMonths: ordersTable.durationMonths,
-      credUsername: toolCredentialsTable.username,
-      credPassword: toolCredentialsTable.password,
-      isAutoLogin: toolCredentialsTable.isAutoLogin,
+      credUsername: toolServersTable.username,
+      credPassword: toolServersTable.password,
+      isAutoLogin: toolServersTable.isAutoLogin,
       entitlementStatus: toolEntitlementsTable.status,
       expiresAt: toolEntitlementsTable.expiresAt,
     })
     .from(ordersTable)
     .innerJoin(productsTable, eq(ordersTable.productId, productsTable.id))
-    .leftJoin(toolCredentialsTable, eq(toolCredentialsTable.productId, ordersTable.productId))
     .leftJoin(toolEntitlementsTable, eq(toolEntitlementsTable.orderId, ordersTable.id))
+    .leftJoin(toolServersTable, eq(toolServersTable.id, toolEntitlementsTable.serverId))
     .where(eq(ordersTable.clerkUserId, userId))
     .orderBy(ordersTable.createdAt);
 

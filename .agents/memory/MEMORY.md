@@ -2,3 +2,4 @@
 - [Payment amount trust](payment-integrity.md) — never let the client dictate charge amount/email for a payment gateway; always source from the DB order and re-verify the paid amount before activating.
 - [SubsHub payment provider history](subshub-payment-provider.md) — reverted Paystack→Monnify→Paystack; user lacked live Monnify keys, so don't re-suggest Monnify without confirming they have live (not sandbox) credentials first.
 - [Payment webhook idempotency pattern](payment-webhook-idempotency.md) — share one idempotent activation function between webhook and client-verify paths; never trust webhook body amount.
+- [Per-entitlement server assignment](per-entitlement-server-assignment.md) — when a product can have multiple credential pools, store the assigned pool ID on the entitlement row itself, not just the product, so proxy/autologin resolve access per-user.

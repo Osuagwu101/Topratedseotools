@@ -41,6 +41,8 @@ A subscription services storefront where users can browse and purchase monthly a
 - `billingPeriod` is either "monthly" or "per_check" (Turnitin)
 - Orders get a unique `reference` (SUB-XXXX, DB-unique) at creation time, used as Paystack's `reference` for matching
 - Logged-in checkout skips the name/email form entirely — customer name/email are sourced from the Clerk profile, since there is no guest-checkout path
+- `tool_servers` table supports multiple independent credential sets ("servers") per product (replacing the old one-credential-per-product model). Each `tool_entitlements` row stores the specific `serverId` it was granted against, so different subscribers on the same tool can be spread across different backing accounts. Proxy/autologin resolve access via `resolveServerForUser` (in `lib/toolAccess.ts`), which prefers the entitlement's assigned server and falls back to the product's first auto-login server for legacy rows with no `serverId`
+- Admin panel (`/admin`, HTTP Basic auth via `ADMIN_USERNAME`/`ADMIN_PASSWORD`) supports: per-product tiered pricing edits, full CRUD on `tool_servers`, Clerk user search/creation (`clerkClient.users`), and manual entitlement grants (`POST /api/admin/grant`) that bypass Paystack by creating a `MANUAL-XXXX` order with `amountKobo: 0` and reusing `activateOrderByReference`
 
 ## Product
 

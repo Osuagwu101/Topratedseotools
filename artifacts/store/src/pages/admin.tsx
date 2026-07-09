@@ -2,11 +2,25 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Save, ShieldCheck, Lock, Monitor, Trash2, User } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Save,
+  ShieldCheck,
+  Lock,
+  Monitor,
+  Trash2,
+  User,
+  Plus,
+  Search,
+  UserPlus,
+  Gift,
+} from "lucide-react";
 
-interface Credential {
+interface ToolServer {
   id?: number;
   productId: number;
+  label: string;
   username?: string | null;
   password?: string | null;
   loginUrl?: string | null;
@@ -16,11 +30,15 @@ interface Credential {
   notes?: string | null;
 }
 
-interface ProductWithCred {
+interface ProductWithServers {
   id: number;
   name: string;
   category?: string;
-  credential: Credential | null;
+  billingPeriod: string;
+  priceKobo: number;
+  price3MonthKobo: number | null;
+  price12MonthKobo: number | null;
+  servers: ToolServer[];
 }
 
 interface DeviceEntry {
@@ -38,6 +56,14 @@ interface UserDeviceSession {
   suspended: boolean;
 }
 
+interface ClerkUserResult {
+  id: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  createdAt: string;
+}
+
 const BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, "");
 const API = `${BASE_PATH}/api`;
 
@@ -45,7 +71,16 @@ function makeBasicAuth(username: string, password: string) {
   return `Basic ${btoa(`${username}:${password}`)}`;
 }
 
-async function fetchProducts(token: string): Promise<ProductWithCred[]> {
+function koboToNaira(kobo: number | null): string {
+  if (kobo === null || kobo === undefined) return "";
+  return String(kobo / 100);
+}
+
+function nairaToKobo(naira: string): number {
+  return Math.round(parseFloat(naira || "0") * 100);
+}
+
+async function fetchProducts(token: string): Promise<ProductWithServers[]> {
   const res = await fetch(`${API}/admin/products`, {
     headers: { Authorization: token },
   });
@@ -53,9 +88,31 @@ async function fetchProducts(token: string): Promise<ProductWithCred[]> {
   return res.json();
 }
 
-async function saveCredential(token: string, body: Credential): Promise<void> {
-  const res = await fetch(`${API}/admin/credentials`, {
-    method: "POST",
+async function saveServer(token: string, body: ToolServer): Promise<void> {
+  const url = body.id ? `${API}/admin/servers/${body.id}` : `${API}/admin/servers`;
+  const res = await fetch(url, {
+    method: body.id ? "PUT" : "POST",
+    headers: { "Content-Type": "application/json", Authorization: token },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+async function deleteServer(token: string, id: number): Promise<void> {
+  const res = await fetch(`${API}/admin/servers/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: token },
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+async function savePricing(
+  token: string,
+  productId: number,
+  body: { priceKobo?: number; price3MonthKobo?: number | null; price12MonthKobo?: number | null },
+): Promise<void> {
+  const res = await fetch(`${API}/admin/products/${productId}/pricing`, {
+    method: "PUT",
     headers: { "Content-Type": "application/json", Authorization: token },
     body: JSON.stringify(body),
   });
@@ -78,38 +135,66 @@ async function clearDeviceSessions(token: string, userId: string): Promise<void>
   if (!res.ok) throw new Error(await res.text());
 }
 
-function CredentialRow({
-  product,
+async function searchUsers(token: string, query: string): Promise<ClerkUserResult[]> {
+  const res = await fetch(`${API}/admin/users/search?query=${encodeURIComponent(query)}`, {
+    headers: { Authorization: token },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function createUser(
+  token: string,
+  body: { emailAddress: string; password: string; firstName?: string; lastName?: string },
+): Promise<ClerkUserResult> {
+  const res = await fetch(`${API}/admin/users`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: token },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function grantEntitlement(
+  token: string,
+  body: { clerkUserId: string; productId: number; durationMonths: number; serverId?: number | null },
+): Promise<void> {
+  const res = await fetch(`${API}/admin/grant`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: token },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+function ServerCard({
+  productId,
+  server,
   token,
   onSaved,
+  onDeleted,
 }: {
-  product: ProductWithCred;
+  productId: number;
+  server: ToolServer;
   token: string;
   onSaved: () => void;
+  onDeleted: () => void;
 }) {
   const { toast } = useToast();
-  const cred = product.credential;
-  const [form, setForm] = useState<Credential>({
-    productId: product.id,
-    username: cred?.username ?? "",
-    password: cred?.password ?? "",
-    loginUrl: cred?.loginUrl ?? "",
-    usernameField: cred?.usernameField ?? "email",
-    passwordField: cred?.passwordField ?? "password",
-    isAutoLogin: cred?.isAutoLogin ?? false,
-    notes: cred?.notes ?? "",
-  });
+  const [form, setForm] = useState<ToolServer>(server);
   const [showPass, setShowPass] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  const set = (k: keyof Credential, v: string | boolean) =>
+  const set = (k: keyof ToolServer, v: string | boolean) =>
     setForm((f) => ({ ...f, [k]: v }));
 
   const save = async () => {
     setSaving(true);
     try {
-      await saveCredential(token, form);
-      toast({ title: "Saved", description: `${product.name} credentials updated.` });
+      await saveServer(token, { ...form, productId });
+      toast({ title: "Saved", description: `${form.label} credentials updated.` });
       onSaved();
     } catch (e) {
       toast({ title: "Error", description: String(e), variant: "destructive" });
@@ -118,19 +203,51 @@ function CredentialRow({
     }
   };
 
+  const remove = async () => {
+    if (!form.id) return;
+    setDeleting(true);
+    try {
+      await deleteServer(token, form.id);
+      toast({ title: "Removed", description: `${form.label} deleted.` });
+      onDeleted();
+    } catch (e) {
+      toast({ title: "Error", description: String(e), variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="font-bold text-lg text-foreground">{product.name}</h3>
-        <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer select-none">
-          <input
-            type="checkbox"
-            className="w-4 h-4 accent-primary"
-            checked={!!form.isAutoLogin}
-            onChange={(e) => set("isAutoLogin", e.target.checked)}
-          />
-          <span className="text-primary">One-Click Auto-Login</span>
-        </label>
+    <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
+      <div className="flex items-center justify-between mb-4 gap-3">
+        <Input
+          value={form.label}
+          onChange={(e) => set("label", e.target.value)}
+          placeholder="Server label (e.g. Server 1)"
+          className="font-bold max-w-xs"
+        />
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer select-none">
+            <input
+              type="checkbox"
+              className="w-4 h-4 accent-primary"
+              checked={!!form.isAutoLogin}
+              onChange={(e) => set("isAutoLogin", e.target.checked)}
+            />
+            <span className="text-primary">Auto-Login</span>
+          </label>
+          {form.id && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={remove}
+              disabled={deleting}
+              className="border-red-200 text-red-600 hover:bg-red-50 h-8 px-2"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -216,15 +333,144 @@ function CredentialRow({
         </div>
       </div>
 
-      <div className="mt-5 flex justify-end">
+      <div className="mt-4 flex justify-end">
         <Button
           onClick={save}
           disabled={saving}
-          className="bg-primary hover:bg-primary/90 text-white font-bold h-10 px-6 rounded-xl gap-2"
+          size="sm"
+          className="bg-primary hover:bg-primary/90 text-white font-bold gap-2"
         >
           <Save className="w-4 h-4" />
           {saving ? "Saving…" : "Save"}
         </Button>
+      </div>
+    </div>
+  );
+}
+
+function PricingRow({
+  product,
+  token,
+  onSaved,
+}: {
+  product: ProductWithServers;
+  token: string;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const [price1, setPrice1] = useState(koboToNaira(product.priceKobo));
+  const [price3, setPrice3] = useState(koboToNaira(product.price3MonthKobo));
+  const [price12, setPrice12] = useState(koboToNaira(product.price12MonthKobo));
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await savePricing(token, product.id, {
+        priceKobo: nairaToKobo(price1),
+        price3MonthKobo: price3.trim() ? nairaToKobo(price3) : null,
+        price12MonthKobo: price12.trim() ? nairaToKobo(price12) : null,
+      });
+      toast({ title: "Pricing saved", description: `${product.name} pricing updated.` });
+      onSaved();
+    } catch (e) {
+      toast({ title: "Error", description: String(e), variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isPerCheck = product.billingPeriod === "per_check";
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+      <div>
+        <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+          {isPerCheck ? "Per-check (₦)" : "1 Month (₦)"}
+        </label>
+        <Input value={price1} onChange={(e) => setPrice1(e.target.value)} placeholder="2500" />
+      </div>
+      {!isPerCheck && (
+        <>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+              3 Months (₦)
+            </label>
+            <Input value={price3} onChange={(e) => setPrice3(e.target.value)} placeholder="optional" />
+          </div>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+              12 Months (₦)
+            </label>
+            <Input value={price12} onChange={(e) => setPrice12(e.target.value)} placeholder="optional" />
+          </div>
+        </>
+      )}
+      <Button onClick={save} disabled={saving} size="sm" className="bg-primary hover:bg-primary/90 text-white font-bold gap-2">
+        <Save className="w-4 h-4" />
+        {saving ? "Saving…" : "Save Pricing"}
+      </Button>
+    </div>
+  );
+}
+
+function ToolConfigCard({
+  product,
+  token,
+  onSaved,
+}: {
+  product: ProductWithServers;
+  token: string;
+  onSaved: () => void;
+}) {
+  const [servers, setServers] = useState<ToolServer[]>(product.servers);
+
+  useEffect(() => setServers(product.servers), [product.servers]);
+
+  const addServer = () => {
+    setServers((s) => [
+      ...s,
+      { productId: product.id, label: `Server ${s.length + 1}`, isAutoLogin: false },
+    ]);
+  };
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="font-bold text-lg text-foreground">{product.name}</h3>
+      </div>
+
+      <div className="mb-6 pb-6 border-b border-gray-100">
+        <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 block">
+          Pricing
+        </label>
+        <PricingRow product={product} token={token} onSaved={onSaved} />
+      </div>
+
+      <div className="flex items-center justify-between mb-3">
+        <label className="text-xs font-bold uppercase tracking-wider text-gray-500 block">
+          Server Credentials ({servers.length})
+        </label>
+        <Button variant="outline" size="sm" onClick={addServer} className="text-xs font-semibold gap-1.5">
+          <Plus className="w-3.5 h-3.5" />
+          Add Server
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        {servers.length === 0 && (
+          <p className="text-sm text-muted-foreground italic">No servers configured yet.</p>
+        )}
+        {servers.map((s, i) => (
+          <ServerCard
+            key={s.id ?? `new-${i}`}
+            productId={product.id}
+            server={s}
+            token={token}
+            onSaved={onSaved}
+            onDeleted={onSaved}
+          />
+        ))}
       </div>
     </div>
   );
@@ -330,15 +576,245 @@ function DeviceSessionsPanel({ token }: { token: string }) {
   );
 }
 
+function UsersPanel({ token, products }: { token: string; products: ProductWithServers[] }) {
+  const { toast } = useToast();
+
+  // Search
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<ClerkUserResult[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  // Create user
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newFirstName, setNewFirstName] = useState("");
+  const [newLastName, setNewLastName] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  // Grant
+  const [grantUserId, setGrantUserId] = useState("");
+  const [grantProductId, setGrantProductId] = useState<number | "">("");
+  const [grantDuration, setGrantDuration] = useState<1 | 3 | 12>(1);
+  const [grantServerId, setGrantServerId] = useState<number | "">("");
+  const [granting, setGranting] = useState(false);
+
+  const doSearch = async () => {
+    if (!query.trim()) return;
+    setSearching(true);
+    try {
+      const data = await searchUsers(token, query.trim());
+      setResults(data);
+    } catch (e) {
+      toast({ title: "Search failed", description: String(e), variant: "destructive" });
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const doCreate = async () => {
+    if (!newEmail.trim() || !newPassword) return;
+    setCreating(true);
+    try {
+      const user = await createUser(token, {
+        emailAddress: newEmail.trim(),
+        password: newPassword,
+        firstName: newFirstName.trim() || undefined,
+        lastName: newLastName.trim() || undefined,
+      });
+      toast({ title: "User created", description: user.email ?? user.id });
+      setGrantUserId(user.id);
+      setNewEmail("");
+      setNewPassword("");
+      setNewFirstName("");
+      setNewLastName("");
+    } catch (e) {
+      toast({ title: "Error", description: String(e), variant: "destructive" });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const doGrant = async () => {
+    if (!grantUserId.trim() || !grantProductId) return;
+    setGranting(true);
+    try {
+      await grantEntitlement(token, {
+        clerkUserId: grantUserId.trim(),
+        productId: grantProductId,
+        durationMonths: grantDuration,
+        serverId: grantServerId || null,
+      });
+      toast({ title: "Access granted", description: `Entitlement created for ${grantUserId.trim()}.` });
+    } catch (e) {
+      toast({ title: "Error", description: String(e), variant: "destructive" });
+    } finally {
+      setGranting(false);
+    }
+  };
+
+  const selectedProduct = products.find((p) => p.id === grantProductId);
+
+  return (
+    <div className="space-y-8">
+      <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+        <h3 className="font-bold text-lg text-foreground mb-4 flex items-center gap-2">
+          <Search className="w-4 h-4 text-primary" /> Find a User
+        </h3>
+        <div className="flex gap-2 mb-4">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && doSearch()}
+            placeholder="Search by email or name…"
+          />
+          <Button onClick={doSearch} disabled={searching} className="shrink-0">
+            {searching ? "Searching…" : "Search"}
+          </Button>
+        </div>
+        <div className="space-y-2">
+          {results.map((u) => (
+            <div
+              key={u.id}
+              className="flex items-center justify-between p-3 rounded-lg border border-gray-100 bg-gray-50 text-sm"
+            >
+              <div>
+                <div className="font-semibold">{u.email ?? "(no email)"}</div>
+                <div className="text-xs text-gray-500 font-mono">{u.id}</div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => setGrantUserId(u.id)}
+              >
+                Use for Grant
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+        <h3 className="font-bold text-lg text-foreground mb-4 flex items-center gap-2">
+          <UserPlus className="w-4 h-4 text-primary" /> Create User
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <Input placeholder="Email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+          <Input
+            type="password"
+            placeholder="Password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+          <Input
+            placeholder="First name (optional)"
+            value={newFirstName}
+            onChange={(e) => setNewFirstName(e.target.value)}
+          />
+          <Input
+            placeholder="Last name (optional)"
+            value={newLastName}
+            onChange={(e) => setNewLastName(e.target.value)}
+          />
+        </div>
+        <Button onClick={doCreate} disabled={creating || !newEmail.trim() || !newPassword} className="font-bold">
+          {creating ? "Creating…" : "Create User"}
+        </Button>
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+        <h3 className="font-bold text-lg text-foreground mb-4 flex items-center gap-2">
+          <Gift className="w-4 h-4 text-primary" /> Grant Access (no payment)
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div className="sm:col-span-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+              Clerk User ID
+            </label>
+            <Input
+              value={grantUserId}
+              onChange={(e) => setGrantUserId(e.target.value)}
+              placeholder="user_xxxxxxxx"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+              Product
+            </label>
+            <select
+              className="w-full h-10 rounded-md border border-gray-200 px-3 text-sm"
+              value={grantProductId}
+              onChange={(e) => {
+                setGrantProductId(e.target.value ? Number(e.target.value) : "");
+                setGrantServerId("");
+              }}
+            >
+              <option value="">Select a product…</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+              Duration
+            </label>
+            <select
+              className="w-full h-10 rounded-md border border-gray-200 px-3 text-sm"
+              value={grantDuration}
+              onChange={(e) => setGrantDuration(Number(e.target.value) as 1 | 3 | 12)}
+            >
+              <option value={1}>1 month</option>
+              <option value={3}>3 months</option>
+              <option value={12}>12 months</option>
+            </select>
+          </div>
+
+          {selectedProduct && selectedProduct.servers.length > 0 && (
+            <div className="sm:col-span-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+                Assign Server (optional)
+              </label>
+              <select
+                className="w-full h-10 rounded-md border border-gray-200 px-3 text-sm"
+                value={grantServerId}
+                onChange={(e) => setGrantServerId(e.target.value ? Number(e.target.value) : "")}
+              >
+                <option value="">Auto (first available)</option>
+                {selectedProduct.servers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+        <Button
+          onClick={doGrant}
+          disabled={granting || !grantUserId.trim() || !grantProductId}
+          className="bg-primary hover:bg-primary/90 text-white font-bold"
+        >
+          {granting ? "Granting…" : "Grant Access"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPanel() {
   const [token, setToken] = useState(() => sessionStorage.getItem("admin_token") ?? "");
   const [usernameInput, setUsernameInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [products, setProducts] = useState<ProductWithCred[]>([]);
+  const [products, setProducts] = useState<ProductWithServers[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"credentials" | "devices">("credentials");
+  const [tab, setTab] = useState<"tools" | "devices" | "users">("tools");
   const { toast } = useToast();
 
   const authenticated = !!token;
@@ -475,10 +951,16 @@ export default function AdminPanel() {
       <div className="container mx-auto px-4 md:px-6 max-w-5xl">
         <div className="flex gap-1 mt-6 mb-8 bg-gray-100 rounded-xl p-1 w-fit">
           <button
-            onClick={() => setTab("credentials")}
-            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "credentials" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            onClick={() => setTab("tools")}
+            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "tools" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
-            Tool Credentials
+            Tools &amp; Pricing
+          </button>
+          <button
+            onClick={() => setTab("users")}
+            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "users" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            Users
           </button>
           <button
             onClick={() => setTab("devices")}
@@ -490,14 +972,14 @@ export default function AdminPanel() {
       </div>
 
       <main className="container mx-auto px-4 md:px-6 pb-10 max-w-5xl">
-        {tab === "credentials" && (
+        {tab === "tools" && (
           <>
             <div className="mb-8">
               <h2 className="text-2xl font-heading font-bold text-foreground uppercase">
-                Tool <span className="text-primary">Credentials</span>
+                Tools <span className="text-primary">&amp; Pricing</span>
               </h2>
               <p className="text-muted-foreground mt-1 text-sm">
-                Set login credentials per tool. Active subscribers will see these on their dashboard.
+                Manage tiered pricing and one or more server credential sets per tool.
               </p>
             </div>
 
@@ -509,17 +991,30 @@ export default function AdminPanel() {
 
             <div className="space-y-4">
               {products.map((p) => (
-                <CredentialRow
+                <ToolConfigCard
                   key={p.id}
                   product={p}
                   token={token}
                   onSaved={() => {
-                    toast({ title: "Refreshing…" });
                     load(token);
                   }}
                 />
               ))}
             </div>
+          </>
+        )}
+
+        {tab === "users" && (
+          <>
+            <div className="mb-8">
+              <h2 className="text-2xl font-heading font-bold text-foreground uppercase">
+                User <span className="text-primary">Management</span>
+              </h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Search existing users, create new accounts, or grant tool access without payment.
+              </p>
+            </div>
+            <UsersPanel token={token} products={products} />
           </>
         )}
 
