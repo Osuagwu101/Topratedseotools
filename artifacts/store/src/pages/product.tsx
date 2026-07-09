@@ -78,7 +78,15 @@ export default function ProductDetail() {
           <div className={`h-48 md:h-64 bg-gradient-to-br ${getGradientForProduct(product.name)} flex items-center justify-center relative`}>
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="relative z-10 drop-shadow-xl">
-              {getIconForProduct(product.name)}
+              {product.imageUrl ? (
+                <img
+                  src={product.imageUrl}
+                  alt={`${product.name} logo`}
+                  className="w-32 h-32 object-contain"
+                />
+              ) : (
+                getIconForProduct(product.name)
+              )}
             </div>
           </div>
           

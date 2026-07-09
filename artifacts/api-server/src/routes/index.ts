@@ -7,11 +7,13 @@ import usersRouter from "./users";
 import adminRouter from "./admin";
 import autologinRouter from "./autologin";
 import proxyRouter from "./proxy";
+import storageRouter from "./storage";
 import { deviceTrackingMiddleware } from "../middlewares/deviceTracking";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(storageRouter);
 router.use(productsRouter);
 router.use(ordersRouter);
 router.use(paystackRouter);

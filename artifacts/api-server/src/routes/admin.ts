@@ -1,5 +1,6 @@
 import { Router, type IRouter, type RequestHandler } from "express";
 import { clerkClient } from "@clerk/express";
+import multer from "multer";
 import {
   db,
   toolServersTable,
@@ -12,8 +13,14 @@ import crypto from "crypto";
 import { activateOrderByReference } from "../lib/activateOrder";
 import { logger } from "../lib/logger";
 import { parseUserAgent } from "../lib/userAgent";
+import { analyzeImage, processAndStoreToolImage, STANDARD_IMAGE_SIZE } from "../lib/toolImages";
 
 const router: IRouter = Router();
+
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+});
 
 const requireAdmin: RequestHandler = (req, res, next) => {
   const adminUsername = process.env.ADMIN_USERNAME;
@@ -67,12 +74,95 @@ router.get("/admin/products", requireAdmin, async (_req, res): Promise<void> => 
       name: p.name,
       category: p.category,
       billingPeriod: p.billingPeriod,
+      imageUrl: p.imageUrl,
       priceKobo: p.priceKobo,
       price3MonthKobo: p.price3MonthKobo,
       price12MonthKobo: p.price12MonthKobo,
       servers: serversByProduct[p.id] ?? [],
     })),
   );
+});
+
+// ── Tool images ──────────────────────────────────────────────────────────────
+
+// Inspect an uploaded image's dimensions without storing anything, so the
+// admin UI can prompt for a resize confirmation before committing the upload.
+router.post(
+  "/admin/products/:id/image/analyze",
+  requireAdmin,
+  imageUpload.single("image"),
+  async (req, res): Promise<void> => {
+    if (!req.file) {
+      res.status(400).json({ error: "image file is required" });
+      return;
+    }
+    try {
+      const { width, height, matchesStandard } = await analyzeImage(req.file.buffer);
+      res.json({ width, height, matchesStandard, standardSize: STANDARD_IMAGE_SIZE });
+    } catch (err) {
+      logger.error({ err }, "Failed to analyze uploaded tool image");
+      res.status(400).json({ error: "Could not read image dimensions" });
+    }
+  },
+);
+
+// Process (resize to the standard square, preserving aspect ratio via padding,
+// and optimize) and store the uploaded image, then attach it to the product.
+router.post(
+  "/admin/products/:id/image",
+  requireAdmin,
+  imageUpload.single("image"),
+  async (req, res): Promise<void> => {
+    const productId = parseInt(String(req.params.id), 10);
+    if (isNaN(productId)) {
+      res.status(400).json({ error: "Invalid product id" });
+      return;
+    }
+    if (!req.file) {
+      res.status(400).json({ error: "image file is required" });
+      return;
+    }
+
+    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, productId));
+    if (!product) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+
+    try {
+      const imageUrl = await processAndStoreToolImage(req.file.buffer, productId);
+      const [updated] = await db
+        .update(productsTable)
+        .set({ imageUrl })
+        .where(eq(productsTable.id, productId))
+        .returning();
+      res.status(201).json(updated);
+    } catch (err) {
+      logger.error({ err, productId }, "Failed to process/store tool image");
+      res.status(500).json({ error: "Failed to process and store image" });
+    }
+  },
+);
+
+router.delete("/admin/products/:id/image", requireAdmin, async (req, res): Promise<void> => {
+  const productId = parseInt(String(req.params.id), 10);
+  if (isNaN(productId)) {
+    res.status(400).json({ error: "Invalid product id" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(productsTable)
+    .set({ imageUrl: null })
+    .where(eq(productsTable.id, productId))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  res.json(updated);
 });
 
 // Update tiered pricing for a product

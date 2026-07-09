@@ -15,6 +15,9 @@ import {
   Search,
   UserPlus,
   Gift,
+  ImageIcon,
+  Upload,
+  X,
 } from "lucide-react";
 
 interface ToolServer {
@@ -35,10 +38,20 @@ interface ProductWithServers {
   name: string;
   category?: string;
   billingPeriod: string;
+  imageUrl?: string | null;
   priceKobo: number;
   price3MonthKobo: number | null;
   price12MonthKobo: number | null;
   servers: ToolServer[];
+}
+
+const STANDARD_IMAGE_SIZE = 512;
+
+interface ImageAnalysis {
+  width: number;
+  height: number;
+  matchesStandard: boolean;
+  standardSize: number;
 }
 
 interface DeviceEntry {
@@ -133,6 +146,46 @@ async function savePricing(
     method: "PUT",
     headers: { "Content-Type": "application/json", Authorization: token },
     body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+async function analyzeToolImage(
+  token: string,
+  productId: number,
+  file: File,
+): Promise<ImageAnalysis> {
+  const formData = new FormData();
+  formData.append("image", file);
+  const res = await fetch(`${API}/admin/products/${productId}/image/analyze`, {
+    method: "POST",
+    headers: { Authorization: token },
+    body: formData,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function uploadToolImage(
+  token: string,
+  productId: number,
+  file: File,
+): Promise<ProductWithServers> {
+  const formData = new FormData();
+  formData.append("image", file);
+  const res = await fetch(`${API}/admin/products/${productId}/image`, {
+    method: "POST",
+    headers: { Authorization: token },
+    body: formData,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function removeToolImage(token: string, productId: number): Promise<void> {
+  const res = await fetch(`${API}/admin/products/${productId}/image`, {
+    method: "DELETE",
+    headers: { Authorization: token },
   });
   if (!res.ok) throw new Error(await res.text());
 }
@@ -432,6 +485,151 @@ function PricingRow({
   );
 }
 
+function ImageManager({
+  product,
+  token,
+  onSaved,
+}: {
+  product: ProductWithServers;
+  token: string;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const [preview, setPreview] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingAnalysis, setPendingAnalysis] = useState<ImageAnalysis | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  const reset = () => {
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview(null);
+    setPendingFile(null);
+    setPendingAnalysis(null);
+  };
+
+  const onFileSelected = async (file: File | undefined) => {
+    if (!file) return;
+    setPreview(URL.createObjectURL(file));
+    setPendingFile(file);
+    try {
+      const analysis = await analyzeToolImage(token, product.id, file);
+      if (analysis.matchesStandard) {
+        await commitUpload(file);
+      } else {
+        setPendingAnalysis(analysis);
+      }
+    } catch (e) {
+      toast({ title: "Error", description: String(e), variant: "destructive" });
+      reset();
+    }
+  };
+
+  const commitUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      await uploadToolImage(token, product.id, file);
+      toast({ title: "Image saved", description: `${product.name} logo updated.` });
+      onSaved();
+    } catch (e) {
+      toast({ title: "Error", description: String(e), variant: "destructive" });
+    } finally {
+      setUploading(false);
+      reset();
+    }
+  };
+
+  const remove = async () => {
+    setRemoving(true);
+    try {
+      await removeToolImage(token, product.id);
+      toast({ title: "Image removed", description: `${product.name} logo cleared.` });
+      onSaved();
+    } catch (e) {
+      toast({ title: "Error", description: String(e), variant: "destructive" });
+    } finally {
+      setRemoving(false);
+    }
+  };
+
+  return (
+    <div>
+      <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 block">
+        Tool Image
+      </label>
+      <div className="flex items-center gap-4">
+        <div className="w-20 h-20 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+          {preview || product.imageUrl ? (
+            <img
+              src={preview ?? product.imageUrl ?? ""}
+              alt={`${product.name} logo`}
+              className="max-w-full max-h-full object-contain"
+            />
+          ) : (
+            <ImageIcon className="w-6 h-6 text-gray-300" />
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="inline-flex items-center gap-2 text-sm font-semibold text-primary cursor-pointer hover:underline">
+            <Upload className="w-4 h-4" />
+            {product.imageUrl ? "Replace image" : "Upload image"}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={uploading}
+              onChange={(e) => {
+                void onFileSelected(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {product.imageUrl && (
+            <button
+              type="button"
+              onClick={remove}
+              disabled={removing}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-red-500 hover:underline"
+            >
+              <Trash2 className="w-4 h-4" />
+              {removing ? "Removing…" : "Remove image"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {pendingAnalysis && pendingFile && (
+        <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <p className="text-sm font-semibold text-yellow-800">
+            This image is {pendingAnalysis.width}×{pendingAnalysis.height}px, which doesn't match
+            the site's standard {STANDARD_IMAGE_SIZE}×{STANDARD_IMAGE_SIZE} square used across the
+            storefront.
+          </p>
+          <p className="text-sm text-yellow-700 mt-1">
+            We can automatically resize it (preserving its aspect ratio and optimizing it for fast
+            loading) so it displays consistently everywhere.
+          </p>
+          <div className="flex gap-3 mt-3">
+            <Button
+              size="sm"
+              disabled={uploading}
+              className="bg-primary hover:bg-primary/90 text-white font-bold"
+              onClick={() => commitUpload(pendingFile)}
+            >
+              {uploading ? "Resizing…" : "Auto-resize & save (recommended)"}
+            </Button>
+            <Button size="sm" variant="outline" disabled={uploading} onClick={reset} className="gap-1.5">
+              <X className="w-3.5 h-3.5" />
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ToolConfigCard({
   product,
   token,
@@ -456,6 +654,10 @@ function ToolConfigCard({
     <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
       <div className="flex items-center justify-between mb-5">
         <h3 className="font-bold text-lg text-foreground">{product.name}</h3>
+      </div>
+
+      <div className="mb-6 pb-6 border-b border-gray-100">
+        <ImageManager product={product} token={token} onSaved={onSaved} />
       </div>
 
       <div className="mb-6 pb-6 border-b border-gray-100">

@@ -207,6 +207,9 @@ components:
           type: string
         description:
           type: string
+        imageUrl:
+          type: ["string", "null"]
+          description: URL of the tool's uploaded logo/image, served via the storage proxy. Null if no custom image has been uploaded.
         priceKobo:
           type: integer
           description: 1-month price in kobo (1 NGN = 100 kobo)

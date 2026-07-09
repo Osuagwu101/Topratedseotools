@@ -13,6 +13,11 @@ export interface Product {
   id: number;
   name: string;
   description: string;
+  /**
+     * URL of the tool's uploaded logo/image, served via the storage proxy. Null if no custom image has been uploaded.
+     * @nullable
+     */
+  imageUrl?: string | null;
   /** 1-month price in kobo (1 NGN = 100 kobo) */
   priceKobo: number;
   /**
