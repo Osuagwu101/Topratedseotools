@@ -285,21 +285,25 @@ export default function Dashboard() {
                         {/* Auto-login button for Phrasly / StealthWriter */}
                         {hasAutoLogin && (
                           <div className="mt-4">
-                            <a
-                              href={`${BASE_PATH}/api/proxy/${order.productId}/`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center justify-center gap-2 w-full h-10 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-xl transition-colors"
-                              onClick={() =>
+                            <button
+                              type="button"
+                              className="flex items-center justify-center gap-2 w-full h-10 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
+                              onClick={() => {
+                                const url = `${BASE_PATH}/api/proxy/${order.productId}/`;
                                 toast({
                                   title: `Opening ${order.productName}…`,
                                   description: "Logging in from a single secure IP…",
-                                })
-                              }
+                                });
+                                const win = window.open(url, "_blank", "noopener,noreferrer");
+                                if (!win) {
+                                  // Popup blocked (common inside sandboxed preview iframes) — fall back to same-tab
+                                  window.location.href = url;
+                                }
+                              }}
                             >
                               <ExternalLink className="w-4 h-4" />
                               Launch {order.productName}
-                            </a>
+                            </button>
                             <p className="text-center text-xs text-muted-foreground mt-2">
                               All traffic routed through our server — one IP, one device
                             </p>
