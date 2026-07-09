@@ -1,0 +1,2 @@
+- [Monnify sandbox vs live base URL](monnify-integration.md) — sandbox keys need `sandbox.monnify.com`, not `api.monnify.com`, or auth fails with a generic "invalid credentials" error.
+- [Payment amount trust](payment-integrity.md) — never let the client dictate charge amount/email for a payment gateway; always source from the DB order and re-verify the paid amount before activating.

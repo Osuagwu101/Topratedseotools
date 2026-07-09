@@ -11,7 +11,7 @@ import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-const MONNIFY_BASE_URL = "https://api.monnify.com";
+const MONNIFY_BASE_URL = process.env.MONNIFY_BASE_URL ?? "https://sandbox.monnify.com";
 const MONNIFY_API_KEY = process.env.MONNIFY_API_KEY ?? "";
 const MONNIFY_SECRET_KEY = process.env.MONNIFY_SECRET_KEY ?? "";
 const MONNIFY_CONTRACT_CODE = process.env.MONNIFY_CONTRACT_CODE ?? "";
@@ -161,7 +161,7 @@ router.get("/monnify/verify/:reference", async (req, res): Promise<void> => {
     }
 
     const monnifyStatus = monnifyData.responseBody.paymentStatus;
-    const amountPaidKobo = Math.round(monnifyData.responseBody.amountPaid * 100);
+    const amountPaidKobo = Math.round((monnifyData.responseBody.amountPaid ?? 0) * 100);
 
     let txStatus = monnifyStatus === "PAID" ? "success" : "failed";
 
