@@ -11,6 +11,7 @@ import { eq, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { activateOrderByReference } from "../lib/activateOrder";
 import { logger } from "../lib/logger";
+import { parseUserAgent } from "../lib/userAgent";
 
 const router: IRouter = Router();
 
@@ -230,12 +231,44 @@ router.get("/admin/device-sessions", requireAdmin, async (_req, res): Promise<vo
     .from(userDeviceSessionsTable)
     .orderBy(userDeviceSessionsTable.userId, userDeviceSessionsTable.lastSeenAt);
 
-  const grouped: Record<string, { deviceId: string; userAgent: string | null; ipAddress: string | null; createdAt: string; lastSeenAt: string }[]> = {};
+  const userIds = Array.from(new Set(rows.map((r) => r.userId)));
+  const emailByUserId: Record<string, string | null> = {};
+  if (userIds.length > 0) {
+    try {
+      const result = await clerkClient.users.getUserList({ userId: userIds, limit: userIds.length });
+      for (const u of result.data) {
+        emailByUserId[u.id] =
+          u.emailAddresses.find((e) => e.id === u.primaryEmailAddressId)?.emailAddress
+          ?? u.emailAddresses[0]?.emailAddress
+          ?? null;
+      }
+    } catch (err) {
+      logger.error({ err }, "Failed to look up Clerk emails for device sessions");
+    }
+  }
+
+  const grouped: Record<
+    string,
+    {
+      deviceId: string;
+      userAgent: string | null;
+      browser: string;
+      os: string;
+      deviceType: string;
+      ipAddress: string | null;
+      createdAt: string;
+      lastSeenAt: string;
+    }[]
+  > = {};
   for (const r of rows) {
     if (!grouped[r.userId]) grouped[r.userId] = [];
+    const parsed = parseUserAgent(r.userAgent);
     grouped[r.userId].push({
       deviceId: r.deviceId,
       userAgent: r.userAgent,
+      browser: parsed.browser,
+      os: parsed.os,
+      deviceType: parsed.deviceType,
       ipAddress: r.ipAddress,
       createdAt: r.createdAt.toISOString(),
       lastSeenAt: r.lastSeenAt.toISOString(),
@@ -250,6 +283,7 @@ router.get("/admin/device-sessions", requireAdmin, async (_req, res): Promise<vo
   res.json(
     counts.map((c) => ({
       userId: c.userId,
+      email: emailByUserId[c.userId] ?? null,
       deviceCount: c.count,
       devices: grouped[c.userId] ?? [],
       suspended: c.count > 3,

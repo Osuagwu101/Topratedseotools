@@ -6,6 +6,12 @@ import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   CheckCircle2,
   Clock,
   XCircle,
@@ -158,6 +164,53 @@ function CredentialBox({
   );
 }
 
+function TransactionRow({
+  order,
+}: {
+  order: {
+    id: number;
+    productId: number;
+    productName: string;
+    amountKobo: number;
+    status: string;
+    reference: string;
+  };
+}) {
+  const key = getLogoKey(order.productName);
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl p-5 flex items-center gap-4 opacity-80">
+      <div
+        className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center p-2 grayscale opacity-60"
+        style={{ backgroundColor: BG_COLORS[key] ?? "#F7F8FA" }}
+      >
+        {LOGOS[key] ? (
+          <img
+            src={LOGOS[key]}
+            alt={order.productName}
+            className="max-w-full max-h-full object-contain"
+          />
+        ) : (
+          <span className="text-xl font-heading font-bold text-primary">
+            {order.productName[0]}
+          </span>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-bold text-foreground truncate">{order.productName}</h3>
+          <StatusBadge status={order.status} />
+        </div>
+        <div className="flex items-center gap-3 mt-1">
+          <span className="text-muted-foreground font-bold text-sm">
+            ₦{(order.amountKobo / 100).toLocaleString()}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground mt-0.5 font-mono">{order.reference}</p>
+      </div>
+    </div>
+  );
+}
+
 const BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export default function Dashboard() {
@@ -168,8 +221,16 @@ export default function Dashboard() {
 
   const { data: orders, isLoading } = useGetMyOrders();
 
-  const activeOrders = orders?.filter((o) => o.status === "success") ?? [];
-  const pendingOrders = orders?.filter((o) => o.status !== "success") ?? [];
+  // Successful = verified by Paystack and tool granted (still within its access window).
+  // Pending = initiated but not yet confirmed either way.
+  // Failed = permanently failed (cancelled, insufficient funds, expired, verification failed)
+  // — never grants access. "expired" is a computed status for orders that were once
+  // successful but whose entitlement window has lapsed, so it's bucketed here too since
+  // it no longer grants access.
+  const successfulOrders = orders?.filter((o) => o.status === "success") ?? [];
+  const pendingOrders = orders?.filter((o) => o.status === "pending") ?? [];
+  const failedOrders =
+    orders?.filter((o) => o.status !== "success" && o.status !== "pending") ?? [];
 
   return (
     <Layout>
@@ -228,180 +289,183 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="space-y-8">
-            {activeOrders.length > 0 && (
-              <section>
-                <h2 className="text-lg font-bold uppercase tracking-wider text-foreground mb-4 flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-primary" />
-                  Active Subscriptions
-                  <span className="ml-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
-                    {activeOrders.length}
-                  </span>
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {activeOrders.map((order) => {
-                    const key = getLogoKey(order.productName);
-                    const hasAutoLogin = order.isAutoLogin === true;
-                    const hasCreds = !hasAutoLogin && (order.credUsername || order.credPassword);
+            <Accordion type="multiple" className="space-y-4">
+              {successfulOrders.length > 0 && (
+                <AccordionItem
+                  value="successful"
+                  className="border border-gray-100 rounded-2xl px-5 bg-white"
+                >
+                  <AccordionTrigger className="hover:no-underline py-4">
+                    <span className="flex items-center gap-2 text-lg font-bold uppercase tracking-wider text-foreground">
+                      <CheckCircle2 className="w-5 h-5 text-primary" />
+                      Successful
+                      <span className="ml-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
+                        {successfulOrders.length}
+                      </span>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {successfulOrders.map((order) => {
+                        const key = getLogoKey(order.productName);
+                        const hasAutoLogin = order.isAutoLogin === true;
+                        const hasCreds = !hasAutoLogin && (order.credUsername || order.credPassword);
 
-                    return (
-                      <div
-                        key={order.id}
-                        className="bg-white border-2 border-primary/20 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-primary/50 transition-all"
-                      >
-                        <div className="flex items-start gap-4">
+                        return (
                           <div
-                            className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center p-2"
-                            style={{ backgroundColor: BG_COLORS[key] ?? "#F7F8FA" }}
+                            key={order.id}
+                            className="bg-white border-2 border-primary/20 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-primary/50 transition-all"
                           >
-                            {LOGOS[key] ? (
-                              <img
-                                src={LOGOS[key]}
-                                alt={order.productName}
-                                className="max-w-full max-h-full object-contain"
-                              />
-                            ) : (
-                              <span className="text-xl font-heading font-bold text-primary">
-                                {order.productName[0]}
-                              </span>
+                            <div className="flex items-start gap-4">
+                              <div
+                                className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center p-2"
+                                style={{ backgroundColor: BG_COLORS[key] ?? "#F7F8FA" }}
+                              >
+                                {LOGOS[key] ? (
+                                  <img
+                                    src={LOGOS[key]}
+                                    alt={order.productName}
+                                    className="max-w-full max-h-full object-contain"
+                                  />
+                                ) : (
+                                  <span className="text-xl font-heading font-bold text-primary">
+                                    {order.productName[0]}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <h3 className="font-bold text-foreground truncate">
+                                    {order.productName}
+                                  </h3>
+                                  <StatusBadge status={order.status} />
+                                </div>
+                                <div className="flex items-center gap-3 mt-0.5">
+                                  <span className="text-primary font-bold text-sm">
+                                    ₦{(order.amountKobo / 100).toLocaleString()}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground uppercase font-semibold">
+                                    / {order.billingPeriod === "monthly" ? "month" : "check"}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {new Date(order.createdAt).toLocaleDateString("en-NG", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
+                                </p>
+                                {order.expiresAt && (
+                                  <p className="text-xs text-muted-foreground mt-0.5 font-semibold">
+                                    Renews / expires{" "}
+                                    {new Date(order.expiresAt).toLocaleDateString("en-NG", {
+                                      year: "numeric",
+                                      month: "short",
+                                      day: "numeric",
+                                    })}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Auto-login button for Phrasly / StealthWriter */}
+                            {hasAutoLogin && (
+                              <div className="mt-4">
+                                <button
+                                  type="button"
+                                  className="flex items-center justify-center gap-2 w-full h-10 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
+                                  onClick={() => {
+                                    const url = `${BASE_PATH}/api/proxy/${order.productId}/`;
+                                    toast({
+                                      title: `Opening ${order.productName}…`,
+                                      description: "Logging in from a single secure IP…",
+                                    });
+                                    const win = window.open(url, "_blank", "noopener,noreferrer");
+                                    if (!win) {
+                                      // Popup blocked (common inside sandboxed preview iframes) — fall back to same-tab
+                                      window.location.href = url;
+                                    }
+                                  }}
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                  Launch {order.productName}
+                                </button>
+                                <p className="text-center text-xs text-muted-foreground mt-2">
+                                  All traffic routed through our server — one IP, one device
+                                </p>
+                              </div>
                             )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <h3 className="font-bold text-foreground truncate">
-                                {order.productName}
-                              </h3>
-                              <StatusBadge status={order.status} />
-                            </div>
-                            <div className="flex items-center gap-3 mt-0.5">
-                              <span className="text-primary font-bold text-sm">
-                                ₦{(order.amountKobo / 100).toLocaleString()}
-                              </span>
-                              <span className="text-xs text-muted-foreground uppercase font-semibold">
-                                / {order.billingPeriod === "monthly" ? "month" : "check"}
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {new Date(order.createdAt).toLocaleDateString("en-NG", {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              })}
-                            </p>
-                            {order.expiresAt && (
-                              <p className="text-xs text-muted-foreground mt-0.5 font-semibold">
-                                Renews / expires{" "}
-                                {new Date(order.expiresAt).toLocaleDateString("en-NG", {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                })}
+
+                            {/* Credential box for other tools */}
+                            {hasCreds && (
+                              <CredentialBox
+                                username={order.credUsername}
+                                password={order.credPassword}
+                              />
+                            )}
+
+                            {/* No creds configured yet */}
+                            {!hasAutoLogin && !hasCreds && (
+                              <p className="mt-3 text-xs text-muted-foreground italic">
+                                Login details will appear here once configured. Check back soon.
                               </p>
                             )}
                           </div>
-                        </div>
+                        );
+                      })}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
 
-                        {/* Auto-login button for Phrasly / StealthWriter */}
-                        {hasAutoLogin && (
-                          <div className="mt-4">
-                            <button
-                              type="button"
-                              className="flex items-center justify-center gap-2 w-full h-10 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
-                              onClick={() => {
-                                const url = `${BASE_PATH}/api/proxy/${order.productId}/`;
-                                toast({
-                                  title: `Opening ${order.productName}…`,
-                                  description: "Logging in from a single secure IP…",
-                                });
-                                const win = window.open(url, "_blank", "noopener,noreferrer");
-                                if (!win) {
-                                  // Popup blocked (common inside sandboxed preview iframes) — fall back to same-tab
-                                  window.location.href = url;
-                                }
-                              }}
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                              Launch {order.productName}
-                            </button>
-                            <p className="text-center text-xs text-muted-foreground mt-2">
-                              All traffic routed through our server — one IP, one device
-                            </p>
-                          </div>
-                        )}
+              {pendingOrders.length > 0 && (
+                <AccordionItem
+                  value="pending"
+                  className="border border-gray-100 rounded-2xl px-5 bg-white"
+                >
+                  <AccordionTrigger className="hover:no-underline py-4">
+                    <span className="flex items-center gap-2 text-lg font-bold uppercase tracking-wider text-foreground">
+                      <Clock className="w-5 h-5 text-yellow-500" />
+                      Pending
+                      <span className="ml-1 text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold">
+                        {pendingOrders.length}
+                      </span>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {pendingOrders.map((order) => (
+                        <TransactionRow key={order.id} order={order} />
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
 
-                        {/* Credential box for other tools */}
-                        {hasCreds && (
-                          <CredentialBox
-                            username={order.credUsername}
-                            password={order.credPassword}
-                          />
-                        )}
-
-                        {/* No creds configured yet */}
-                        {!hasAutoLogin && !hasCreds && (
-                          <p className="mt-3 text-xs text-muted-foreground italic">
-                            Login details will appear here once configured. Check back soon.
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
-
-            {pendingOrders.length > 0 && (
-              <section>
-                <h2 className="text-lg font-bold uppercase tracking-wider text-foreground mb-4 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-yellow-500" />
-                  Pending / Failed Orders
-                  <span className="ml-1 text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold">
-                    {pendingOrders.length}
-                  </span>
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {pendingOrders.map((order) => {
-                    const key = getLogoKey(order.productName);
-                    return (
-                      <div
-                        key={order.id}
-                        className="bg-white border border-gray-100 rounded-2xl p-5 flex items-center gap-4 opacity-80"
-                      >
-                        <div
-                          className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center p-2 grayscale opacity-60"
-                          style={{ backgroundColor: BG_COLORS[key] ?? "#F7F8FA" }}
-                        >
-                          {LOGOS[key] ? (
-                            <img
-                              src={LOGOS[key]}
-                              alt={order.productName}
-                              className="max-w-full max-h-full object-contain"
-                            />
-                          ) : (
-                            <span className="text-xl font-heading font-bold text-primary">
-                              {order.productName[0]}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-bold text-foreground truncate">{order.productName}</h3>
-                            <StatusBadge status={order.status} />
-                          </div>
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="text-muted-foreground font-bold text-sm">
-                              ₦{(order.amountKobo / 100).toLocaleString()}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5 font-mono">
-                            {order.reference}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
+              {failedOrders.length > 0 && (
+                <AccordionItem
+                  value="failed"
+                  className="border border-gray-100 rounded-2xl px-5 bg-white"
+                >
+                  <AccordionTrigger className="hover:no-underline py-4">
+                    <span className="flex items-center gap-2 text-lg font-bold uppercase tracking-wider text-foreground">
+                      <XCircle className="w-5 h-5 text-red-500" />
+                      Failed
+                      <span className="ml-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">
+                        {failedOrders.length}
+                      </span>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {failedOrders.map((order) => (
+                        <TransactionRow key={order.id} order={order} />
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+            </Accordion>
 
             <div className="pt-4 border-t border-gray-100">
               <Link href="/" className="inline-flex items-center gap-2 text-sm text-primary font-bold hover:underline">

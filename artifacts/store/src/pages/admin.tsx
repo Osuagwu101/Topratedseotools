@@ -44,6 +44,9 @@ interface ProductWithServers {
 interface DeviceEntry {
   deviceId: string;
   userAgent: string | null;
+  browser: string;
+  os: string;
+  deviceType: string;
   ipAddress: string | null;
   createdAt: string;
   lastSeenAt: string;
@@ -51,9 +54,24 @@ interface DeviceEntry {
 
 interface UserDeviceSession {
   userId: string;
+  email: string | null;
   deviceCount: number;
   devices: DeviceEntry[];
   suspended: boolean;
+}
+
+function formatRelativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const diffSec = Math.round(diffMs / 1000);
+  if (diffSec < 60) return "just now";
+  const diffMin = Math.round(diffSec / 60);
+  if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? "" : "s"} ago`;
+  const diffHr = Math.round(diffMin / 60);
+  if (diffHr < 24) return `${diffHr} hour${diffHr === 1 ? "" : "s"} ago`;
+  const diffDay = Math.round(diffHr / 24);
+  if (diffDay < 30) return `${diffDay} day${diffDay === 1 ? "" : "s"} ago`;
+  const diffMonth = Math.round(diffDay / 30);
+  return `${diffMonth} month${diffMonth === 1 ? "" : "s"} ago`;
 }
 
 interface ClerkUserResult {
@@ -541,19 +559,46 @@ function DeviceSessionsPanel({ token }: { token: string }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <Monitor className="w-4 h-4 text-gray-400 shrink-0" />
-                  <span className="font-mono text-xs text-gray-500 truncate">{s.userId}</span>
+                  <span className="font-semibold text-sm text-foreground truncate">
+                    {s.email ?? "(no email found)"}
+                  </span>
+                  <span className="font-mono text-xs text-gray-400 truncate">{s.userId}</span>
                   {s.suspended ? (
                     <span className="shrink-0 text-xs font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">SUSPENDED</span>
                   ) : (
                     <span className="shrink-0 text-xs font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{s.deviceCount} / 3 devices</span>
                   )}
                 </div>
-                <div className="mt-2 space-y-1">
+                <div className="mt-3 space-y-2">
                   {s.devices.map((d) => (
-                    <div key={d.deviceId} className="text-xs text-gray-500 flex gap-3 flex-wrap">
-                      <span className="font-mono">{d.ipAddress ?? "unknown IP"}</span>
-                      <span className="text-gray-400 truncate max-w-xs">{d.userAgent?.slice(0, 60) ?? "unknown browser"}</span>
-                      <span className="text-gray-400">last seen {new Date(d.lastSeenAt).toLocaleString()}</span>
+                    <div
+                      key={d.deviceId}
+                      className="text-xs text-gray-600 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 bg-gray-50 rounded-lg p-3"
+                    >
+                      <span>
+                        <span className="text-gray-400 font-semibold">Device: </span>
+                        {d.deviceType}
+                      </span>
+                      <span>
+                        <span className="text-gray-400 font-semibold">Browser: </span>
+                        {d.browser}
+                      </span>
+                      <span>
+                        <span className="text-gray-400 font-semibold">OS: </span>
+                        {d.os}
+                      </span>
+                      <span>
+                        <span className="text-gray-400 font-semibold">IP: </span>
+                        <span className="font-mono">{d.ipAddress ?? "unknown"}</span>
+                      </span>
+                      <span>
+                        <span className="text-gray-400 font-semibold">Last active: </span>
+                        {formatRelativeTime(d.lastSeenAt)}
+                      </span>
+                      <span>
+                        <span className="text-gray-400 font-semibold">Login time: </span>
+                        {new Date(d.createdAt).toLocaleString()}
+                      </span>
                     </div>
                   ))}
                 </div>
