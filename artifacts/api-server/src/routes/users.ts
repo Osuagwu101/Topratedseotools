@@ -38,6 +38,19 @@ router.get("/users/me/orders", async (req, res): Promise<void> => {
     .where(eq(ordersTable.clerkUserId, userId))
     .orderBy(ordersTable.createdAt);
 
+  // Fallback for legacy/unassigned entitlements (serverId null) — use the
+  // product's first configured server (auto-login preferred) so credentials
+  // don't silently disappear for rows created before per-entitlement server
+  // assignment existed.
+  const allServers = await db.select().from(toolServersTable).orderBy(toolServersTable.id);
+  const fallbackByProduct = new Map<number, typeof allServers[number]>();
+  for (const s of allServers) {
+    const existing = fallbackByProduct.get(s.productId);
+    if (!existing || (!existing.isAutoLogin && s.isAutoLogin)) {
+      fallbackByProduct.set(s.productId, s);
+    }
+  }
+
   res.json(
     rows.map((r) => {
       const now = new Date();
@@ -46,6 +59,12 @@ router.get("/users/me/orders", async (req, res): Promise<void> => {
       // An order is "active" for display purposes only while its entitlement is
       // both marked active and not yet expired.
       const isActive = r.status === "success" && isEntitled;
+
+      const fallback = r.credUsername === null ? fallbackByProduct.get(r.productId) : undefined;
+      const credUsername = r.credUsername ?? fallback?.username ?? null;
+      const credPassword = r.credPassword ?? fallback?.password ?? null;
+      const isAutoLogin = r.isAutoLogin ?? fallback?.isAutoLogin ?? null;
+
       return {
         ...r,
         createdAt: r.createdAt.toISOString(),
@@ -53,9 +72,9 @@ router.get("/users/me/orders", async (req, res): Promise<void> => {
         status: r.status === "success" && !isEntitled && r.expiresAt ? "expired" : r.status,
         // Only expose credentials for active (non-expired) subscriptions.
         // For auto-login tools, omit raw password (auto-login endpoint handles it).
-        credUsername: isActive ? r.credUsername : null,
-        credPassword: isActive && !r.isAutoLogin ? r.credPassword : null,
-        isAutoLogin: isActive ? (r.isAutoLogin ?? null) : null,
+        credUsername: isActive ? credUsername : null,
+        credPassword: isActive && !isAutoLogin ? credPassword : null,
+        isAutoLogin: isActive ? isAutoLogin : null,
       };
     })
   );

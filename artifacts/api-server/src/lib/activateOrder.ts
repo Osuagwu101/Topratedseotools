@@ -1,6 +1,7 @@
 import { db, ordersTable, toolEntitlementsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger";
+import { pickDefaultServerForProduct } from "./toolAccess";
 
 export type ActivationResult =
   | { outcome: "activated"; orderId: number; expiresAt: Date }
@@ -62,12 +63,17 @@ export async function activateOrderByReference(
     await tx.update(ordersTable).set({ status: "success" }).where(eq(ordersTable.id, order.id));
 
     if (order.clerkUserId) {
+      const assignedServerId =
+        serverId !== undefined && serverId !== null
+          ? serverId
+          : await pickDefaultServerForProduct(order.productId);
+
       await tx
         .insert(toolEntitlementsTable)
         .values({
           clerkUserId: order.clerkUserId,
           productId: order.productId,
-          serverId: serverId ?? null,
+          serverId: assignedServerId,
           orderId: order.id,
           reference: order.reference,
           status: "active",
