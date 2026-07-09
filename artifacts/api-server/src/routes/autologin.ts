@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { getAuth } from "@clerk/express";
-import { db, ordersTable, toolCredentialsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, toolCredentialsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { hasActiveEntitlement } from "../lib/activateOrder";
 
 const router: IRouter = Router();
 
@@ -22,19 +23,10 @@ router.get("/tools/:productId/autologin", async (req, res): Promise<void> => {
     return;
   }
 
-  // Check user has active subscription
-  const [activeOrder] = await db
-    .select({ id: ordersTable.id })
-    .from(ordersTable)
-    .where(
-      and(
-        eq(ordersTable.clerkUserId, userId),
-        eq(ordersTable.productId, productId),
-        eq(ordersTable.status, "success"),
-      )
-    );
+  // Check user has an active, non-expired entitlement (same source of truth as the proxy).
+  const hasAccess = await hasActiveEntitlement(userId, productId);
 
-  if (!activeOrder) {
+  if (!hasAccess) {
     res.status(403).send(`
       <!DOCTYPE html>
       <html>

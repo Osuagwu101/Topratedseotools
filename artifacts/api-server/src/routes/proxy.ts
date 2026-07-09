@@ -14,8 +14,9 @@
 
 import { Router, type RequestHandler } from "express";
 import { getAuth } from "@clerk/express";
-import { db, toolEntitlementsTable, toolCredentialsTable, productsTable } from "@workspace/db";
-import { and, eq, gt } from "drizzle-orm";
+import { db, toolCredentialsTable, productsTable } from "@workspace/db";
+import { and, eq } from "drizzle-orm";
+import { hasActiveEntitlement } from "../lib/activateOrder";
 
 const router = Router();
 
@@ -141,25 +142,6 @@ function rewriteBody(
   return out;
 }
 
-// ── Auth + subscription guard ────────────────────────────────────────────────
-async function checkAccess(
-  userId: string,
-  productId: number,
-): Promise<boolean> {
-  const [entitlement] = await db
-    .select({ id: toolEntitlementsTable.id })
-    .from(toolEntitlementsTable)
-    .where(
-      and(
-        eq(toolEntitlementsTable.clerkUserId, userId),
-        eq(toolEntitlementsTable.productId, productId),
-        eq(toolEntitlementsTable.status, "active"),
-        gt(toolEntitlementsTable.expiresAt, new Date()),
-      ),
-    );
-  return !!entitlement;
-}
-
 // ── Proxy handler ────────────────────────────────────────────────────────────
 const proxyHandler: RequestHandler = async (req, res): Promise<void> => {
   // Clerk auth
@@ -176,7 +158,7 @@ const proxyHandler: RequestHandler = async (req, res): Promise<void> => {
   }
 
   // Subscription check
-  const hasAccess = await checkAccess(auth.userId, productId);
+  const hasAccess = await hasActiveEntitlement(auth.userId, productId);
   if (!hasAccess) {
     res.status(403).send("No active subscription for this tool.");
     return;

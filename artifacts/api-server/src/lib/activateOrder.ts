@@ -1,6 +1,28 @@
 import { db, ordersTable, toolEntitlementsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import { logger } from "./logger";
+
+/**
+ * Single source of truth for "does this user currently have access to this tool?"
+ * Used by both the reverse proxy and the auto-login route so the two paths can't drift.
+ */
+export async function hasActiveEntitlement(
+  userId: string,
+  productId: number,
+): Promise<boolean> {
+  const [entitlement] = await db
+    .select({ id: toolEntitlementsTable.id })
+    .from(toolEntitlementsTable)
+    .where(
+      and(
+        eq(toolEntitlementsTable.clerkUserId, userId),
+        eq(toolEntitlementsTable.productId, productId),
+        eq(toolEntitlementsTable.status, "active"),
+        gt(toolEntitlementsTable.expiresAt, new Date()),
+      ),
+    );
+  return !!entitlement;
+}
 
 export type ActivationResult =
   | { outcome: "activated"; orderId: number; expiresAt: Date }
