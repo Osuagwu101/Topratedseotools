@@ -137,7 +137,7 @@ export default function Checkout() {
                 
                 <div className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground mt-6">
                   <ShieldCheck className="w-5 h-5 text-primary" />
-                  Secured by Paystack
+                  Secured by Monnify
                 </div>
               </form>
             </Card>

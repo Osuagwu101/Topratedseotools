@@ -112,7 +112,7 @@ export const GetMyOrdersResponse = zod.array(GetMyOrdersResponseItem)
 
 
 /**
- * @summary Initialize a Paystack payment
+ * @summary Initialize a Monnify payment
  */
 export const InitializePaymentBody = zod.object({
   "orderId": zod.number(),
@@ -127,7 +127,7 @@ export const InitializePaymentResponse = zod.object({
 
 
 /**
- * @summary Verify a Paystack payment
+ * @summary Verify a Monnify payment
  */
 export const VerifyPaymentParams = zod.object({
   "reference": zod.coerce.string()

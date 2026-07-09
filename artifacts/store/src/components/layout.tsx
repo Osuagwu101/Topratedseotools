@@ -87,7 +87,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <span className="font-semibold text-muted-foreground ml-2 text-sm">&copy; 2025</span>
           </div>
           <div className="text-sm text-muted-foreground flex gap-4 font-bold uppercase tracking-wider">
-            <span>Powered by Paystack</span>
+            <span>Powered by Monnify</span>
             <span>Made in Nigeria</span>
           </div>
         </div>

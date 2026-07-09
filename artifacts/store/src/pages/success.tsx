@@ -37,7 +37,7 @@ export default function Success() {
         <div className="container mx-auto px-4 py-32 text-center flex flex-col items-center">
           <Loader2 className="w-16 h-16 animate-spin text-primary mb-8" />
           <h1 className="text-3xl font-heading mb-4 uppercase">Verifying Payment</h1>
-          <p className="text-lg text-muted-foreground font-medium">Please wait while we confirm your transaction with Paystack.</p>
+          <p className="text-lg text-muted-foreground font-medium">Please wait while we confirm your transaction with Monnify.</p>
         </div>
       </Layout>
     );

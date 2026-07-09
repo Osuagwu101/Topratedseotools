@@ -519,11 +519,11 @@ export const getInitializePaymentUrl = () => {
 
 
 
-  return `/api/paystack/initialize`
+  return `/api/monnify/initialize`
 }
 
 /**
- * @summary Initialize a Paystack payment
+ * @summary Initialize a Monnify payment
  */
 export const initializePayment = async (paymentInit: PaymentInit, options?: RequestInit): Promise<PaymentInitResponse> => {
 
@@ -572,7 +572,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type InitializePaymentMutationError = ErrorType<void>
 
     /**
- * @summary Initialize a Paystack payment
+ * @summary Initialize a Monnify payment
  */
 export const useInitializePayment = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof initializePayment>>, TError,{data: BodyType<PaymentInit>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -590,11 +590,11 @@ export const getVerifyPaymentUrl = (reference: string,) => {
 
 
 
-  return `/api/paystack/verify/${reference}`
+  return `/api/monnify/verify/${reference}`
 }
 
 /**
- * @summary Verify a Paystack payment
+ * @summary Verify a Monnify payment
  */
 export const verifyPayment = async (reference: string, options?: RequestInit): Promise<PaymentVerification> => {
 
@@ -613,7 +613,7 @@ export const verifyPayment = async (reference: string, options?: RequestInit): P
 
 export const getVerifyPaymentQueryKey = (reference: string,) => {
     return [
-    `/api/paystack/verify/${reference}`
+    `/api/monnify/verify/${reference}`
     ] as const;
     }
 
@@ -641,7 +641,7 @@ export type VerifyPaymentQueryError = ErrorType<void>
 
 
 /**
- * @summary Verify a Paystack payment
+ * @summary Verify a Monnify payment
  */
 
 export function useVerifyPayment<TData = Awaited<ReturnType<typeof verifyPayment>>, TError = ErrorType<void>>(
