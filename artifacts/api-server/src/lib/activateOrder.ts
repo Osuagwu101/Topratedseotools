@@ -78,10 +78,28 @@ export async function activateOrderByReference(
   return { outcome: "activated", orderId: order.id, expiresAt };
 }
 
-/** Marks an order as failed (e.g. Paystack reports a failed/abandoned/reversed event). */
+/**
+ * Marks an order as failed (e.g. Paystack reports a failed/abandoned/reversed event).
+ * Also revokes any existing entitlement tied to this order/reference so a later
+ * reversal or dispute on a previously-activated order immediately removes access.
+ */
 export async function markOrderFailed(reference: string): Promise<void> {
-  await db
-    .update(ordersTable)
-    .set({ status: "failed" })
+  const [order] = await db
+    .select()
+    .from(ordersTable)
     .where(eq(ordersTable.reference, reference));
+
+  if (!order) {
+    logger.error({ reference }, "markOrderFailed called for unknown order reference");
+    return;
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, order.id));
+
+    await tx
+      .update(toolEntitlementsTable)
+      .set({ status: "revoked" })
+      .where(eq(toolEntitlementsTable.orderId, order.id));
+  });
 }
