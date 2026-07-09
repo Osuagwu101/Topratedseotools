@@ -21,7 +21,7 @@ router.post("/paystack/initialize", async (req, res): Promise<void> => {
     return;
   }
 
-  const { orderId, email, amountKobo } = parsed.data;
+  const { orderId } = parsed.data;
 
   const [order] = await db
     .select()
@@ -41,8 +41,8 @@ router.post("/paystack/initialize", async (req, res): Promise<void> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        email,
-        amount: amountKobo,
+        email: order.customerEmail,
+        amount: order.amountKobo,
         reference: order.reference,
         metadata: { orderId, customerName: order.customerName },
       }),
@@ -103,7 +103,7 @@ router.get("/paystack/verify/:reference", async (req, res): Promise<void> => {
       return;
     }
 
-    const txStatus = paystackData.data.status;
+    let txStatus = paystackData.data.status;
 
     let orderId: number | null = null;
 
@@ -115,10 +115,27 @@ router.get("/paystack/verify/:reference", async (req, res): Promise<void> => {
 
       if (order) {
         orderId = order.id;
-        await db
-          .update(ordersTable)
-          .set({ status: "success" })
-          .where(eq(ordersTable.reference, reference));
+
+        if (paystackData.data.amount < order.amountKobo) {
+          req.log.error(
+            {
+              reference,
+              paidAmount: paystackData.data.amount,
+              expectedAmount: order.amountKobo,
+            },
+            "Paystack verify amount mismatch — refusing to activate order"
+          );
+          txStatus = "underpaid";
+          await db
+            .update(ordersTable)
+            .set({ status: "failed" })
+            .where(eq(ordersTable.reference, reference));
+        } else {
+          await db
+            .update(ordersTable)
+            .set({ status: "success" })
+            .where(eq(ordersTable.reference, reference));
+        }
       }
     }
 

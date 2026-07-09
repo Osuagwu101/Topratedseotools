@@ -77,7 +77,12 @@ async function loginToTool(productId: number): Promise<ToolSession | null> {
   // Capture bearer token (JWT-based auth)
   let authHeader = "";
   try {
-    const json = await loginRes.clone().json();
+    const json = (await loginRes.clone().json()) as {
+      token?: string;
+      access_token?: string;
+      jwt?: string;
+      data?: { token?: string; access_token?: string };
+    };
     const token =
       json.token ??
       json.access_token ??
@@ -228,7 +233,7 @@ const proxyHandler: RequestHandler = async (req, res): Promise<void> => {
   if (session.cookie) fwdHeaders["Cookie"] = session.cookie;
   if (session.authHeader) fwdHeaders["Authorization"] = session.authHeader;
 
-  let reqBody: BodyInit | undefined;
+  let reqBody: string | undefined;
   if (!["GET", "HEAD"].includes(req.method) && req.body) {
     reqBody = JSON.stringify(req.body);
     fwdHeaders["Content-Type"] =
