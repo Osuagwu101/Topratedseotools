@@ -5,12 +5,19 @@ import {
   GetProductResponse,
   ListProductsResponse,
 } from "@workspace/api-zod";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
+// The public storefront only ever lists/serves visible, non-deleted tools.
+// Hidden/deleted tools stay purchasable-blocked but keep existing subscriber
+// access (enforced separately via entitlements, not product visibility).
 router.get("/products", async (req, res): Promise<void> => {
-  const products = await db.select().from(productsTable).orderBy(productsTable.id);
+  const products = await db
+    .select()
+    .from(productsTable)
+    .where(and(eq(productsTable.isHidden, false), eq(productsTable.isDeleted, false)))
+    .orderBy(productsTable.id);
   res.json(ListProductsResponse.parse(products));
 });
 
@@ -26,7 +33,7 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     .from(productsTable)
     .where(eq(productsTable.id, params.data.id));
 
-  if (!product) {
+  if (!product || product.isDeleted || product.isHidden) {
     res.status(404).json({ error: "Product not found" });
     return;
   }

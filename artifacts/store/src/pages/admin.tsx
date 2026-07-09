@@ -1,6 +1,25 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   Eye,
@@ -18,6 +37,7 @@ import {
   ImageIcon,
   Upload,
   X,
+  PencilLine,
 } from "lucide-react";
 
 interface ToolServer {
@@ -36,12 +56,15 @@ interface ToolServer {
 interface ProductWithServers {
   id: number;
   name: string;
+  description?: string;
+  fullDescription?: string | null;
   category?: string;
   billingPeriod: string;
   imageUrl?: string | null;
   priceKobo: number;
   price3MonthKobo: number | null;
   price12MonthKobo: number | null;
+  isHidden?: boolean;
   servers: ToolServer[];
 }
 
@@ -184,6 +207,59 @@ async function uploadToolImage(
 
 async function removeToolImage(token: string, productId: number): Promise<void> {
   const res = await fetch(`${API}/admin/products/${productId}/image`, {
+    method: "DELETE",
+    headers: { Authorization: token },
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+interface NewToolInput {
+  name: string;
+  description: string;
+  fullDescription?: string;
+  category: string;
+  billingPeriod: string;
+  priceKobo: number;
+  price3MonthKobo?: number | null;
+  price12MonthKobo?: number | null;
+  isHidden: boolean;
+}
+
+async function createProduct(token: string, body: NewToolInput): Promise<ProductWithServers> {
+  const res = await fetch(`${API}/admin/products`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: token },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function updateProductDetails(
+  token: string,
+  productId: number,
+  body: { name?: string; description?: string; fullDescription?: string | null; category?: string; billingPeriod?: string },
+): Promise<ProductWithServers> {
+  const res = await fetch(`${API}/admin/products/${productId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: token },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function setProductVisibility(token: string, productId: number, isHidden: boolean): Promise<void> {
+  const res = await fetch(`${API}/admin/products/${productId}/visibility`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: token },
+    body: JSON.stringify({ isHidden }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+async function deleteProduct(token: string, productId: number): Promise<void> {
+  const res = await fetch(`${API}/admin/products/${productId}`, {
     method: "DELETE",
     headers: { Authorization: token },
   });
@@ -630,6 +706,112 @@ function ImageManager({
   );
 }
 
+function DetailsEditor({
+  product,
+  token,
+  onSaved,
+}: {
+  product: ProductWithServers;
+  token: string;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const [name, setName] = useState(product.name);
+  const [description, setDescription] = useState(product.description ?? "");
+  const [fullDescription, setFullDescription] = useState(product.fullDescription ?? "");
+  const [category, setCategory] = useState(product.category ?? "");
+  const [billingPeriod, setBillingPeriod] = useState(product.billingPeriod);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setName(product.name);
+    setDescription(product.description ?? "");
+    setFullDescription(product.fullDescription ?? "");
+    setCategory(product.category ?? "");
+    setBillingPeriod(product.billingPeriod);
+  }, [product]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await updateProductDetails(token, product.id, {
+        name: name.trim(),
+        description: description.trim(),
+        fullDescription: fullDescription.trim() ? fullDescription.trim() : null,
+        category: category.trim(),
+        billingPeriod,
+      });
+      toast({ title: "Details saved", description: `${name} updated.` });
+      onSaved();
+    } catch (e) {
+      toast({ title: "Error", description: String(e), variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+            Name
+          </label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tool name" />
+        </div>
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+            Category
+          </label>
+          <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Writing" />
+        </div>
+      </div>
+
+      <div>
+        <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+          Short Description
+        </label>
+        <Input
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Shown on the storefront card"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+          Full Description <span className="normal-case text-gray-400">(optional, shown on product page)</span>
+        </label>
+        <Textarea
+          value={fullDescription}
+          onChange={(e) => setFullDescription(e.target.value)}
+          placeholder="Longer, detailed description"
+          rows={3}
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+          Billing Period
+        </label>
+        <select
+          value={billingPeriod}
+          onChange={(e) => setBillingPeriod(e.target.value)}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        >
+          <option value="monthly">Monthly</option>
+          <option value="per_check">Per-check</option>
+        </select>
+      </div>
+
+      <Button onClick={save} disabled={saving || !name.trim()} size="sm" className="bg-primary hover:bg-primary/90 text-white font-bold gap-2">
+        <Save className="w-4 h-4" />
+        {saving ? "Saving…" : "Save Details"}
+      </Button>
+    </div>
+  );
+}
+
 function ToolConfigCard({
   product,
   token,
@@ -639,7 +821,11 @@ function ToolConfigCard({
   token: string;
   onSaved: () => void;
 }) {
+  const { toast } = useToast();
   const [servers, setServers] = useState<ToolServer[]>(product.servers);
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   useEffect(() => setServers(product.servers), [product.servers]);
 
@@ -650,10 +836,76 @@ function ToolConfigCard({
     ]);
   };
 
+  const toggleVisibility = async () => {
+    setTogglingVisibility(true);
+    try {
+      await setProductVisibility(token, product.id, !product.isHidden);
+      toast({
+        title: product.isHidden ? "Tool unhidden" : "Tool hidden",
+        description: `${product.name} is now ${product.isHidden ? "visible" : "hidden"} on the storefront.`,
+      });
+      onSaved();
+    } catch (e) {
+      toast({ title: "Error", description: String(e), variant: "destructive" });
+    } finally {
+      setTogglingVisibility(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteProduct(token, product.id);
+      toast({ title: "Tool deleted", description: `${product.name} was permanently removed.` });
+      setConfirmDeleteOpen(false);
+      onSaved();
+    } catch (e) {
+      toast({ title: "Error", description: String(e), variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="font-bold text-lg text-foreground">{product.name}</h3>
+      <div className="flex items-center justify-between mb-5 gap-3">
+        <div className="flex items-center gap-2.5">
+          <h3 className="font-bold text-lg text-foreground">{product.name}</h3>
+          {product.isHidden && (
+            <span className="text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+              Hidden
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleVisibility}
+            disabled={togglingVisibility}
+            className="text-xs font-semibold gap-1.5"
+          >
+            {product.isHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+            {togglingVisibility ? "Saving…" : product.isHidden ? "Unhide" : "Hide"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setConfirmDeleteOpen(true)}
+            className="text-xs font-semibold gap-1.5 text-red-500 hover:text-red-600 border-red-200 hover:border-red-300"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete
+          </Button>
+        </div>
+      </div>
+
+      <div className="mb-6 pb-6 border-b border-gray-100">
+        <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 flex items-center gap-1.5">
+          <PencilLine className="w-3.5 h-3.5" />
+          Details
+        </label>
+        <DetailsEditor product={product} token={token} onSaved={onSaved} />
       </div>
 
       <div className="mb-6 pb-6 border-b border-gray-100">
@@ -692,7 +944,217 @@ function ToolConfigCard({
           />
         ))}
       </div>
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently delete {product.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the tool from the admin panel and storefront. Past orders and entitlements
+              referencing it are preserved for historical records, but the tool can no longer be
+              purchased, edited, or restored from here.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDelete();
+              }}
+              disabled={deleting}
+              className="bg-red-500 hover:bg-red-600 focus:ring-red-500"
+            >
+              {deleting ? "Deleting…" : "Delete Permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+function AddToolDialog({
+  open,
+  onOpenChange,
+  token,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  token: string;
+  onCreated: () => void;
+}) {
+  const { toast } = useToast();
+  const emptyForm = {
+    name: "",
+    description: "",
+    fullDescription: "",
+    category: "",
+    billingPeriod: "monthly",
+    price1: "",
+    price3: "",
+    price12: "",
+  };
+  const [form, setForm] = useState(emptyForm);
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    if (open) setForm(emptyForm);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const isPerCheck = form.billingPeriod === "per_check";
+  const canCreate = form.name.trim() && form.description.trim() && form.category.trim() && form.price1.trim();
+
+  const create = async () => {
+    setCreating(true);
+    try {
+      await createProduct(token, {
+        name: form.name.trim(),
+        description: form.description.trim(),
+        fullDescription: form.fullDescription.trim() || undefined,
+        category: form.category.trim(),
+        billingPeriod: form.billingPeriod,
+        priceKobo: nairaToKobo(form.price1),
+        price3MonthKobo: !isPerCheck && form.price3.trim() ? nairaToKobo(form.price3) : null,
+        price12MonthKobo: !isPerCheck && form.price12.trim() ? nairaToKobo(form.price12) : null,
+        isHidden: false,
+      });
+      toast({ title: "Tool created", description: `${form.name} was added. Upload an image and add servers below.` });
+      onOpenChange(false);
+      onCreated();
+    } catch (e) {
+      toast({ title: "Error", description: String(e), variant: "destructive" });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add New Tool</DialogTitle>
+          <DialogDescription>
+            Create the tool with its name, description, and pricing. You can upload an image and add
+            server credentials afterward from its card in the list.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3 py-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+                Name
+              </label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. Grammarly"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+                Category
+              </label>
+              <Input
+                value={form.category}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                placeholder="e.g. Writing"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+              Short Description
+            </label>
+            <Input
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              placeholder="Shown on the storefront card"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+              Full Description <span className="normal-case text-gray-400">(optional)</span>
+            </label>
+            <Textarea
+              value={form.fullDescription}
+              onChange={(e) => setForm((f) => ({ ...f, fullDescription: e.target.value }))}
+              placeholder="Longer, detailed description"
+              rows={3}
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+              Billing Period
+            </label>
+            <select
+              value={form.billingPeriod}
+              onChange={(e) => setForm((f) => ({ ...f, billingPeriod: e.target.value }))}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="monthly">Monthly</option>
+              <option value="per_check">Per-check</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+                {isPerCheck ? "Per-check (₦)" : "1 Month (₦)"}
+              </label>
+              <Input
+                value={form.price1}
+                onChange={(e) => setForm((f) => ({ ...f, price1: e.target.value }))}
+                placeholder="2500"
+              />
+            </div>
+            {!isPerCheck && (
+              <>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+                    3 Months (₦)
+                  </label>
+                  <Input
+                    value={form.price3}
+                    onChange={(e) => setForm((f) => ({ ...f, price3: e.target.value }))}
+                    placeholder="optional"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+                    12 Months (₦)
+                  </label>
+                  <Input
+                    value={form.price12}
+                    onChange={(e) => setForm((f) => ({ ...f, price12: e.target.value }))}
+                    placeholder="optional"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={creating}>
+            Cancel
+          </Button>
+          <Button
+            onClick={create}
+            disabled={!canCreate || creating}
+            className="bg-primary hover:bg-primary/90 text-white font-bold"
+          >
+            {creating ? "Creating…" : "Create Tool"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1062,6 +1524,7 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<"tools" | "devices" | "users">("tools");
+  const [addToolOpen, setAddToolOpen] = useState(false);
   const { toast } = useToast();
 
   const authenticated = !!token;
@@ -1221,13 +1684,22 @@ export default function AdminPanel() {
       <main className="container mx-auto px-4 md:px-6 pb-10 max-w-5xl">
         {tab === "tools" && (
           <>
-            <div className="mb-8">
-              <h2 className="text-2xl font-heading font-bold text-foreground uppercase">
-                Tools <span className="text-primary">&amp; Pricing</span>
-              </h2>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Manage tiered pricing and one or more server credential sets per tool.
-              </p>
+            <div className="mb-8 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-heading font-bold text-foreground uppercase">
+                  Tools <span className="text-primary">&amp; Pricing</span>
+                </h2>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Manage tiered pricing and one or more server credential sets per tool.
+                </p>
+              </div>
+              <Button
+                onClick={() => setAddToolOpen(true)}
+                className="bg-primary hover:bg-primary/90 text-white font-bold gap-2 shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                Add New Tool
+              </Button>
             </div>
 
             {error && (
@@ -1267,6 +1739,13 @@ export default function AdminPanel() {
 
         {tab === "devices" && <DeviceSessionsPanel token={token} />}
       </main>
+
+      <AddToolDialog
+        open={addToolOpen}
+        onOpenChange={setAddToolOpen}
+        token={token}
+        onCreated={() => load(token)}
+      />
     </div>
   );
 }

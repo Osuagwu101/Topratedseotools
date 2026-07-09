@@ -14,6 +14,11 @@ export interface Product {
   name: string;
   description: string;
   /**
+     * Optional longer-form description shown on the product detail page. Falls back to `description` when null.
+     * @nullable
+     */
+  fullDescription?: string | null;
+  /**
      * URL of the tool's uploaded logo/image, served via the storage proxy. Null if no custom image has been uploaded.
      * @nullable
      */
@@ -35,6 +40,8 @@ export interface Product {
   category: string;
   features?: string[];
   popular?: boolean;
+  /** Hidden tools are excluded from the public storefront and cannot be purchased. */
+  isHidden?: boolean;
 }
 
 export interface OrderInput {

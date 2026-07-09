@@ -24,6 +24,7 @@ export const ListProductsResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string(),
+  "fullDescription": zod.string().nullish().describe('Optional longer-form description shown on the product detail page. Falls back to `description` when null.'),
   "imageUrl": zod.string().nullish().describe('URL of the tool\'s uploaded logo\/image, served via the storage proxy. Null if no custom image has been uploaded.'),
   "priceKobo": zod.number().describe('1-month price in kobo (1 NGN = 100 kobo)'),
   "price3MonthKobo": zod.number().nullish().describe('3-month price in kobo, if configured'),
@@ -31,7 +32,8 @@ export const ListProductsResponseItem = zod.object({
   "billingPeriod": zod.string().describe('monthly or per_check'),
   "category": zod.string(),
   "features": zod.array(zod.string()).optional(),
-  "popular": zod.boolean().optional()
+  "popular": zod.boolean().optional(),
+  "isHidden": zod.boolean().optional().describe('Hidden tools are excluded from the public storefront and cannot be purchased.')
 })
 export const ListProductsResponse = zod.array(ListProductsResponseItem)
 
@@ -47,6 +49,7 @@ export const GetProductResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string(),
+  "fullDescription": zod.string().nullish().describe('Optional longer-form description shown on the product detail page. Falls back to `description` when null.'),
   "imageUrl": zod.string().nullish().describe('URL of the tool\'s uploaded logo\/image, served via the storage proxy. Null if no custom image has been uploaded.'),
   "priceKobo": zod.number().describe('1-month price in kobo (1 NGN = 100 kobo)'),
   "price3MonthKobo": zod.number().nullish().describe('3-month price in kobo, if configured'),
@@ -54,7 +57,8 @@ export const GetProductResponse = zod.object({
   "billingPeriod": zod.string().describe('monthly or per_check'),
   "category": zod.string(),
   "features": zod.array(zod.string()).optional(),
-  "popular": zod.boolean().optional()
+  "popular": zod.boolean().optional(),
+  "isHidden": zod.boolean().optional().describe('Hidden tools are excluded from the public storefront and cannot be purchased.')
 })
 
 

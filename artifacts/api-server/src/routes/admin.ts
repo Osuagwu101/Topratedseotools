@@ -8,7 +8,7 @@ import {
   userDeviceSessionsTable,
   ordersTable,
 } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, ne, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { activateOrderByReference } from "../lib/activateOrder";
 import { logger } from "../lib/logger";
@@ -60,7 +60,13 @@ const requireAdmin: RequestHandler = (req, res, next) => {
 // ── Products (with servers + pricing) ────────────────────────────────────────
 
 router.get("/admin/products", requireAdmin, async (_req, res): Promise<void> => {
-  const products = await db.select().from(productsTable).orderBy(productsTable.id);
+  // Deleted tools are permanently removed from admin management too; historical
+  // orders still resolve their name/price via a direct row lookup, not this list.
+  const products = await db
+    .select()
+    .from(productsTable)
+    .where(ne(productsTable.isDeleted, true))
+    .orderBy(productsTable.id);
   const servers = await db.select().from(toolServersTable).orderBy(toolServersTable.id);
 
   const serversByProduct: Record<number, (typeof toolServersTable.$inferSelect)[]> = {};
@@ -72,15 +78,182 @@ router.get("/admin/products", requireAdmin, async (_req, res): Promise<void> => 
     products.map((p) => ({
       id: p.id,
       name: p.name,
+      description: p.description,
+      fullDescription: p.fullDescription,
       category: p.category,
       billingPeriod: p.billingPeriod,
       imageUrl: p.imageUrl,
       priceKobo: p.priceKobo,
       price3MonthKobo: p.price3MonthKobo,
       price12MonthKobo: p.price12MonthKobo,
+      isHidden: p.isHidden,
       servers: serversByProduct[p.id] ?? [],
     })),
   );
+});
+
+// Create a new tool. It becomes visible to users only after being saved here
+// (and only if isHidden is not explicitly set to true).
+router.post("/admin/products", requireAdmin, async (req, res): Promise<void> => {
+  const body = req.body as {
+    name?: unknown;
+    description?: unknown;
+    fullDescription?: unknown;
+    category?: unknown;
+    billingPeriod?: unknown;
+    priceKobo?: unknown;
+    price3MonthKobo?: unknown;
+    price12MonthKobo?: unknown;
+    isHidden?: unknown;
+  };
+
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const description = typeof body.description === "string" ? body.description.trim() : "";
+  const category = typeof body.category === "string" ? body.category.trim() : "";
+  const billingPeriod = typeof body.billingPeriod === "string" ? body.billingPeriod.trim() : "monthly";
+  const priceKobo = typeof body.priceKobo === "number" ? Math.round(body.priceKobo) : NaN;
+
+  if (!name || !description || !category || !Number.isFinite(priceKobo) || priceKobo < 0) {
+    res.status(400).json({
+      error: "name, description, category, and a valid priceKobo (1-month price) are required",
+    });
+    return;
+  }
+
+  const toNullableInt = (v: unknown): number | null => {
+    if (typeof v === "number" && Number.isFinite(v)) return Math.round(v);
+    return null;
+  };
+
+  const [created] = await db
+    .insert(productsTable)
+    .values({
+      name,
+      description,
+      fullDescription: typeof body.fullDescription === "string" && body.fullDescription.trim()
+        ? body.fullDescription.trim()
+        : null,
+      category,
+      billingPeriod,
+      priceKobo,
+      price3MonthKobo: toNullableInt(body.price3MonthKobo),
+      price12MonthKobo: toNullableInt(body.price12MonthKobo),
+      isHidden: body.isHidden === true,
+      features: [],
+    })
+    .returning();
+
+  logger.info({ productId: created.id, name: created.name }, "New tool created by admin");
+  res.status(201).json(created);
+});
+
+// Edit an existing tool's name/descriptions/category/billing period/visibility.
+// Pricing has its own dedicated endpoint below (PUT /admin/products/:id/pricing).
+router.put("/admin/products/:id", requireAdmin, async (req, res): Promise<void> => {
+  const productId = parseInt(String(req.params.id), 10);
+  if (isNaN(productId)) {
+    res.status(400).json({ error: "Invalid product id" });
+    return;
+  }
+
+  const body = req.body as {
+    name?: unknown;
+    description?: unknown;
+    fullDescription?: unknown;
+    category?: unknown;
+    billingPeriod?: unknown;
+    isHidden?: unknown;
+  };
+
+  const updates: Record<string, string | boolean | null> = {};
+  if (typeof body.name === "string" && body.name.trim()) updates.name = body.name.trim();
+  if (typeof body.description === "string" && body.description.trim()) {
+    updates.description = body.description.trim();
+  }
+  if (body.fullDescription === null) {
+    updates.fullDescription = null;
+  } else if (typeof body.fullDescription === "string") {
+    updates.fullDescription = body.fullDescription.trim() || null;
+  }
+  if (typeof body.category === "string" && body.category.trim()) updates.category = body.category.trim();
+  if (typeof body.billingPeriod === "string" && body.billingPeriod.trim()) {
+    updates.billingPeriod = body.billingPeriod.trim();
+  }
+  if (typeof body.isHidden === "boolean") updates.isHidden = body.isHidden;
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "No valid fields provided" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(productsTable)
+    .set(updates)
+    .where(eq(productsTable.id, productId))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  res.json(updated);
+});
+
+// Hide/unhide a tool. Hiding removes it from the public storefront and blocks
+// new purchases immediately, while leaving existing entitlements/orders intact.
+router.put("/admin/products/:id/visibility", requireAdmin, async (req, res): Promise<void> => {
+  const productId = parseInt(String(req.params.id), 10);
+  if (isNaN(productId)) {
+    res.status(400).json({ error: "Invalid product id" });
+    return;
+  }
+
+  const body = req.body as { isHidden?: unknown };
+  if (typeof body.isHidden !== "boolean") {
+    res.status(400).json({ error: "isHidden (boolean) is required" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(productsTable)
+    .set({ isHidden: body.isHidden })
+    .where(eq(productsTable.id, productId))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  logger.info({ productId, isHidden: body.isHidden }, "Tool visibility changed by admin");
+  res.json(updated);
+});
+
+// Permanently remove a tool from the website. This is a soft delete: the row
+// (and its historical orders/entitlements) is preserved for reporting and
+// payment-history integrity, but the tool disappears from the storefront and
+// from admin management, and can no longer be purchased.
+router.delete("/admin/products/:id", requireAdmin, async (req, res): Promise<void> => {
+  const productId = parseInt(String(req.params.id), 10);
+  if (isNaN(productId)) {
+    res.status(400).json({ error: "Invalid product id" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(productsTable)
+    .set({ isDeleted: true, isHidden: true })
+    .where(eq(productsTable.id, productId))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  logger.info({ productId }, "Tool deleted by admin");
+  res.json({ ok: true });
 });
 
 // ── Tool images ──────────────────────────────────────────────────────────────

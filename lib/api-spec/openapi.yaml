@@ -207,6 +207,9 @@ components:
           type: string
         description:
           type: string
+        fullDescription:
+          type: ["string", "null"]
+          description: Optional longer-form description shown on the product detail page. Falls back to `description` when null.
         imageUrl:
           type: ["string", "null"]
           description: URL of the tool's uploaded logo/image, served via the storage proxy. Null if no custom image has been uploaded.
@@ -230,6 +233,9 @@ components:
             type: string
         popular:
           type: boolean
+        isHidden:
+          type: boolean
+          description: Hidden tools are excluded from the public storefront and cannot be purchased.
 
     OrderInput:
       type: object

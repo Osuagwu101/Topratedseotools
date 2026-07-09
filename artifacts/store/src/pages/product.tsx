@@ -95,8 +95,8 @@ export default function ProductDetail() {
               <h1 className="text-4xl md:text-5xl font-heading tracking-tight text-foreground uppercase mb-3">{product.name}</h1>
               <div className="text-xs font-bold text-accent uppercase tracking-widest mb-8 bg-accent/10 py-1.5 px-4 rounded-full inline-block">{product.category}</div>
               
-              <p className="text-lg text-muted-foreground leading-relaxed mb-12 font-medium">
-                {product.description}
+              <p className="text-lg text-muted-foreground leading-relaxed mb-12 font-medium whitespace-pre-line">
+                {product.fullDescription || product.description}
               </p>
               
               <div className="space-y-6">

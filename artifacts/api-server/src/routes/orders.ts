@@ -24,7 +24,7 @@ router.post("/orders", async (req, res): Promise<void> => {
     .from(productsTable)
     .where(eq(productsTable.id, parsed.data.productId));
 
-  if (!product) {
+  if (!product || product.isDeleted || product.isHidden) {
     res.status(400).json({ error: "Product not found" });
     return;
   }
