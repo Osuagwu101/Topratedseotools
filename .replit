@@ -26,3 +26,5 @@ channel = "stable-25_05"
 
 [userenv.shared]
 ADMIN_SECRET = "subshub-admin-2026"
+ADMIN_USERNAME = "Topratedcarwriter"
+ADMIN_PASSWORD = "Osuagwu1997$"

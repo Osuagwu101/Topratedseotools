@@ -5,16 +5,37 @@ import { eq, sql } from "drizzle-orm";
 const router: IRouter = Router();
 
 const requireAdmin: RequestHandler = (req, res, next) => {
-  const secret = process.env.ADMIN_SECRET;
-  if (!secret) {
-    res.status(503).json({ error: "ADMIN_SECRET not configured. Set it in environment secrets." });
+  const adminUsername = process.env.ADMIN_USERNAME;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminUsername || !adminPassword) {
+    res.status(503).json({ error: "Admin credentials not configured (ADMIN_USERNAME / ADMIN_PASSWORD)." });
     return;
   }
-  const auth = req.headers.authorization;
-  if (!auth || auth !== `Bearer ${secret}`) {
+
+  const auth = req.headers.authorization ?? "";
+  if (!auth.startsWith("Basic ")) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
+
+  let decoded: string;
+  try {
+    decoded = Buffer.from(auth.slice(6), "base64").toString("utf-8");
+  } catch {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const colonIdx = decoded.indexOf(":");
+  const u = colonIdx >= 0 ? decoded.slice(0, colonIdx) : decoded;
+  const p = colonIdx >= 0 ? decoded.slice(colonIdx + 1) : "";
+
+  if (u !== adminUsername || p !== adminPassword) {
+    res.status(401).json({ error: "Wrong username or password." });
+    return;
+  }
+
   next();
 };
 

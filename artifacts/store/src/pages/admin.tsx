@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Save, ShieldCheck, Lock, Monitor, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Save, ShieldCheck, Lock, Monitor, Trash2, User } from "lucide-react";
 
 interface Credential {
   id?: number;
@@ -41,49 +41,50 @@ interface UserDeviceSession {
 const BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, "");
 const API = `${BASE_PATH}/api`;
 
-async function fetchProducts(secret: string): Promise<ProductWithCred[]> {
+function makeBasicAuth(username: string, password: string) {
+  return `Basic ${btoa(`${username}:${password}`)}`;
+}
+
+async function fetchProducts(token: string): Promise<ProductWithCred[]> {
   const res = await fetch(`${API}/admin/products`, {
-    headers: { Authorization: `Bearer ${secret}` },
+    headers: { Authorization: token },
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
-async function saveCredential(secret: string, body: Credential): Promise<void> {
+async function saveCredential(token: string, body: Credential): Promise<void> {
   const res = await fetch(`${API}/admin/credentials`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${secret}`,
-    },
+    headers: { "Content-Type": "application/json", Authorization: token },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await res.text());
 }
 
-async function fetchDeviceSessions(secret: string): Promise<UserDeviceSession[]> {
+async function fetchDeviceSessions(token: string): Promise<UserDeviceSession[]> {
   const res = await fetch(`${API}/admin/device-sessions`, {
-    headers: { Authorization: `Bearer ${secret}` },
+    headers: { Authorization: token },
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
-async function clearDeviceSessions(secret: string, userId: string): Promise<void> {
+async function clearDeviceSessions(token: string, userId: string): Promise<void> {
   const res = await fetch(`${API}/admin/device-sessions/${encodeURIComponent(userId)}`, {
     method: "DELETE",
-    headers: { Authorization: `Bearer ${secret}` },
+    headers: { Authorization: token },
   });
   if (!res.ok) throw new Error(await res.text());
 }
 
 function CredentialRow({
   product,
-  secret,
+  token,
   onSaved,
 }: {
   product: ProductWithCred;
-  secret: string;
+  token: string;
   onSaved: () => void;
 }) {
   const { toast } = useToast();
@@ -107,7 +108,7 @@ function CredentialRow({
   const save = async () => {
     setSaving(true);
     try {
-      await saveCredential(secret, form);
+      await saveCredential(token, form);
       toast({ title: "Saved", description: `${product.name} credentials updated.` });
       onSaved();
     } catch (e) {
@@ -229,7 +230,7 @@ function CredentialRow({
   );
 }
 
-function DeviceSessionsPanel({ secret }: { secret: string }) {
+function DeviceSessionsPanel({ token }: { token: string }) {
   const { toast } = useToast();
   const [sessions, setSessions] = useState<UserDeviceSession[]>([]);
   const [loading, setLoading] = useState(false);
@@ -238,7 +239,7 @@ function DeviceSessionsPanel({ secret }: { secret: string }) {
   const load = async () => {
     setLoading(true);
     try {
-      const data = await fetchDeviceSessions(secret);
+      const data = await fetchDeviceSessions(token);
       setSessions(data);
     } catch (e) {
       toast({ title: "Error loading sessions", description: String(e), variant: "destructive" });
@@ -252,7 +253,7 @@ function DeviceSessionsPanel({ secret }: { secret: string }) {
   const handleClear = async (userId: string) => {
     setClearing(userId);
     try {
-      await clearDeviceSessions(secret, userId);
+      await clearDeviceSessions(token, userId);
       toast({ title: "Sessions cleared", description: "User can now log in again." });
       await load();
     } catch (e) {
@@ -273,20 +274,14 @@ function DeviceSessionsPanel({ secret }: { secret: string }) {
             Users are limited to 3 devices. Suspended accounts appear in red. Clear sessions to unsuspend.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={load}
-          disabled={loading}
-          className="text-xs font-semibold"
-        >
+        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="text-xs font-semibold">
           {loading ? "Loading…" : "Refresh"}
         </Button>
       </div>
 
       {sessions.length === 0 && !loading && (
         <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center text-muted-foreground text-sm">
-          No device sessions yet. Sessions appear when users make authenticated requests.
+          No device sessions yet.
         </div>
       )}
 
@@ -302,13 +297,9 @@ function DeviceSessionsPanel({ secret }: { secret: string }) {
                   <Monitor className="w-4 h-4 text-gray-400 shrink-0" />
                   <span className="font-mono text-xs text-gray-500 truncate">{s.userId}</span>
                   {s.suspended ? (
-                    <span className="shrink-0 text-xs font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
-                      SUSPENDED
-                    </span>
+                    <span className="shrink-0 text-xs font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">SUSPENDED</span>
                   ) : (
-                    <span className="shrink-0 text-xs font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                      {s.deviceCount} / 3 devices
-                    </span>
+                    <span className="shrink-0 text-xs font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{s.deviceCount} / 3 devices</span>
                   )}
                 </div>
                 <div className="mt-2 space-y-1">
@@ -340,30 +331,32 @@ function DeviceSessionsPanel({ secret }: { secret: string }) {
 }
 
 export default function AdminPanel() {
-  const [secret, setSecret] = useState(() => sessionStorage.getItem("admin_secret") ?? "");
-  const [secretInput, setSecretInput] = useState("");
+  const [token, setToken] = useState(() => sessionStorage.getItem("admin_token") ?? "");
+  const [usernameInput, setUsernameInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [products, setProducts] = useState<ProductWithCred[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<"credentials" | "devices">("credentials");
   const { toast } = useToast();
 
-  const authenticated = !!secret;
+  const authenticated = !!token;
 
-  const load = async (s: string) => {
+  const load = async (t: string) => {
     setLoading(true);
     setError("");
     try {
-      const data = await fetchProducts(s);
+      const data = await fetchProducts(t);
       setProducts(data);
-      sessionStorage.setItem("admin_secret", s);
-      setSecret(s);
+      sessionStorage.setItem("admin_token", t);
+      setToken(t);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (msg.includes("Unauthorized") || msg.includes("401")) {
-        setError("Wrong admin secret. Try again.");
-        setSecret("");
-        sessionStorage.removeItem("admin_secret");
+      if (msg.includes("Unauthorized") || msg.includes("401") || msg.includes("Wrong")) {
+        setError("Wrong username or password.");
+        setToken("");
+        sessionStorage.removeItem("admin_token");
       } else {
         setError(msg);
       }
@@ -373,40 +366,81 @@ export default function AdminPanel() {
   };
 
   useEffect(() => {
-    if (secret) load(secret);
+    if (token) load(token);
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    load(secretInput.trim());
+    if (!usernameInput.trim() || !passwordInput) return;
+    const t = makeBasicAuth(usernameInput.trim(), passwordInput);
+    load(t);
   };
 
   if (!authenticated) {
     return (
       <div className="min-h-screen bg-[#F7F8F9] flex items-center justify-center px-4">
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-10 w-full max-w-sm text-center">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-            <Lock className="w-8 h-8 text-primary" />
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-10 w-full max-w-sm">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-5">
+              <ShieldCheck className="w-8 h-8 text-primary" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground mb-1">Admin Login</h1>
+            <p className="text-sm text-muted-foreground">SubsHub backend panel</p>
           </div>
-          <h1 className="text-2xl font-bold text-foreground mb-1">Admin Panel</h1>
-          <p className="text-sm text-muted-foreground mb-8">Enter your admin secret to continue</p>
 
           <form onSubmit={handleLogin} className="space-y-4">
-            <Input
-              type="password"
-              placeholder="Admin secret"
-              value={secretInput}
-              onChange={(e) => setSecretInput(e.target.value)}
-              autoFocus
-              className="text-center"
-            />
-            {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+                Username
+              </label>
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="Username"
+                  value={usernameInput}
+                  onChange={(e) => setUsernameInput(e.target.value)}
+                  autoComplete="username"
+                  autoFocus
+                  className="pl-10"
+                />
+                <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+                Password
+              </label>
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  autoComplete="current-password"
+                  className="pl-10 pr-10"
+                />
+                <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowPassword((v) => !v)}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <p className="text-sm text-red-500 font-medium text-center">{error}</p>
+            )}
+
             <Button
               type="submit"
-              disabled={loading || !secretInput}
-              className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-11 rounded-xl"
+              disabled={loading || !usernameInput.trim() || !passwordInput}
+              className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-11 rounded-xl mt-2"
             >
-              {loading ? "Checking…" : "Enter"}
+              {loading ? "Signing in…" : "Sign In"}
             </Button>
           </form>
         </div>
@@ -429,8 +463,8 @@ export default function AdminPanel() {
             size="sm"
             className="text-red-500 hover:text-red-600 font-semibold text-sm"
             onClick={() => {
-              sessionStorage.removeItem("admin_secret");
-              setSecret("");
+              sessionStorage.removeItem("admin_token");
+              setToken("");
             }}
           >
             Logout
@@ -464,7 +498,6 @@ export default function AdminPanel() {
               </h2>
               <p className="text-muted-foreground mt-1 text-sm">
                 Set login credentials per tool. Active subscribers will see these on their dashboard.
-                Enable "One-Click Auto-Login" for Phrasly and StealthWriter.
               </p>
             </div>
 
@@ -479,10 +512,10 @@ export default function AdminPanel() {
                 <CredentialRow
                   key={p.id}
                   product={p}
-                  secret={secret}
+                  token={token}
                   onSaved={() => {
                     toast({ title: "Refreshing…" });
-                    load(secret);
+                    load(token);
                   }}
                 />
               ))}
@@ -490,7 +523,7 @@ export default function AdminPanel() {
           </>
         )}
 
-        {tab === "devices" && <DeviceSessionsPanel secret={secret} />}
+        {tab === "devices" && <DeviceSessionsPanel token={token} />}
       </main>
     </div>
   );
