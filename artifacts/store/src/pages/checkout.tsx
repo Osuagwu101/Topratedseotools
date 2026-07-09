@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Loader2, ShieldCheck } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Checkout() {
   const [location] = useLocation();
@@ -16,6 +17,7 @@ export default function Checkout() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const { toast } = useToast();
 
   const { data: product, isLoading: isProductLoading } = useGetProduct(productId, {
     query: { enabled: !!productId, queryKey: getGetProductQueryKey(productId) }
@@ -49,6 +51,14 @@ export default function Checkout() {
       window.location.href = payment.authorizationUrl;
     } catch (error) {
       console.error("Checkout failed:", error);
+      toast({
+        title: "Payment could not start",
+        description:
+          error instanceof Error && error.message
+            ? error.message
+            : "Something went wrong initializing your payment. Please try again.",
+        variant: "destructive",
+      });
       setIsProcessing(false);
     }
   };

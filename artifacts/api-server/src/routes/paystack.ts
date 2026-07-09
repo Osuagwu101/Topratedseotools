@@ -11,7 +11,8 @@ import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY ?? "";
+const PAYSTACK_SECRET_KEY =
+  process.env.PAYSTACK_SECRET_KEY ?? process.env.PAYSTACK_API_KEY ?? "";
 
 router.post("/paystack/initialize", async (req, res): Promise<void> => {
   const parsed = InitializePaymentBody.safeParse(req.body);
@@ -116,7 +117,7 @@ router.get("/paystack/verify/:reference", async (req, res): Promise<void> => {
         orderId = order.id;
         await db
           .update(ordersTable)
-          .set({ status: "paid" })
+          .set({ status: "success" })
           .where(eq(ordersTable.reference, reference));
       }
     }
