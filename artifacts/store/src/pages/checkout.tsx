@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useGetProduct, useCreateOrder, useInitializePayment } from "@workspace/api-client-react";
+import { useGetProduct, getGetProductQueryKey, useCreateOrder, useInitializePayment } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,7 @@ export default function Checkout() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const { data: product, isLoading: isProductLoading } = useGetProduct(productId, {
-    query: { enabled: !!productId }
+    query: { enabled: !!productId, queryKey: getGetProductQueryKey(productId) }
   });
 
   const createOrder = useCreateOrder();

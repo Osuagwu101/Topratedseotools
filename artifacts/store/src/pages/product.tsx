@@ -1,4 +1,4 @@
-import { useGetProduct } from "@workspace/api-client-react";
+import { useGetProduct, getGetProductQueryKey } from "@workspace/api-client-react";
 import { Link, useRoute, useLocation } from "wouter";
 import { useAuth } from "@clerk/react";
 import { Layout } from "@/components/layout";
@@ -41,7 +41,7 @@ export default function ProductDetail() {
   const [, setLocation] = useLocation();
 
   const { data: product, isLoading } = useGetProduct(productId, {
-    query: { enabled: !!productId }
+    query: { enabled: !!productId, queryKey: getGetProductQueryKey(productId) }
   });
 
   if (isLoading) {

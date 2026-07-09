@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link } from "wouter";
-import { useVerifyPayment } from "@workspace/api-client-react";
+import { useVerifyPayment, getVerifyPaymentQueryKey } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,7 +11,7 @@ export default function Success() {
   const reference = searchParams.get("reference") || "";
 
   const { data: verification, isLoading, error } = useVerifyPayment(reference, {
-    query: { enabled: !!reference }
+    query: { enabled: !!reference, queryKey: getVerifyPaymentQueryKey(reference) }
   });
 
   if (!reference) {

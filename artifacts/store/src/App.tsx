@@ -189,19 +189,6 @@ function SignUpPage() {
   );
 }
 
-function HomeRedirect() {
-  return (
-    <>
-      <Show when="signed-in">
-        <Redirect to="/dashboard" />
-      </Show>
-      <Show when="signed-out">
-        <Home />
-      </Show>
-    </>
-  );
-}
-
 function ProtectedDashboard() {
   return (
     <>
@@ -231,7 +218,7 @@ function ProtectedCheckout() {
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={HomeRedirect} />
+      <Route path="/" component={Home} />
       <Route path="/dashboard" component={ProtectedDashboard} />
       <Route path="/products/:id" component={ProductDetail} />
       <Route path="/checkout" component={ProtectedCheckout} />
@@ -255,6 +242,8 @@ function ClerkProviderWithRoutes() {
       appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
+      signInFallbackRedirectUrl={`${basePath}/dashboard`}
+      signUpFallbackRedirectUrl={`${basePath}/dashboard`}
       localization={{
         signIn: {
           start: {
