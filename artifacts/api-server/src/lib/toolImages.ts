@@ -3,11 +3,10 @@ import { randomUUID } from "crypto";
 import { objectStorageClient } from "./objectStorage";
 
 // Standard square dimensions all tool logos are normalized to for a consistent
-// storefront grid. Uploaded images are checked against this aspect ratio; a
-// mismatch (beyond STANDARD_ASPECT_TOLERANCE) prompts the admin to confirm an
-// automatic resize rather than silently distorting or rejecting the upload.
+// storefront grid. Uploaded images are checked against these exact dimensions;
+// any mismatch (wrong size and/or aspect ratio) prompts the admin to confirm
+// an automatic resize rather than silently distorting or rejecting the upload.
 export const STANDARD_IMAGE_SIZE = 512;
-const STANDARD_ASPECT_TOLERANCE = 0.05;
 
 function firstPublicSearchPath(): string {
   const pathsStr = process.env.PUBLIC_OBJECT_SEARCH_PATHS || "";
@@ -42,8 +41,7 @@ export async function analyzeImage(buffer: Buffer): Promise<ImageDimensions> {
   if (!width || !height) {
     throw new Error("Could not read image dimensions");
   }
-  const aspect = width / height;
-  const matchesStandard = Math.abs(aspect - 1) <= STANDARD_ASPECT_TOLERANCE;
+  const matchesStandard = width === STANDARD_IMAGE_SIZE && height === STANDARD_IMAGE_SIZE;
   return { width, height, matchesStandard };
 }
 
