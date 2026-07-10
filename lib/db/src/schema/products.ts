@@ -32,6 +32,14 @@ export const productsTable = pgTable("products", {
   // is on. Null/0 means unlimited. Reset tracking lives in user_daily_usage,
   // keyed by West African Time (WAT) calendar day.
   maxDailyInputs: integer("max_daily_inputs"),
+  // Recommendation config, configured per-product in the admin panel and
+  // rendered on the storefront's product detail page: cross-sell (complementary
+  // tools), up-sell (higher-tier/premium alternative), down-sell (cheaper
+  // alternative). Each is a list of other product ids; nullable/empty means
+  // "not configured" and the corresponding section is hidden.
+  crossSellProductIds: integer("cross_sell_product_ids").array().notNull().default([]),
+  upSellProductIds: integer("up_sell_product_ids").array().notNull().default([]),
+  downSellProductIds: integer("down_sell_product_ids").array().notNull().default([]),
 });
 
 export const insertProductSchema = createInsertSchema(productsTable).omit({ id: true });

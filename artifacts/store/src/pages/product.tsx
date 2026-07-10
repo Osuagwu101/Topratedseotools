@@ -1,4 +1,4 @@
-import { useGetProduct, getGetProductQueryKey } from "@workspace/api-client-react";
+import { useGetProduct, getGetProductQueryKey, useListProducts } from "@workspace/api-client-react";
 import { Link, useRoute, useLocation } from "wouter";
 import { useAuth } from "@clerk/react";
 import { Layout } from "@/components/layout";
@@ -6,6 +6,51 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SiGrammarly, SiNordvpn, SiSemrush } from "react-icons/si";
 import { Check, Video, Bot, Shield, Pencil } from "lucide-react";
+import { ToolCard } from "@/components/tool-card";
+
+function RecommendationRow({
+  title,
+  subtitle,
+  ids,
+  allProducts,
+}: {
+  title: string;
+  subtitle: string;
+  ids: number[] | undefined;
+  allProducts: Array<{ id: number; name: string; category?: string | null; imageUrl?: string | null; priceKobo: number; billingPeriod: string }> | undefined;
+}) {
+  if (!ids?.length || !allProducts) return null;
+  const items = ids
+    .map((id) => allProducts.find((p) => p.id === id))
+    .filter((p): p is NonNullable<typeof p> => !!p);
+  if (!items.length) return null;
+
+  return (
+    <div className="mt-12">
+      <h3 className="font-heading text-2xl uppercase border-b border-border pb-4 mb-6">{title}</h3>
+      <p className="text-muted-foreground text-sm font-semibold mb-6 -mt-4">{subtitle}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {items.map((p) => (
+          <Link key={p.id} href={`/products/${p.id}`}>
+            <ToolCard
+              name={p.name}
+              category={p.category}
+              imageUrl={p.imageUrl}
+              priceKobo={p.priceKobo}
+              billingPeriod={p.billingPeriod}
+              footer={
+                <span className="text-sm font-bold text-primary uppercase tracking-wider">
+                  View tool →
+                </span>
+              }
+              testId={`recommendation-${p.id}`}
+            />
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function getIconForProduct(name: string) {
   const n = name.toLowerCase();
@@ -43,6 +88,7 @@ export default function ProductDetail() {
   const { data: product, isLoading } = useGetProduct(productId, {
     query: { enabled: !!productId, queryKey: getGetProductQueryKey(productId) }
   });
+  const { data: allProducts } = useListProducts();
 
   if (isLoading) {
     return (
@@ -165,6 +211,27 @@ export default function ProductDetail() {
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="px-8 md:px-12 pb-12">
+            <RecommendationRow
+              title="You may also like"
+              subtitle="Tools that pair well with this one"
+              ids={product.crossSellProductIds}
+              allProducts={allProducts}
+            />
+            <RecommendationRow
+              title="Upgrade to"
+              subtitle="Want more power? Consider these instead"
+              ids={product.upSellProductIds}
+              allProducts={allProducts}
+            />
+            <RecommendationRow
+              title="Or try instead"
+              subtitle="Lighter, more affordable options"
+              ids={product.downSellProductIds}
+              allProducts={allProducts}
+            />
           </div>
         </div>
       </div>

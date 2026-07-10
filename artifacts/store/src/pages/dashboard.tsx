@@ -24,50 +24,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-const LOGOS: Record<string, string> = {
-  grammarly: "/logos/grammarly.png",
-  quillbot: "/logos/quillbot.png",
-  phrasly: "/logos/phrasly2.png",
-  chatgpt: "/logos/chatgpt.png",
-  stealthwriter: "/logos/stealthwriter.png",
-  nordvpn: "/logos/nordvpn.png",
-  semrush: "/logos/semrush.png",
-  capcut: "/logos/capcut.png",
-  turnitin: "/logos/turnitin.png",
-  writehuman: "/logos/writehuman.png",
-  jenni: "/logos/jenni.png",
-};
-
-const BG_COLORS: Record<string, string> = {
-  grammarly: "#E8FFF3",
-  quillbot: "#EEF4FF",
-  phrasly: "#FFF4EC",
-  chatgpt: "#F0FDF4",
-  stealthwriter: "#F3F0FF",
-  nordvpn: "#E8F0FF",
-  semrush: "#FFF7E8",
-  capcut: "#F0F0F0",
-  turnitin: "#FFF0F0",
-  writehuman: "#F0FFF8",
-  jenni: "#FFF5FF",
-};
-
-function getLogoKey(name: string): string {
-  const n = name.toLowerCase();
-  if (n.includes("grammarly")) return "grammarly";
-  if (n.includes("quillbot")) return "quillbot";
-  if (n.includes("phrasly")) return "phrasly";
-  if (n.includes("chatgpt")) return "chatgpt";
-  if (n.includes("stealth")) return "stealthwriter";
-  if (n.includes("nord")) return "nordvpn";
-  if (n.includes("semrush")) return "semrush";
-  if (n.includes("capcut")) return "capcut";
-  if (n.includes("turnitin")) return "turnitin";
-  if (n.includes("writehuman") || n.includes("write human")) return "writehuman";
-  if (n.includes("jenni")) return "jenni";
-  return "";
-}
+import { ToolCard, LOGOS, BG_COLORS, getLogoKey } from "@/components/tool-card";
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "success") {
@@ -298,16 +255,15 @@ export default function Dashboard() {
                   <AccordionTrigger className="hover:no-underline py-4">
                     <span className="flex items-center gap-2 text-lg font-bold uppercase tracking-wider text-foreground">
                       <CheckCircle2 className="w-5 h-5 text-primary" />
-                      Successful
+                      Active Tools
                       <span className="ml-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
                         {successfulOrders.length}
                       </span>
                     </span>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-2">
                       {successfulOrders.map((order) => {
-                        const key = getLogoKey(order.productName);
                         const hasAutoLogin = order.isAutoLogin === true;
                         const hasCreds = !hasAutoLogin && (order.credUsername || order.credPassword);
                         const dailyLimit = order.maxDailyInputs ?? null;
@@ -316,121 +272,81 @@ export default function Dashboard() {
                         const remaining = dailyLimit != null ? Math.max(0, dailyLimit - dailyUsed) : null;
 
                         return (
-                          <div
+                          <ToolCard
                             key={order.id}
-                            className="bg-white border-2 border-primary/20 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-primary/50 transition-all"
-                          >
-                            <div className="flex items-start gap-4">
-                              <div
-                                className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center p-2"
-                                style={{ backgroundColor: BG_COLORS[key] ?? "#F7F8FA" }}
-                              >
-                                {LOGOS[key] ? (
-                                  <img
-                                    src={LOGOS[key]}
-                                    alt={order.productName}
-                                    className="max-w-full max-h-full object-contain"
-                                  />
-                                ) : (
-                                  <span className="text-xl font-heading font-bold text-primary">
-                                    {order.productName[0]}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                  <h3 className="font-bold text-foreground truncate">
-                                    {order.productName}
-                                  </h3>
+                            name={order.productName}
+                            priceKobo={order.amountKobo}
+                            billingPeriod={order.billingPeriod}
+                            testId={`card-active-tool-${order.id}`}
+                            footer={
+                              <div className="w-full">
+                                <div className="flex items-center justify-center gap-2 mb-3">
                                   <StatusBadge status={order.status} />
+                                  {order.expiresAt && (
+                                    <span className="text-xs text-muted-foreground font-semibold">
+                                      until{" "}
+                                      {new Date(order.expiresAt).toLocaleDateString("en-NG", {
+                                        year: "numeric",
+                                        month: "short",
+                                        day: "numeric",
+                                      })}
+                                    </span>
+                                  )}
                                 </div>
-                                <div className="flex items-center gap-3 mt-0.5">
-                                  <span className="text-primary font-bold text-sm">
-                                    ₦{(order.amountKobo / 100).toLocaleString()}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground uppercase font-semibold">
-                                    / {order.billingPeriod === "monthly" ? "month" : "check"}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  {new Date(order.createdAt).toLocaleDateString("en-NG", {
-                                    year: "numeric",
-                                    month: "short",
-                                    day: "numeric",
-                                  })}
-                                </p>
-                                {order.expiresAt && (
-                                  <p className="text-xs text-muted-foreground mt-0.5 font-semibold">
-                                    Renews / expires{" "}
-                                    {new Date(order.expiresAt).toLocaleDateString("en-NG", {
-                                      year: "numeric",
-                                      month: "short",
-                                      day: "numeric",
-                                    })}
+
+                                {hasAutoLogin && (
+                                  <div>
+                                    <button
+                                      type="button"
+                                      disabled={limitReached}
+                                      className={`flex items-center justify-center gap-2 w-full h-11 text-sm font-bold rounded-lg transition-colors ${
+                                        limitReached
+                                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                          : "bg-primary hover:bg-primary/90 text-white cursor-pointer"
+                                      }`}
+                                      onClick={() => {
+                                        if (limitReached) return;
+                                        const url = `${BASE_PATH}/api/proxy/${order.productId}/`;
+                                        toast({
+                                          title: `Opening ${order.productName}…`,
+                                          description: "Logging in from a single secure IP…",
+                                        });
+                                        const win = window.open(url, "_blank", "noopener,noreferrer");
+                                        if (!win) {
+                                          window.location.href = url;
+                                        }
+                                      }}
+                                    >
+                                      <ExternalLink className="w-4 h-4" />
+                                      Launch
+                                    </button>
+                                    {limitReached ? (
+                                      <p className="text-center text-xs text-red-500 mt-2 font-semibold">
+                                        Daily limit reached. Resets at midnight WAT.
+                                      </p>
+                                    ) : dailyLimit != null ? (
+                                      <p className="text-center text-xs text-muted-foreground mt-2">
+                                        Tasks left today: {remaining} / {dailyLimit}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                )}
+
+                                {hasCreds && (
+                                  <CredentialBox
+                                    username={order.credUsername}
+                                    password={order.credPassword}
+                                  />
+                                )}
+
+                                {!hasAutoLogin && !hasCreds && (
+                                  <p className="text-xs text-muted-foreground italic">
+                                    Login details will appear here once configured.
                                   </p>
                                 )}
                               </div>
-                            </div>
-
-                            {/* Auto-login button for Phrasly / StealthWriter */}
-                            {hasAutoLogin && (
-                              <div className="mt-4">
-                                <button
-                                  type="button"
-                                  disabled={limitReached}
-                                  className={`flex items-center justify-center gap-2 w-full h-10 text-sm font-bold rounded-xl transition-colors ${
-                                    limitReached
-                                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                      : "bg-primary hover:bg-primary/90 text-white cursor-pointer"
-                                  }`}
-                                  onClick={() => {
-                                    if (limitReached) return;
-                                    const url = `${BASE_PATH}/api/proxy/${order.productId}/`;
-                                    toast({
-                                      title: `Opening ${order.productName}…`,
-                                      description: "Logging in from a single secure IP…",
-                                    });
-                                    const win = window.open(url, "_blank", "noopener,noreferrer");
-                                    if (!win) {
-                                      // Popup blocked (common inside sandboxed preview iframes) — fall back to same-tab
-                                      window.location.href = url;
-                                    }
-                                  }}
-                                >
-                                  <ExternalLink className="w-4 h-4" />
-                                  Launch {order.productName}
-                                </button>
-                                {limitReached ? (
-                                  <p className="text-center text-xs text-red-500 mt-2 font-semibold">
-                                    Daily task limit reached. Resets at midnight WAT.
-                                  </p>
-                                ) : dailyLimit != null ? (
-                                  <p className="text-center text-xs text-muted-foreground mt-2">
-                                    Tasks remaining today: {remaining} / {dailyLimit} (WAT)
-                                  </p>
-                                ) : (
-                                  <p className="text-center text-xs text-muted-foreground mt-2">
-                                    All traffic routed through our server — one IP, one device
-                                  </p>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Credential box for other tools */}
-                            {hasCreds && (
-                              <CredentialBox
-                                username={order.credUsername}
-                                password={order.credPassword}
-                              />
-                            )}
-
-                            {/* No creds configured yet */}
-                            {!hasAutoLogin && !hasCreds && (
-                              <p className="mt-3 text-xs text-muted-foreground italic">
-                                Login details will appear here once configured. Check back soon.
-                              </p>
-                            )}
-                          </div>
+                            }
+                          />
                         );
                       })}
                     </div>

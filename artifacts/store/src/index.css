@@ -40,7 +40,7 @@
   --color-destructive-border: var(--destructive-border);
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --font-heading: "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-heading: "DM Sans", "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -49,27 +49,27 @@
 }
 
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
+  --background: 240 20% 96%;
+  --foreground: 229 33% 15%;
   
   --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
+  --card-foreground: 229 33% 15%;
   --card-border: 220 13% 91%;
   
   --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
+  --popover-foreground: 229 33% 15%;
   --popover-border: 220 13% 91%;
   
-  --primary: 145 62% 39%;
+  --primary: 315 79% 20%;
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 220 13% 91%;
-  --secondary-foreground: 222 47% 11%;
+  --secondary: 229 33% 15%;
+  --secondary-foreground: 0 0% 100%;
   
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
+  --muted: 240 20% 96%;
+  --muted-foreground: 220 9% 46%;
   
-  --accent: 0 72% 51%;
+  --accent: 315 79% 20%;
   --accent-foreground: 0 0% 100%;
   
   --destructive: 0 84% 60%;
@@ -77,33 +77,33 @@
   
   --border: 220 13% 91%;
   --input: 220 13% 91%;
-  --ring: 145 62% 39%;
+  --ring: 315 79% 20%;
   
-  --radius: 0.75rem;
+  --radius: 0.5rem;
 }
 
 .dark {
-  --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
+  --background: 240 20% 96%;
+  --foreground: 229 33% 15%;
   --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
+  --card-foreground: 229 33% 15%;
   --card-border: 220 13% 91%;
   --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
+  --popover-foreground: 229 33% 15%;
   --popover-border: 220 13% 91%;
-  --primary: 145 62% 39%;
+  --primary: 315 79% 20%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 220 13% 91%;
-  --secondary-foreground: 222 47% 11%;
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
-  --accent: 0 72% 51%;
+  --secondary: 229 33% 15%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 240 20% 96%;
+  --muted-foreground: 220 9% 46%;
+  --accent: 315 79% 20%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
   --border: 220 13% 91%;
   --input: 220 13% 91%;
-  --ring: 145 62% 39%;
+  --ring: 315 79% 20%;
 }
 
 @layer base {
@@ -111,7 +111,7 @@
     @apply border-border;
   }
   body {
-    @apply font-sans bg-[#F7F8F9] text-foreground antialiased selection:bg-primary/30;
+    @apply font-sans bg-[#F4F4F7] text-foreground antialiased selection:bg-primary/30;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading;

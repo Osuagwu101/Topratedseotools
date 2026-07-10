@@ -35,7 +35,10 @@ export const ListProductsResponseItem = zod.object({
   "popular": zod.boolean().optional(),
   "isHidden": zod.boolean().optional().describe('Hidden tools are excluded from the public storefront and cannot be purchased.'),
   "oneClickAuthEnabled": zod.boolean().optional().describe('When true, subscribers see a One-Click Auth button that logs them into the tool through the masking proxy using the admin\'s master session.'),
-  "maxDailyInputs": zod.number().nullish().describe('Optional cap on tasks\/inputs a subscriber can perform per day (WAT calendar day) while using One-Click Auth. Null or 0 means unlimited.')
+  "maxDailyInputs": zod.number().nullish().describe('Optional cap on tasks\/inputs a subscriber can perform per day (WAT calendar day) while using One-Click Auth. Null or 0 means unlimited.'),
+  "crossSellProductIds": zod.array(zod.number()).optional().describe('Ids of complementary products to recommend alongside this one (\"You may also like\").'),
+  "upSellProductIds": zod.array(zod.number()).optional().describe('Ids of higher-tier\/premium alternative products to recommend instead of this one.'),
+  "downSellProductIds": zod.array(zod.number()).optional().describe('Ids of cheaper alternative products to recommend instead of this one.')
 })
 export const ListProductsResponse = zod.array(ListProductsResponseItem)
 
@@ -62,7 +65,10 @@ export const GetProductResponse = zod.object({
   "popular": zod.boolean().optional(),
   "isHidden": zod.boolean().optional().describe('Hidden tools are excluded from the public storefront and cannot be purchased.'),
   "oneClickAuthEnabled": zod.boolean().optional().describe('When true, subscribers see a One-Click Auth button that logs them into the tool through the masking proxy using the admin\'s master session.'),
-  "maxDailyInputs": zod.number().nullish().describe('Optional cap on tasks\/inputs a subscriber can perform per day (WAT calendar day) while using One-Click Auth. Null or 0 means unlimited.')
+  "maxDailyInputs": zod.number().nullish().describe('Optional cap on tasks\/inputs a subscriber can perform per day (WAT calendar day) while using One-Click Auth. Null or 0 means unlimited.'),
+  "crossSellProductIds": zod.array(zod.number()).optional().describe('Ids of complementary products to recommend alongside this one (\"You may also like\").'),
+  "upSellProductIds": zod.array(zod.number()).optional().describe('Ids of higher-tier\/premium alternative products to recommend instead of this one.'),
+  "downSellProductIds": zod.array(zod.number()).optional().describe('Ids of cheaper alternative products to recommend instead of this one.')
 })
 
 

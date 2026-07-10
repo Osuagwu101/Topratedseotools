@@ -49,6 +49,12 @@ export interface Product {
      * @nullable
      */
   maxDailyInputs?: number | null;
+  /** Ids of complementary products to recommend alongside this one ("You may also like"). */
+  crossSellProductIds?: number[];
+  /** Ids of higher-tier/premium alternative products to recommend instead of this one. */
+  upSellProductIds?: number[];
+  /** Ids of cheaper alternative products to recommend instead of this one. */
+  downSellProductIds?: number[];
 }
 
 export interface OrderInput {

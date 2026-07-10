@@ -242,6 +242,21 @@ components:
         maxDailyInputs:
           type: ["integer", "null"]
           description: Optional cap on tasks/inputs a subscriber can perform per day (WAT calendar day) while using One-Click Auth. Null or 0 means unlimited.
+        crossSellProductIds:
+          type: array
+          items:
+            type: integer
+          description: Ids of complementary products to recommend alongside this one ("You may also like").
+        upSellProductIds:
+          type: array
+          items:
+            type: integer
+          description: Ids of higher-tier/premium alternative products to recommend instead of this one.
+        downSellProductIds:
+          type: array
+          items:
+            type: integer
+          description: Ids of cheaper alternative products to recommend instead of this one.
 
     OrderInput:
       type: object

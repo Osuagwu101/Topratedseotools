@@ -166,9 +166,20 @@ router.put("/admin/products/:id", requireAdmin, async (req, res): Promise<void> 
     category?: unknown;
     billingPeriod?: unknown;
     isHidden?: unknown;
+    crossSellProductIds?: unknown;
+    upSellProductIds?: unknown;
+    downSellProductIds?: unknown;
   };
 
-  const updates: Record<string, string | boolean | null> = {};
+  const toIdArray = (value: unknown): number[] | undefined => {
+    if (!Array.isArray(value)) return undefined;
+    const ids = value
+      .map((v) => (typeof v === "number" ? v : parseInt(String(v), 10)))
+      .filter((v) => Number.isInteger(v) && v !== productId);
+    return Array.from(new Set(ids));
+  };
+
+  const updates: Record<string, string | boolean | null | number[]> = {};
   if (typeof body.name === "string" && body.name.trim()) updates.name = body.name.trim();
   if (typeof body.description === "string" && body.description.trim()) {
     updates.description = body.description.trim();
@@ -183,6 +194,12 @@ router.put("/admin/products/:id", requireAdmin, async (req, res): Promise<void> 
     updates.billingPeriod = body.billingPeriod.trim();
   }
   if (typeof body.isHidden === "boolean") updates.isHidden = body.isHidden;
+  const crossSellProductIds = toIdArray(body.crossSellProductIds);
+  if (crossSellProductIds) updates.crossSellProductIds = crossSellProductIds;
+  const upSellProductIds = toIdArray(body.upSellProductIds);
+  if (upSellProductIds) updates.upSellProductIds = upSellProductIds;
+  const downSellProductIds = toIdArray(body.downSellProductIds);
+  if (downSellProductIds) updates.downSellProductIds = downSellProductIds;
 
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "No valid fields provided" });

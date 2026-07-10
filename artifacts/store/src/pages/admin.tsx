@@ -68,6 +68,9 @@ interface ProductWithServers {
   isHidden?: boolean;
   oneClickAuthEnabled?: boolean;
   maxDailyInputs?: number | null;
+  crossSellProductIds?: number[];
+  upSellProductIds?: number[];
+  downSellProductIds?: number[];
   servers: ToolServer[];
 }
 
@@ -241,7 +244,16 @@ async function createProduct(token: string, body: NewToolInput): Promise<Product
 async function updateProductDetails(
   token: string,
   productId: number,
-  body: { name?: string; description?: string; fullDescription?: string | null; category?: string; billingPeriod?: string },
+  body: {
+    name?: string;
+    description?: string;
+    fullDescription?: string | null;
+    category?: string;
+    billingPeriod?: string;
+    crossSellProductIds?: number[];
+    upSellProductIds?: number[];
+    downSellProductIds?: number[];
+  },
 ): Promise<ProductWithServers> {
   const res = await fetch(`${API}/admin/products/${productId}`, {
     method: "PUT",
@@ -733,12 +745,66 @@ function ImageManager({
   );
 }
 
+function ProductMultiSelect({
+  label,
+  hint,
+  allProducts,
+  currentProductId,
+  selectedIds,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  allProducts: ProductWithServers[];
+  currentProductId: number;
+  selectedIds: number[];
+  onChange: (ids: number[]) => void;
+}) {
+  const options = allProducts.filter((p) => p.id !== currentProductId);
+  const toggle = (id: number) => {
+    onChange(
+      selectedIds.includes(id) ? selectedIds.filter((v) => v !== id) : [...selectedIds, id],
+    );
+  };
+  return (
+    <div>
+      <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+        {label} <span className="normal-case text-gray-400">({hint})</span>
+      </label>
+      <div className="flex flex-wrap gap-2 p-3 rounded-md border border-input bg-background max-h-40 overflow-y-auto">
+        {options.length === 0 && (
+          <span className="text-xs text-gray-400 italic">No other tools available yet</span>
+        )}
+        {options.map((p) => {
+          const active = selectedIds.includes(p.id);
+          return (
+            <button
+              type="button"
+              key={p.id}
+              onClick={() => toggle(p.id)}
+              className={`text-xs font-semibold px-2.5 py-1 rounded-full border transition-colors ${
+                active
+                  ? "bg-primary text-white border-primary"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-primary/50"
+              }`}
+            >
+              {p.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function DetailsEditor({
   product,
+  allProducts,
   token,
   onSaved,
 }: {
   product: ProductWithServers;
+  allProducts: ProductWithServers[];
   token: string;
   onSaved: () => void;
 }) {
@@ -748,6 +814,9 @@ function DetailsEditor({
   const [fullDescription, setFullDescription] = useState(product.fullDescription ?? "");
   const [category, setCategory] = useState(product.category ?? "");
   const [billingPeriod, setBillingPeriod] = useState(product.billingPeriod);
+  const [crossSellProductIds, setCrossSellProductIds] = useState<number[]>(product.crossSellProductIds ?? []);
+  const [upSellProductIds, setUpSellProductIds] = useState<number[]>(product.upSellProductIds ?? []);
+  const [downSellProductIds, setDownSellProductIds] = useState<number[]>(product.downSellProductIds ?? []);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -756,6 +825,9 @@ function DetailsEditor({
     setFullDescription(product.fullDescription ?? "");
     setCategory(product.category ?? "");
     setBillingPeriod(product.billingPeriod);
+    setCrossSellProductIds(product.crossSellProductIds ?? []);
+    setUpSellProductIds(product.upSellProductIds ?? []);
+    setDownSellProductIds(product.downSellProductIds ?? []);
   }, [product]);
 
   const save = async () => {
@@ -767,6 +839,9 @@ function DetailsEditor({
         fullDescription: fullDescription.trim() ? fullDescription.trim() : null,
         category: category.trim(),
         billingPeriod,
+        crossSellProductIds,
+        upSellProductIds,
+        downSellProductIds,
       });
       toast({ title: "Details saved", description: `${name} updated.` });
       onSaved();
@@ -831,6 +906,36 @@ function DetailsEditor({
         </select>
       </div>
 
+      <div className="pt-2 border-t border-gray-100 space-y-3">
+        <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
+          Cross-sell / Up-sell / Down-sell
+        </p>
+        <ProductMultiSelect
+          label="Cross-sell"
+          hint="complementary tools shown as 'You may also like'"
+          allProducts={allProducts}
+          currentProductId={product.id}
+          selectedIds={crossSellProductIds}
+          onChange={setCrossSellProductIds}
+        />
+        <ProductMultiSelect
+          label="Up-sell"
+          hint="premium alternative shown as 'Upgrade to'"
+          allProducts={allProducts}
+          currentProductId={product.id}
+          selectedIds={upSellProductIds}
+          onChange={setUpSellProductIds}
+        />
+        <ProductMultiSelect
+          label="Down-sell"
+          hint="cheaper alternative shown as 'Or try instead'"
+          allProducts={allProducts}
+          currentProductId={product.id}
+          selectedIds={downSellProductIds}
+          onChange={setDownSellProductIds}
+        />
+      </div>
+
       <Button onClick={save} disabled={saving || !name.trim()} size="sm" className="bg-primary hover:bg-primary/90 text-white font-bold gap-2">
         <Save className="w-4 h-4" />
         {saving ? "Saving…" : "Save Details"}
@@ -841,10 +946,12 @@ function DetailsEditor({
 
 function ToolConfigCard({
   product,
+  allProducts,
   token,
   onSaved,
 }: {
   product: ProductWithServers;
+  allProducts: ProductWithServers[];
   token: string;
   onSaved: () => void;
 }) {
@@ -1006,7 +1113,7 @@ function ToolConfigCard({
           <PencilLine className="w-3.5 h-3.5" />
           Details
         </label>
-        <DetailsEditor product={product} token={token} onSaved={onSaved} />
+        <DetailsEditor product={product} allProducts={allProducts} token={token} onSaved={onSaved} />
       </div>
 
       <div className="mb-6 pb-6 border-b border-gray-100">
@@ -1882,6 +1989,7 @@ export default function AdminPanel() {
                 <ToolConfigCard
                   key={p.id}
                   product={p}
+                  allProducts={products}
                   token={token}
                   onSaved={() => {
                     load(token);
