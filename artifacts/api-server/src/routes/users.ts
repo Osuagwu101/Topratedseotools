@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { getAuth } from "@clerk/express";
 import { db, ordersTable, productsTable, toolServersTable, toolEntitlementsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { getDailyUsage } from "../lib/dailyUsage";
 
 const router: IRouter = Router();
 
@@ -21,6 +22,7 @@ router.get("/users/me/orders", async (req, res): Promise<void> => {
       productName: productsTable.name,
       billingPeriod: productsTable.billingPeriod,
       oneClickAuthEnabled: productsTable.oneClickAuthEnabled,
+      maxDailyInputs: productsTable.maxDailyInputs,
       amountKobo: ordersTable.amountKobo,
       status: ordersTable.status,
       reference: ordersTable.reference,
@@ -52,8 +54,8 @@ router.get("/users/me/orders", async (req, res): Promise<void> => {
     }
   }
 
-  res.json(
-    rows.map((r) => {
+  const mapped = await Promise.all(
+    rows.map(async (r) => {
       const now = new Date();
       const isEntitled =
         r.entitlementStatus === "active" && !!r.expiresAt && r.expiresAt > now;
@@ -70,6 +72,13 @@ router.get("/users/me/orders", async (req, res): Promise<void> => {
       // it — otherwise it would 403 if clicked.
       const usesOneClickAuth = !!isAutoLogin && !!r.oneClickAuthEnabled;
 
+      // Today's (WAT) usage count, only relevant while one-click is active
+      // and a cap is configured — read-only here, the proxy is what consumes it.
+      const dailyUsageCount =
+        isActive && usesOneClickAuth && !!r.maxDailyInputs
+          ? await getDailyUsage(userId, r.productId)
+          : null;
+
       return {
         ...r,
         createdAt: r.createdAt.toISOString(),
@@ -82,9 +91,13 @@ router.get("/users/me/orders", async (req, res): Promise<void> => {
         credUsername: isActive ? credUsername : null,
         credPassword: isActive && !usesOneClickAuth ? credPassword : null,
         isAutoLogin: isActive && usesOneClickAuth ? true : null,
+        maxDailyInputs: isActive && usesOneClickAuth ? r.maxDailyInputs : null,
+        dailyUsageCount,
       };
     })
   );
+
+  res.json(mapped);
 });
 
 export default router;

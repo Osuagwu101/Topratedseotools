@@ -34,7 +34,8 @@ export const ListProductsResponseItem = zod.object({
   "features": zod.array(zod.string()).optional(),
   "popular": zod.boolean().optional(),
   "isHidden": zod.boolean().optional().describe('Hidden tools are excluded from the public storefront and cannot be purchased.'),
-  "oneClickAuthEnabled": zod.boolean().optional().describe('When true, subscribers see a One-Click Auth button that logs them into the tool through the masking proxy using the admin\'s master session.')
+  "oneClickAuthEnabled": zod.boolean().optional().describe('When true, subscribers see a One-Click Auth button that logs them into the tool through the masking proxy using the admin\'s master session.'),
+  "maxDailyInputs": zod.number().nullish().describe('Optional cap on tasks\/inputs a subscriber can perform per day (WAT calendar day) while using One-Click Auth. Null or 0 means unlimited.')
 })
 export const ListProductsResponse = zod.array(ListProductsResponseItem)
 
@@ -60,7 +61,8 @@ export const GetProductResponse = zod.object({
   "features": zod.array(zod.string()).optional(),
   "popular": zod.boolean().optional(),
   "isHidden": zod.boolean().optional().describe('Hidden tools are excluded from the public storefront and cannot be purchased.'),
-  "oneClickAuthEnabled": zod.boolean().optional().describe('When true, subscribers see a One-Click Auth button that logs them into the tool through the masking proxy using the admin\'s master session.')
+  "oneClickAuthEnabled": zod.boolean().optional().describe('When true, subscribers see a One-Click Auth button that logs them into the tool through the masking proxy using the admin\'s master session.'),
+  "maxDailyInputs": zod.number().nullish().describe('Optional cap on tasks\/inputs a subscriber can perform per day (WAT calendar day) while using One-Click Auth. Null or 0 means unlimited.')
 })
 
 
@@ -124,7 +126,9 @@ export const GetMyOrdersResponseItem = zod.object({
   "credUsername": zod.string().nullish(),
   "credPassword": zod.string().nullish(),
   "isAutoLogin": zod.boolean().nullish(),
-  "oneClickAuthEnabled": zod.boolean().optional().describe('Whether the admin has enabled One-Click Auth for this tool. The one-click login button should only be shown when this is true.')
+  "oneClickAuthEnabled": zod.boolean().optional().describe('Whether the admin has enabled One-Click Auth for this tool. The one-click login button should only be shown when this is true.'),
+  "maxDailyInputs": zod.number().nullish().describe('Optional daily task cap (WAT calendar day) for this tool while One-Click Auth is on. Null or 0 means unlimited.'),
+  "dailyUsageCount": zod.number().nullish().describe('Tasks already used today (WAT calendar day) against maxDailyInputs. Null when the tool has no cap or isn\'t active.')
 })
 export const GetMyOrdersResponse = zod.array(GetMyOrdersResponseItem)
 

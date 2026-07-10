@@ -28,6 +28,10 @@ export const productsTable = pgTable("products", {
   // Can only be turned on via the admin re-authentication flow, which
   // captures a fresh master session at the same time.
   oneClickAuthEnabled: boolean("one_click_auth_enabled").notNull().default(false),
+  // Optional daily task cap enforced by the masking proxy while One-Click Auth
+  // is on. Null/0 means unlimited. Reset tracking lives in user_daily_usage,
+  // keyed by West African Time (WAT) calendar day.
+  maxDailyInputs: integer("max_daily_inputs"),
 });
 
 export const insertProductSchema = createInsertSchema(productsTable).omit({ id: true });

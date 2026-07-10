@@ -1,0 +1,65 @@
+[INSTRUCTION SET] DYNAMIC DAILY TASK LIMITATIONS WITH WAT TIMEZONE
+
+
+[OBJECTIVE]
+Add a daily task-limiting feature on top of the existing "oneClickAuthEnabled" setup without breaking the session masking proxy. All daily resets must accurately track West African Time (WAT).
+
+[CRITICAL DIRECTIVE]
+Do NOT alter, remove, or modify the working session masking code, proxy routing, or core UI components. This is a targeted feature extension.
+
+1. DATABASE UPDATES
+
+* Tool Table Updates:
+  - Add a field named "maxDailyInputs" to each tool record.
+  - Set its type to Integer. Allow it to be Nullable. Set the default value to 0 or null.
+
+* Create a New Usage Tracking Table named "UserDailyUsage":
+  - Field 1: "userId" (Tracks which subscriber is using the tool)
+  - Field 2: "toolId" (Tracks which tool is being used)
+  - Field 3: "usageDate" (Date string format: YYYY-MM-DD using West African Time)
+  - Field 4: "inputCount" (Integer counting the tasks done by the user on this day)
+
+2. ADMIN DASHBOARD MODAL EXTENSION
+* Locate the modal popup that appears when "Enable Global One-Click Auth" is toggled from OFF to ON.
+* Add a new form input field inside this modal.
+* Label the field: "Specify maximum inputs/tasks a user can perform per day (Leave empty or 0 for unlimited)".
+* Enforce validation: Accept only whole positive integers (no negative numbers, no decimals).
+* When the admin saves the modal and completes authentication, save this input value directly into the "maxDailyInputs" column for this tool.
+
+3. TIMEZONE HANDLING MECHANISM (WEST AFRICAN TIME)
+
+* Ensure all date checks calculate the current day using West African Time (WAT / UTC+1).
+* Implement the date calculation string as follows:
+  - In JavaScript/Node.js backend: Use `new Date().toLocaleDateString('en-GB', { timeZone: 'Africa/Lagos' })` converted into YYYY-MM-DD format.
+  - In Python backend: Use `datetime.now(pytz.timezone('Africa/Lagos')).strftime('%Y-%m-%d')`.
+* This ensures that when the clock strikes midnight in Lagos/West Africa, user input counts instantly reset back to 0, regardless of where the server or the user is hosted globally.
+
+4. BACKEND PROXY GATEWAY MIDDLEWARE
+* Intercept all subscriber requests at the secure backend server proxy BEFORE injecting the admin master token.
+* Step A: Fetch the target tool's "maxDailyInputs" value.
+* Step B: Generate the current WAT date string (YYYY-MM-DD).
+* Step C: Fetch the user's current "inputCount" from "UserDailyUsage" matching that exact WAT date string.
+* Step D: Apply the following conditional routing logic:
+
+  - CASE 1 (UNLIMITED ACCESS):
+    If "maxDailyInputs" is null, empty, or 0, skip all checks. Allow the proxy request to pass through normally.
+
+  - CASE 2 (VALID ACCESS WITHIN LIMITS):
+    If "maxDailyInputs" is greater than 0, AND "inputCount" is less than "maxDailyInputs":
+    Increment "inputCount" by 1 for the current WAT date in the database, then allow the proxy request to pass through.
+
+  - CASE 3 (LIMIT EXCEEDED):
+    If "maxDailyInputs" is greater than 0, AND "inputCount" is equal to or greater than "maxDailyInputs":
+    Block the request completely. Do NOT forward it to the official service provider. Reject the request with an HTTP 429 status code and return JSON: {"error": "You have reached your daily task limit for this tool."}
+
+5. SUBSCRIBER-SIDE FRONTEND UPDATES
+
+* When rendering a tool interface where One-Click Auth is ON:
+* Check the "maxDailyInputs" value and the user's current "inputCount" for the current WAT date.
+* If a limit exists and has been reached:
+  - Visually disable the "One-Click Login" button (make it unclickable).
+  - Display an inline red text notice: "Daily task limit reached. Resets at midnight WAT."
+* If a limit exists and tasks are remaining:
+  - Display a subtle text label near the button: "Tasks remaining today: [Remaining] / [Total Limit] (WAT)".
+
+

@@ -89,6 +89,7 @@ router.get("/admin/products", requireAdmin, async (_req, res): Promise<void> => 
       price12MonthKobo: p.price12MonthKobo,
       isHidden: p.isHidden,
       oneClickAuthEnabled: p.oneClickAuthEnabled,
+      maxDailyInputs: p.maxDailyInputs,
       servers: serversByProduct[p.id] ?? [],
     })),
   );
@@ -437,6 +438,19 @@ router.post(
       return;
     }
 
+    const body = req.body as { maxDailyInputs?: unknown };
+    let maxDailyInputs: number | null = null;
+    if (body.maxDailyInputs !== undefined && body.maxDailyInputs !== null && body.maxDailyInputs !== "") {
+      const n = Number(body.maxDailyInputs);
+      if (!Number.isInteger(n) || n < 0) {
+        res.status(400).json({
+          error: "maxDailyInputs must be a whole positive number, or left empty/0 for unlimited.",
+        });
+        return;
+      }
+      maxDailyInputs = n === 0 ? null : n;
+    }
+
     const [server] = await db
       .select()
       .from(toolServersTable)
@@ -466,7 +480,7 @@ router.post(
 
     const [updated] = await db
       .update(productsTable)
-      .set({ oneClickAuthEnabled: true })
+      .set({ oneClickAuthEnabled: true, maxDailyInputs })
       .where(eq(productsTable.id, productId))
       .returning();
 
@@ -475,7 +489,10 @@ router.post(
       return;
     }
 
-    logger.info({ productId, serverId: server.id }, "One-Click Auth enabled by admin; master session captured");
+    logger.info(
+      { productId, serverId: server.id, maxDailyInputs },
+      "One-Click Auth enabled by admin; master session captured",
+    );
     res.json(updated);
   },
 );

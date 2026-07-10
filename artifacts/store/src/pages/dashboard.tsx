@@ -310,6 +310,10 @@ export default function Dashboard() {
                         const key = getLogoKey(order.productName);
                         const hasAutoLogin = order.isAutoLogin === true;
                         const hasCreds = !hasAutoLogin && (order.credUsername || order.credPassword);
+                        const dailyLimit = order.maxDailyInputs ?? null;
+                        const dailyUsed = order.dailyUsageCount ?? 0;
+                        const limitReached = dailyLimit != null && dailyUsed >= dailyLimit;
+                        const remaining = dailyLimit != null ? Math.max(0, dailyLimit - dailyUsed) : null;
 
                         return (
                           <div
@@ -373,8 +377,14 @@ export default function Dashboard() {
                               <div className="mt-4">
                                 <button
                                   type="button"
-                                  className="flex items-center justify-center gap-2 w-full h-10 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-xl transition-colors cursor-pointer"
+                                  disabled={limitReached}
+                                  className={`flex items-center justify-center gap-2 w-full h-10 text-sm font-bold rounded-xl transition-colors ${
+                                    limitReached
+                                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                      : "bg-primary hover:bg-primary/90 text-white cursor-pointer"
+                                  }`}
                                   onClick={() => {
+                                    if (limitReached) return;
                                     const url = `${BASE_PATH}/api/proxy/${order.productId}/`;
                                     toast({
                                       title: `Opening ${order.productName}…`,
@@ -390,9 +400,19 @@ export default function Dashboard() {
                                   <ExternalLink className="w-4 h-4" />
                                   Launch {order.productName}
                                 </button>
-                                <p className="text-center text-xs text-muted-foreground mt-2">
-                                  All traffic routed through our server — one IP, one device
-                                </p>
+                                {limitReached ? (
+                                  <p className="text-center text-xs text-red-500 mt-2 font-semibold">
+                                    Daily task limit reached. Resets at midnight WAT.
+                                  </p>
+                                ) : dailyLimit != null ? (
+                                  <p className="text-center text-xs text-muted-foreground mt-2">
+                                    Tasks remaining today: {remaining} / {dailyLimit} (WAT)
+                                  </p>
+                                ) : (
+                                  <p className="text-center text-xs text-muted-foreground mt-2">
+                                    All traffic routed through our server — one IP, one device
+                                  </p>
+                                )}
                               </div>
                             )}
 

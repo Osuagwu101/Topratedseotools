@@ -67,6 +67,7 @@ interface ProductWithServers {
   price12MonthKobo: number | null;
   isHidden?: boolean;
   oneClickAuthEnabled?: boolean;
+  maxDailyInputs?: number | null;
   servers: ToolServer[];
 }
 
@@ -260,10 +261,15 @@ async function setProductVisibility(token: string, productId: number, isHidden: 
   if (!res.ok) throw new Error(await res.text());
 }
 
-async function activateOneClickAuth(token: string, productId: number): Promise<ProductWithServers> {
+async function activateOneClickAuth(
+  token: string,
+  productId: number,
+  maxDailyInputs: number | null,
+): Promise<ProductWithServers> {
   const res = await fetch(`${API}/admin/products/${productId}/one-click-auth/activate`, {
     method: "POST",
-    headers: { Authorization: token },
+    headers: { "Content-Type": "application/json", Authorization: token },
+    body: JSON.stringify({ maxDailyInputs }),
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
@@ -850,6 +856,8 @@ function ToolConfigCard({
   const [oneClickAuthModalOpen, setOneClickAuthModalOpen] = useState(false);
   const [activatingOneClickAuth, setActivatingOneClickAuth] = useState(false);
   const [deactivatingOneClickAuth, setDeactivatingOneClickAuth] = useState(false);
+  const [maxDailyInputsInput, setMaxDailyInputsInput] = useState("");
+  const [maxDailyInputsError, setMaxDailyInputsError] = useState<string | null>(null);
 
   useEffect(() => setServers(product.servers), [product.servers]);
 
@@ -915,14 +923,26 @@ function ToolConfigCard({
   };
 
   const handleActivateOneClickAuth = async () => {
+    const trimmed = maxDailyInputsInput.trim();
+    let maxDailyInputs: number | null = null;
+    if (trimmed !== "") {
+      const n = Number(trimmed);
+      if (!Number.isInteger(n) || n < 0 || !/^\d+$/.test(trimmed)) {
+        setMaxDailyInputsError("Enter a whole positive number, or leave empty for unlimited.");
+        return;
+      }
+      maxDailyInputs = n === 0 ? null : n;
+    }
+    setMaxDailyInputsError(null);
     setActivatingOneClickAuth(true);
     try {
-      await activateOneClickAuth(token, product.id);
+      await activateOneClickAuth(token, product.id, maxDailyInputs);
       toast({
         title: "One-Click Auth enabled",
         description: `Signed in to ${product.name} with the configured credentials. All subscriber traffic will now be masked behind this session.`,
       });
       setOneClickAuthModalOpen(false);
+      setMaxDailyInputsInput("");
       onSaved();
     } catch (e) {
       toast({ title: "Could not re-authenticate", description: String(e), variant: "destructive" });
@@ -1068,6 +1088,27 @@ function ToolConfigCard({
               through that single session, so it appears as one IP/device.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">
+              Specify maximum inputs/tasks a user can perform per day (Leave empty or 0 for unlimited)
+            </label>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1}
+              placeholder="Unlimited"
+              value={maxDailyInputsInput}
+              onChange={(e) => {
+                setMaxDailyInputsInput(e.target.value);
+                setMaxDailyInputsError(null);
+              }}
+              disabled={activatingOneClickAuth}
+            />
+            {maxDailyInputsError && (
+              <p className="text-xs text-red-500">{maxDailyInputsError}</p>
+            )}
+          </div>
           <DialogFooter>
             <Button
               variant="outline"

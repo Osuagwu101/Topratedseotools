@@ -21,6 +21,7 @@ import { db, productsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { resolveServerForUser } from "../lib/toolAccess";
 import { DEVICE_UA, getSession, invalidateSession } from "../lib/toolSession";
+import { checkAndConsumeDailyUsage } from "../lib/dailyUsage";
 
 const router = Router();
 
@@ -71,7 +72,7 @@ const proxyHandler: RequestHandler = async (req, res): Promise<void> => {
   // One-Click Auth must be enabled by the admin for this tool before any
   // subscriber traffic is allowed through the masking proxy.
   const [product] = await db
-    .select({ oneClickAuthEnabled: productsTable.oneClickAuthEnabled })
+    .select({ oneClickAuthEnabled: productsTable.oneClickAuthEnabled, maxDailyInputs: productsTable.maxDailyInputs })
     .from(productsTable)
     .where(eq(productsTable.id, productId));
   if (!product?.oneClickAuthEnabled) {
@@ -88,6 +89,15 @@ const proxyHandler: RequestHandler = async (req, res): Promise<void> => {
 
   if (!server.loginUrl) {
     res.status(503).send("Tool not configured for proxy login. Contact admin.");
+    return;
+  }
+
+  // Daily task cap (WAT calendar day) — checked/consumed BEFORE the admin
+  // master session is ever attached to this request. Unlimited (null/0)
+  // tools skip this entirely and are unaffected.
+  const usage = await checkAndConsumeDailyUsage(auth.userId, productId, product.maxDailyInputs);
+  if (!usage.allowed) {
+    res.status(429).json({ error: "You have reached your daily task limit for this tool." });
     return;
   }
 

@@ -44,6 +44,11 @@ export interface Product {
   isHidden?: boolean;
   /** When true, subscribers see a One-Click Auth button that logs them into the tool through the masking proxy using the admin's master session. */
   oneClickAuthEnabled?: boolean;
+  /**
+     * Optional cap on tasks/inputs a subscriber can perform per day (WAT calendar day) while using One-Click Auth. Null or 0 means unlimited.
+     * @nullable
+     */
+  maxDailyInputs?: number | null;
 }
 
 export interface OrderInput {
@@ -94,6 +99,16 @@ export interface UserOrder {
   isAutoLogin?: boolean | null;
   /** Whether the admin has enabled One-Click Auth for this tool. The one-click login button should only be shown when this is true. */
   oneClickAuthEnabled?: boolean;
+  /**
+     * Optional daily task cap (WAT calendar day) for this tool while One-Click Auth is on. Null or 0 means unlimited.
+     * @nullable
+     */
+  maxDailyInputs?: number | null;
+  /**
+     * Tasks already used today (WAT calendar day) against maxDailyInputs. Null when the tool has no cap or isn't active.
+     * @nullable
+     */
+  dailyUsageCount?: number | null;
 }
 
 export type PaystackWebhookPayloadData = {
