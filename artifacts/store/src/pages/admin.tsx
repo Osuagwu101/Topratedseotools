@@ -900,6 +900,18 @@ function ToolConfigCard({
 
   const handleOneClickAuthToggle = (checked: boolean) => {
     if (checked) {
+      const hasSavedAutoLoginServer = servers.some(
+        (s) => s.id && s.isAutoLogin && s.loginUrl && s.username && s.password,
+      );
+      if (!hasSavedAutoLoginServer) {
+        toast({
+          title: "Save an Auto-Login server first",
+          description:
+            "Check \"Auto-Login\" on a server below, fill in the login URL/username/password, and click that server's Save button — before enabling One-Click Auth.",
+          variant: "destructive",
+        });
+        return;
+      }
       setMaxDailyInputsInput(
         product.maxDailyInputs != null ? String(product.maxDailyInputs) : "",
       );
