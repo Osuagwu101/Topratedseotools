@@ -900,6 +900,10 @@ function ToolConfigCard({
 
   const handleOneClickAuthToggle = (checked: boolean) => {
     if (checked) {
+      setMaxDailyInputsInput(
+        product.maxDailyInputs != null ? String(product.maxDailyInputs) : "",
+      );
+      setMaxDailyInputsError(null);
       setOneClickAuthModalOpen(true);
     } else {
       void handleDeactivateOneClickAuth();
