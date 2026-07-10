@@ -20,6 +20,7 @@ router.get("/users/me/orders", async (req, res): Promise<void> => {
       productId: ordersTable.productId,
       productName: productsTable.name,
       billingPeriod: productsTable.billingPeriod,
+      oneClickAuthEnabled: productsTable.oneClickAuthEnabled,
       amountKobo: ordersTable.amountKobo,
       status: ordersTable.status,
       reference: ordersTable.reference,
@@ -74,7 +75,7 @@ router.get("/users/me/orders", async (req, res): Promise<void> => {
         // For auto-login tools, omit raw password (auto-login endpoint handles it).
         credUsername: isActive ? credUsername : null,
         credPassword: isActive && !isAutoLogin ? credPassword : null,
-        isAutoLogin: isActive ? isAutoLogin : null,
+        isAutoLogin: isActive && r.oneClickAuthEnabled ? isAutoLogin : null,
       };
     })
   );

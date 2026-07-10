@@ -39,4 +39,6 @@ export interface Product {
   popular?: boolean;
   /** Hidden tools are excluded from the public storefront and cannot be purchased. */
   isHidden?: boolean;
+  /** When true, subscribers see a One-Click Auth button that logs them into the tool through the masking proxy using the admin's master session. */
+  oneClickAuthEnabled?: boolean;
 }

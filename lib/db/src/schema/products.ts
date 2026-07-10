@@ -22,6 +22,12 @@ export const productsTable = pgTable("products", {
   // and admin-management UI, but the row is kept so historical orders can
   // still resolve productId -> name/price for reporting/auditing.
   isDeleted: boolean("is_deleted").notNull().default(false),
+  // Global "One-Click Auth" toggle: when true, subscribers see a one-click
+  // login button that routes through the server-side proxy using the admin's
+  // captured master session for this tool (see tool_servers.isAutoLogin).
+  // Can only be turned on via the admin re-authentication flow, which
+  // captures a fresh master session at the same time.
+  oneClickAuthEnabled: boolean("one_click_auth_enabled").notNull().default(false),
 });
 
 export const insertProductSchema = createInsertSchema(productsTable).omit({ id: true });

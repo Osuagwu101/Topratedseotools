@@ -17,98 +17,12 @@
 
 import { Router, type RequestHandler } from "express";
 import { getAuth } from "@clerk/express";
-import { toolServersTable } from "@workspace/db";
+import { db, productsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { resolveServerForUser } from "../lib/toolAccess";
+import { DEVICE_UA, getSession, invalidateSession } from "../lib/toolSession";
 
 const router = Router();
-
-// ── Single device fingerprint ────────────────────────────────────────────────
-const DEVICE_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-  "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
-
-// ── Server-side session cache — keyed by tool_servers.id ─────────────────────
-interface ToolSession {
-  cookie: string;
-  authHeader: string;
-  expiresAt: number;
-}
-
-const sessions = new Map<number, ToolSession>();
-
-async function loginToTool(server: typeof toolServersTable.$inferSelect): Promise<ToolSession | null> {
-  if (!server.loginUrl || !server.username || !server.password) return null;
-
-  let toolOrigin: string;
-  try {
-    toolOrigin = new URL(server.loginUrl).origin;
-  } catch {
-    return null;
-  }
-
-  const body = JSON.stringify({
-    [server.usernameField ?? "email"]: server.username,
-    [server.passwordField ?? "password"]: server.password,
-  });
-
-  const loginRes = await fetch(server.loginUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": DEVICE_UA,
-      Accept: "application/json, */*",
-      "Accept-Language": "en-US,en;q=0.9",
-      Origin: toolOrigin,
-      Referer: toolOrigin + "/",
-    },
-    body,
-    redirect: "manual",
-  });
-
-  // Capture cookies (session-based auth)
-  const rawCookies: string[] =
-    typeof (loginRes.headers as any).getSetCookie === "function"
-      ? (loginRes.headers as any).getSetCookie()
-      : [];
-  const cookie = rawCookies.map((c: string) => c.split(";")[0]).join("; ");
-
-  // Capture bearer token (JWT-based auth)
-  let authHeader = "";
-  try {
-    const json = (await loginRes.clone().json()) as {
-      token?: string;
-      access_token?: string;
-      jwt?: string;
-      data?: { token?: string; access_token?: string };
-    };
-    const token =
-      json.token ??
-      json.access_token ??
-      json.jwt ??
-      json.data?.token ??
-      json.data?.access_token ??
-      "";
-    if (token) authHeader = `Bearer ${token}`;
-  } catch {
-    // response may not be JSON (form-based login returns HTML redirect)
-  }
-
-  return { cookie, authHeader, expiresAt: Date.now() + 25 * 60 * 1000 };
-}
-
-async function getSession(server: typeof toolServersTable.$inferSelect): Promise<ToolSession | null> {
-  const cached = sessions.get(server.id);
-  if (cached && cached.expiresAt > Date.now()) return cached;
-
-  const session = await loginToTool(server);
-  if (session) sessions.set(server.id, session);
-  return session;
-}
-
-// Invalidate cached session (called when we detect auth failure)
-function invalidateSession(serverId: number): void {
-  sessions.delete(serverId);
-}
 
 // ── URL rewriter ─────────────────────────────────────────────────────────────
 function rewriteBody(
@@ -151,6 +65,17 @@ const proxyHandler: RequestHandler = async (req, res): Promise<void> => {
   const productId = parseInt((req.params as any).productId, 10);
   if (isNaN(productId)) {
     res.status(400).send("Invalid product ID");
+    return;
+  }
+
+  // One-Click Auth must be enabled by the admin for this tool before any
+  // subscriber traffic is allowed through the masking proxy.
+  const [product] = await db
+    .select({ oneClickAuthEnabled: productsTable.oneClickAuthEnabled })
+    .from(productsTable)
+    .where(eq(productsTable.id, productId));
+  if (!product?.oneClickAuthEnabled) {
+    res.status(403).send("One-Click Auth is not enabled for this tool.");
     return;
   }
 
@@ -247,12 +172,9 @@ const proxyHandler: RequestHandler = async (req, res): Promise<void> => {
     typeof (toolRes.headers as any).getSetCookie === "function"
       ? (toolRes.headers as any).getSetCookie()
       : [];
-  if (newCookies.length > 0) {
+  if (newCookies.length > 0 && session) {
     const merged = newCookies.map((c: string) => c.split(";")[0]).join("; ");
-    const existing = sessions.get(server.id);
-    if (existing) {
-      existing.cookie = merged;
-    }
+    session.cookie = merged;
   }
 
   // Redirects — rewrite Location so browser stays inside our proxy

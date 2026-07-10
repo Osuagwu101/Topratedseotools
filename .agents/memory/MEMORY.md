@@ -3,3 +3,4 @@
 - [SubsHub payment provider history](subshub-payment-provider.md) — reverted Paystack→Monnify→Paystack; user lacked live Monnify keys, so don't re-suggest Monnify without confirming they have live (not sandbox) credentials first.
 - [Payment webhook idempotency pattern](payment-webhook-idempotency.md) — share one idempotent activation function between webhook and client-verify paths; never trust webhook body amount.
 - [Per-entitlement server assignment](per-entitlement-server-assignment.md) — when a product can have multiple credential pools, store the assigned pool ID on the entitlement row itself, not just the product, so proxy/autologin resolve access per-user.
+- [One-click-auth admin gate + reset](one-click-auth-gating.md) — gate every entrypoint to a masked/shared session on one DB flag, and force a fresh login on re-enable, never resume a stale cached session.

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -65,6 +66,7 @@ interface ProductWithServers {
   price3MonthKobo: number | null;
   price12MonthKobo: number | null;
   isHidden?: boolean;
+  oneClickAuthEnabled?: boolean;
   servers: ToolServer[];
 }
 
@@ -256,6 +258,25 @@ async function setProductVisibility(token: string, productId: number, isHidden: 
     body: JSON.stringify({ isHidden }),
   });
   if (!res.ok) throw new Error(await res.text());
+}
+
+async function activateOneClickAuth(token: string, productId: number): Promise<ProductWithServers> {
+  const res = await fetch(`${API}/admin/products/${productId}/one-click-auth/activate`, {
+    method: "POST",
+    headers: { Authorization: token },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function deactivateOneClickAuth(token: string, productId: number): Promise<ProductWithServers> {
+  const res = await fetch(`${API}/admin/products/${productId}/one-click-auth`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: token },
+    body: JSON.stringify({ enabled: false }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
 }
 
 async function deleteProduct(token: string, productId: number): Promise<void> {
@@ -826,6 +847,9 @@ function ToolConfigCard({
   const [togglingVisibility, setTogglingVisibility] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [oneClickAuthModalOpen, setOneClickAuthModalOpen] = useState(false);
+  const [activatingOneClickAuth, setActivatingOneClickAuth] = useState(false);
+  const [deactivatingOneClickAuth, setDeactivatingOneClickAuth] = useState(false);
 
   useEffect(() => setServers(product.servers), [product.servers]);
 
@@ -863,6 +887,47 @@ function ToolConfigCard({
       toast({ title: "Error", description: String(e), variant: "destructive" });
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleOneClickAuthToggle = (checked: boolean) => {
+    if (checked) {
+      setOneClickAuthModalOpen(true);
+    } else {
+      void handleDeactivateOneClickAuth();
+    }
+  };
+
+  const handleDeactivateOneClickAuth = async () => {
+    setDeactivatingOneClickAuth(true);
+    try {
+      await deactivateOneClickAuth(token, product.id);
+      toast({
+        title: "One-Click Auth disabled",
+        description: `${product.name}'s master session was cleared. Subscribers will no longer see the one-click login button.`,
+      });
+      onSaved();
+    } catch (e) {
+      toast({ title: "Error", description: String(e), variant: "destructive" });
+    } finally {
+      setDeactivatingOneClickAuth(false);
+    }
+  };
+
+  const handleActivateOneClickAuth = async () => {
+    setActivatingOneClickAuth(true);
+    try {
+      await activateOneClickAuth(token, product.id);
+      toast({
+        title: "One-Click Auth enabled",
+        description: `Signed in to ${product.name} with the configured credentials. All subscriber traffic will now be masked behind this session.`,
+      });
+      setOneClickAuthModalOpen(false);
+      onSaved();
+    } catch (e) {
+      toast({ title: "Could not re-authenticate", description: String(e), variant: "destructive" });
+    } finally {
+      setActivatingOneClickAuth(false);
     }
   };
 
@@ -910,6 +975,27 @@ function ToolConfigCard({
 
       <div className="mb-6 pb-6 border-b border-gray-100">
         <ImageManager product={product} token={token} onSaved={onSaved} />
+      </div>
+
+      <div className="mb-6 pb-6 border-b border-gray-100">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1 flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Enable Global One-Click Auth
+            </label>
+            <p className="text-xs text-muted-foreground max-w-md">
+              When on, subscribers get a one-click login for {product.name} routed through our
+              masking proxy — all traffic appears to come from one server IP/device using an
+              admin-captured master session.
+            </p>
+          </div>
+          <Switch
+            checked={!!product.oneClickAuthEnabled}
+            disabled={activatingOneClickAuth || deactivatingOneClickAuth}
+            onCheckedChange={handleOneClickAuthToggle}
+          />
+        </div>
       </div>
 
       <div className="mb-6 pb-6 border-b border-gray-100">
@@ -970,6 +1056,32 @@ function ToolConfigCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={oneClickAuthModalOpen} onOpenChange={(open) => !activatingOneClickAuth && setOneClickAuthModalOpen(open)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Re-authenticate to enable One-Click Auth</DialogTitle>
+            <DialogDescription>
+              This signs in to {product.name} using the tool's configured Auto-Login server
+              credentials to capture a fresh master session. Any previously cached session is
+              discarded first. Once enabled, all subscriber traffic for this tool is routed
+              through that single session, so it appears as one IP/device.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setOneClickAuthModalOpen(false)}
+              disabled={activatingOneClickAuth}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleActivateOneClickAuth} disabled={activatingOneClickAuth}>
+              {activatingOneClickAuth ? "Signing in…" : "Re-authenticate & Enable"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

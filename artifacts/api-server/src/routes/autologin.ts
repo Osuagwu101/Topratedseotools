@@ -1,5 +1,7 @@
 import { Router, type IRouter } from "express";
 import { getAuth } from "@clerk/express";
+import { db, productsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { resolveServerForUser } from "../lib/toolAccess";
 
 const router: IRouter = Router();
@@ -18,6 +20,25 @@ router.get("/tools/:productId/autologin", async (req, res): Promise<void> => {
   const productId = parseInt(req.params.productId, 10);
   if (isNaN(productId)) {
     res.status(400).send("<h1>Invalid product</h1>");
+    return;
+  }
+
+  const [product] = await db
+    .select({ oneClickAuthEnabled: productsTable.oneClickAuthEnabled })
+    .from(productsTable)
+    .where(eq(productsTable.id, productId));
+  if (!product?.oneClickAuthEnabled) {
+    res.status(403).send(`
+      <!DOCTYPE html>
+      <html>
+      <head><title>Not Enabled</title></head>
+      <body style="font-family:sans-serif;text-align:center;padding:60px;">
+        <h2>One-Click Auth is not enabled</h2>
+        <p>This tool's one-click login has not been turned on yet.</p>
+        <a href="/">Return to SubsHub</a>
+      </body>
+      </html>
+    `);
     return;
   }
 

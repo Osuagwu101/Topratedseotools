@@ -33,7 +33,8 @@ export const ListProductsResponseItem = zod.object({
   "category": zod.string(),
   "features": zod.array(zod.string()).optional(),
   "popular": zod.boolean().optional(),
-  "isHidden": zod.boolean().optional().describe('Hidden tools are excluded from the public storefront and cannot be purchased.')
+  "isHidden": zod.boolean().optional().describe('Hidden tools are excluded from the public storefront and cannot be purchased.'),
+  "oneClickAuthEnabled": zod.boolean().optional().describe('When true, subscribers see a One-Click Auth button that logs them into the tool through the masking proxy using the admin\'s master session.')
 })
 export const ListProductsResponse = zod.array(ListProductsResponseItem)
 
@@ -58,7 +59,8 @@ export const GetProductResponse = zod.object({
   "category": zod.string(),
   "features": zod.array(zod.string()).optional(),
   "popular": zod.boolean().optional(),
-  "isHidden": zod.boolean().optional().describe('Hidden tools are excluded from the public storefront and cannot be purchased.')
+  "isHidden": zod.boolean().optional().describe('Hidden tools are excluded from the public storefront and cannot be purchased.'),
+  "oneClickAuthEnabled": zod.boolean().optional().describe('When true, subscribers see a One-Click Auth button that logs them into the tool through the masking proxy using the admin\'s master session.')
 })
 
 
@@ -121,7 +123,8 @@ export const GetMyOrdersResponseItem = zod.object({
   "expiresAt": zod.string().nullish(),
   "credUsername": zod.string().nullish(),
   "credPassword": zod.string().nullish(),
-  "isAutoLogin": zod.boolean().nullish()
+  "isAutoLogin": zod.boolean().nullish(),
+  "oneClickAuthEnabled": zod.boolean().optional().describe('Whether the admin has enabled One-Click Auth for this tool. The one-click login button should only be shown when this is true.')
 })
 export const GetMyOrdersResponse = zod.array(GetMyOrdersResponseItem)
 

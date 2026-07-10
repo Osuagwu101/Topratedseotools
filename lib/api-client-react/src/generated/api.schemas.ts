@@ -42,6 +42,8 @@ export interface Product {
   popular?: boolean;
   /** Hidden tools are excluded from the public storefront and cannot be purchased. */
   isHidden?: boolean;
+  /** When true, subscribers see a One-Click Auth button that logs them into the tool through the masking proxy using the admin's master session. */
+  oneClickAuthEnabled?: boolean;
 }
 
 export interface OrderInput {
@@ -90,6 +92,8 @@ export interface UserOrder {
   credUsername?: string | null;
   credPassword?: string | null;
   isAutoLogin?: boolean | null;
+  /** Whether the admin has enabled One-Click Auth for this tool. The one-click login button should only be shown when this is true. */
+  oneClickAuthEnabled?: boolean;
 }
 
 export type PaystackWebhookPayloadData = {

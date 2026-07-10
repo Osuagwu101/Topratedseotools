@@ -8,12 +8,13 @@ import {
   userDeviceSessionsTable,
   ordersTable,
 } from "@workspace/db";
-import { eq, ne, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { activateOrderByReference } from "../lib/activateOrder";
 import { logger } from "../lib/logger";
 import { parseUserAgent } from "../lib/userAgent";
 import { analyzeImage, processAndStoreToolImage, STANDARD_IMAGE_SIZE } from "../lib/toolImages";
+import { loginToTool, setSession, invalidateSessionsForProduct } from "../lib/toolSession";
 
 const router: IRouter = Router();
 
@@ -87,6 +88,7 @@ router.get("/admin/products", requireAdmin, async (_req, res): Promise<void> => 
       price3MonthKobo: p.price3MonthKobo,
       price12MonthKobo: p.price12MonthKobo,
       isHidden: p.isHidden,
+      oneClickAuthEnabled: p.oneClickAuthEnabled,
       servers: serversByProduct[p.id] ?? [],
     })),
   );
@@ -385,6 +387,98 @@ router.put("/admin/products/:id/pricing", requireAdmin, async (req, res): Promis
 
   res.json(updated);
 });
+
+// ── One-Click Auth (global per-tool toggle + master session capture) ───────
+
+// Turning OFF is immediate: disable the toggle and drop any cached master
+// session so a future re-enable always starts from a clean slate.
+router.put("/admin/products/:id/one-click-auth", requireAdmin, async (req, res): Promise<void> => {
+  const productId = parseInt(String(req.params.id), 10);
+  if (isNaN(productId)) {
+    res.status(400).json({ error: "Invalid product id" });
+    return;
+  }
+
+  const body = req.body as { enabled?: unknown };
+  if (body.enabled !== false) {
+    res.status(400).json({
+      error: "Use POST /admin/products/:id/one-click-auth/activate to turn this on — it requires re-authentication.",
+    });
+    return;
+  }
+
+  await invalidateSessionsForProduct(productId);
+
+  const [updated] = await db
+    .update(productsTable)
+    .set({ oneClickAuthEnabled: false })
+    .where(eq(productsTable.id, productId))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  logger.info({ productId }, "One-Click Auth disabled by admin; master session cleared");
+  res.json(updated);
+});
+
+// Turning ON always re-authenticates: clears any stale session, logs in fresh
+// with the tool's configured auto-login credentials to establish a new
+// master session, and only then flips the toggle on.
+router.post(
+  "/admin/products/:id/one-click-auth/activate",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const productId = parseInt(String(req.params.id), 10);
+    if (isNaN(productId)) {
+      res.status(400).json({ error: "Invalid product id" });
+      return;
+    }
+
+    const [server] = await db
+      .select()
+      .from(toolServersTable)
+      .where(and(eq(toolServersTable.productId, productId), eq(toolServersTable.isAutoLogin, true)))
+      .orderBy(toolServersTable.id);
+
+    if (!server || !server.loginUrl || !server.username || !server.password) {
+      res.status(400).json({
+        error:
+          "Configure an Auto-Login server (login URL, username, password) for this tool before enabling One-Click Auth.",
+      });
+      return;
+    }
+
+    // Reset flow: always discard the old session before re-authenticating.
+    await invalidateSessionsForProduct(productId);
+
+    const session = await loginToTool(server);
+    if (!session || (!session.cookie && !session.authHeader)) {
+      res.status(502).json({
+        error: "Could not log in to the provider with the stored credentials. Check them and try again.",
+      });
+      return;
+    }
+
+    setSession(server.id, session);
+
+    const [updated] = await db
+      .update(productsTable)
+      .set({ oneClickAuthEnabled: true })
+      .where(eq(productsTable.id, productId))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+
+    logger.info({ productId, serverId: server.id }, "One-Click Auth enabled by admin; master session captured");
+    res.json(updated);
+  },
+);
 
 // ── Tool servers (multiple credential sets per product) ─────────────────────
 

@@ -1,0 +1,27 @@
+USER REQUEST: Restore one-click Auth login on tools with admin-controlled device session masking.
+
+[CRITICAL REQUIREMENT: SESSION MASKING & PRIVACY]
+- Do NOT alter any existing tool functionality, core UI layouts, or working APIs. This is a targeted feature layer.
+
+[1. ADMIN DASHBOARD CONTROL]
+- Add a toggle switch next to every individual tool listed in the Admin Dashboard labeled: "Enable Global One-Click Auth".
+- State Management: Save this toggle state (True/False) per tool in the database.
+
+[2. STATE TRIGGER & ADMIN RE-AUTHENTICATION]
+- When the Admin toggles the "Enable Global One-Click Auth" from OFF to ON for any tool, trigger a modal popup.
+- Modal Requirement: Prompt the Admin to "Log in to the official service provider to initialize the master session."
+- Action: Open the official provider's authentication interface (via OAuth popup or secure iframe/API endpoint).
+- Data Storage: Once the admin successfully logs in, capture and securely save that specific Admin Session Cookie / Access Token in the backend database, bound to that specific tool. 
+- Reset Flow: If the Admin toggles the feature OFF and later turns it back ON, clear the old stored session entirely and force the admin to re-authenticate to register their new current device session.
+
+[3. FRONTEND TOOL USER INTERFACE]
+- Conditional Rendering: On the user-facing side of all tools, check the database state for that specific tool.
+- If Toggle == ON: Display the "One-Click Login" button clearly on the tool interface.
+- If Toggle == OFF: Completely hide or remove the "One-Click Login" button from that tool's UI.
+
+[4. BACKEND SESSION MASKING & ARCHITECTURE (MOST IMPORTANT)]
+- Secure Proxy Flow: When a subscriber clicks the "One-Click Login" button on an enabled tool, do NOT route their direct device details, IP, or browser fingerprint to the official service provider.
+- Masking Mechanism: Route the subscriber's request through our backend server proxy. The server must inject the stored ADMIN's master session token/cookie into the request headers.
+- Result: The official service provider must only see the server's IP and the single device/session fingerprint established by the Admin during the backend setup phase. All subscriber device sessions must be completely hidden and masked behind the Admin's master session.
+
+Please implement the database updates, backend proxy routing, and the Admin UI updates sequentially. Let me know when you are ready to review the code or run tests.

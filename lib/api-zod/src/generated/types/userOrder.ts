@@ -21,4 +21,6 @@ export interface UserOrder {
   credUsername?: string | null;
   credPassword?: string | null;
   isAutoLogin?: boolean | null;
+  /** Whether the admin has enabled One-Click Auth for this tool. The one-click login button should only be shown when this is true. */
+  oneClickAuthEnabled?: boolean;
 }
