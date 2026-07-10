@@ -59,13 +59,13 @@ export default function Home() {
       <section className="pt-20 pb-16 bg-white border-b border-border shadow-sm text-center">
         <div className="container mx-auto px-4 md:px-6 max-w-5xl">
           <h1 className="text-4xl md:text-6xl font-heading tracking-tight mb-6 text-foreground leading-[1.2] uppercase">
-            TOP RATED <span className="text-primary">SEO</span> <span className="text-accent">TOOLS</span>
+            EVERYTHING YOU NEED TO GET MORE DONE <span className="text-primary">WITH</span> <span className="text-accent">AI</span>
           </h1>
           <p className="text-base md:text-lg font-heading text-primary mb-3 tracking-wide">
             The Vendor You Can Count On!
           </p>
           <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto font-medium">
-            Shared, affordable access to the world's best AI and productivity tools. Join thousands of students and professionals scaling their work today.
+            Access premium AI tools, manage your subscription with ease, and work smarter—all from one platform.
           </p>
           <Button
             size="lg"

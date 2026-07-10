@@ -43,7 +43,7 @@ export default function Checkout() {
 
   const selectedOption = availableDurations.find((o) => o.duration === duration) ?? availableDurations[0];
 
-  const name = user?.fullName || user?.username || "SubsHub User";
+  const name = user?.fullName || user?.username || "Top Rated SEO Tools User";
   const email = user?.primaryEmailAddress?.emailAddress || "";
 
   const handleCheckout = async () => {

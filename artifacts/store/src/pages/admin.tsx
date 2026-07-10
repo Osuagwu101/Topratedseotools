@@ -1740,7 +1740,7 @@ export default function AdminPanel() {
               <ShieldCheck className="w-8 h-8 text-primary" />
             </div>
             <h1 className="text-2xl font-bold text-foreground mb-1">Admin Login</h1>
-            <p className="text-sm text-muted-foreground">SubsHub backend panel</p>
+            <p className="text-sm text-muted-foreground">Top Rated SEO Tools backend panel</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -1810,7 +1810,7 @@ export default function AdminPanel() {
           <div className="flex items-center gap-3">
             <ShieldCheck className="w-5 h-5 text-primary" />
             <span className="font-heading font-bold text-foreground text-lg uppercase tracking-wide">
-              SubsHub Admin
+              Top Rated SEO Tools Admin
             </span>
           </div>
           <Button

@@ -248,7 +248,7 @@ function ClerkProviderWithRoutes() {
         signIn: {
           start: {
             title: "Welcome back",
-            subtitle: "Sign in to access your SubsHub account",
+            subtitle: "Sign in to access your Top Rated SEO Tools account",
           },
         },
         signUp: {

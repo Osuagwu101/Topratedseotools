@@ -1,6 +1,8 @@
-# SubsHub
+# Top Rated SEO Tools (formerly SubsHub)
 
 A subscription services storefront where users can browse and purchase monthly access to popular productivity and AI tools. Payments are processed via Paystack.
+
+Public-facing brand name is "Top Rated SEO Tools" — homepage headline: "Everything You Need to Get More Done With AI".
 
 ## Run & Operate
 
