@@ -1,0 +1,31 @@
+USER REQUEST: Upgrade the StealthWriter tool to an Anti-Detect Stealth Browser architecture with Residential Proxy routing, managed entirely via a new Admin Dashboard settings interface.
+
+[CRITICAL IMPLEMENTATION RULES]
+- Do NOT alter or break any existing tool functionalities or working APIs.
+- Transition the architecture smoothly away from basic data center scraping to a fully masked human-emulated flow.
+
+[PART 1: ANTI-DETECT STEALTH BROWSER ARCHITECTURE]
+- Install and configure `puppeteer-extra` alongside `puppeteer-extra-plugin-stealth` (or the exact Playwright equivalents) in the backend.
+- Mask all automated browser fingerprints completely (including navigator.webdriver, browser languages, plugins, and user-agent strings) to accurately simulate a real human user.
+- COOKIE INJECTION & PERSISTENCE: When the Admin turns ON the one-click Auth, use this stealth browser instance to navigate to StealthWriter, inject the saved Admin session cookie, and keep that authenticated browser context alive and reusable for subscriber requests.
+- SUBSCRIBER PROXYING: When an authorized subscriber clicks the tool, have the backend attach the active stealth browser session to their request so they can interact with the authenticated instance smoothly without encountering a login or CAPTCHA wall.
+
+[PART 2: RESIDENTIAL PROXY ROUTING LAYER]
+- Configure the backend stealth browser to route all web traffic through a residential proxy network to bypass data center IP blocking.
+- Format the proxy arguments dynamically during browser initialization using the credentials saved in Part 3: `--proxy-server=http://username:password@host:port`.
+
+[PART 3: ADMIN DASHBOARD CONFIGURATION UI]
+- In the Admin Dashboard settings panel, create a new section titled: "Stealth Browser & Proxy Configuration".
+- Add four secure text input fields to this section:
+  1. Proxy Host/Server (e.g., ://proxyprovider.com)
+  2. Proxy Port (e.g., 8000)
+  3. Proxy Username
+  4. Proxy Password (masked password field with a toggle to reveal/hide text)
+- Add a "Save Settings" button that securely writes these proxy credentials to the database (or updates the environment variable layer fallback).
+
+[PART 4: PROXY CONNECTION TESTING]
+- Next to the "Save Settings" button in the Admin UI, add a "Test Proxy Connection" button.
+- Backend Logic: When clicked, fire a lightweight background request using the newly configured stealth browser routed through the residential proxy to a public test endpoint (like https://httpbin.org). 
+- UI Feedback: Verify that the connection succeeds and the rotating IP is functional. Return a clear green "Connected Successfully" or red "Connection Failed" status message to the Admin UI.
+
+Please implement the database updates, the backend stealth routing logic, and the new Admin configuration screen sequentially. Let me know when the updates are ready to be tested!
