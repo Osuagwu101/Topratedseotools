@@ -65,6 +65,10 @@ router.get("/users/me/orders", async (req, res): Promise<void> => {
       const credUsername = r.credUsername ?? fallback?.username ?? null;
       const credPassword = r.credPassword ?? fallback?.password ?? null;
       const isAutoLogin = r.isAutoLogin ?? fallback?.isAutoLogin ?? null;
+      // The one-click button is only usable when the tool is both an
+      // auto-login server AND the admin has switched One-Click Auth on for
+      // it — otherwise it would 403 if clicked.
+      const usesOneClickAuth = !!isAutoLogin && !!r.oneClickAuthEnabled;
 
       return {
         ...r,
@@ -72,10 +76,12 @@ router.get("/users/me/orders", async (req, res): Promise<void> => {
         expiresAt: r.expiresAt ? r.expiresAt.toISOString() : null,
         status: r.status === "success" && !isEntitled && r.expiresAt ? "expired" : r.status,
         // Only expose credentials for active (non-expired) subscriptions.
-        // For auto-login tools, omit raw password (auto-login endpoint handles it).
+        // If the tool isn't currently using one-click masking (either it was
+        // never an auto-login tool, or the admin toggled One-Click Auth off),
+        // fall back to showing raw credentials so the user can still log in.
         credUsername: isActive ? credUsername : null,
-        credPassword: isActive && !isAutoLogin ? credPassword : null,
-        isAutoLogin: isActive && r.oneClickAuthEnabled ? isAutoLogin : null,
+        credPassword: isActive && !usesOneClickAuth ? credPassword : null,
+        isAutoLogin: isActive && usesOneClickAuth ? true : null,
       };
     })
   );

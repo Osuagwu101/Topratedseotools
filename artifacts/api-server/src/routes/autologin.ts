@@ -23,25 +23,6 @@ router.get("/tools/:productId/autologin", async (req, res): Promise<void> => {
     return;
   }
 
-  const [product] = await db
-    .select({ oneClickAuthEnabled: productsTable.oneClickAuthEnabled })
-    .from(productsTable)
-    .where(eq(productsTable.id, productId));
-  if (!product?.oneClickAuthEnabled) {
-    res.status(403).send(`
-      <!DOCTYPE html>
-      <html>
-      <head><title>Not Enabled</title></head>
-      <body style="font-family:sans-serif;text-align:center;padding:60px;">
-        <h2>One-Click Auth is not enabled</h2>
-        <p>This tool's one-click login has not been turned on yet.</p>
-        <a href="/">Return to SubsHub</a>
-      </body>
-      </html>
-    `);
-    return;
-  }
-
   // Resolve the specific server credential set assigned to this user's active
   // entitlement (same source of truth as the proxy).
   const server = await resolveServerForUser(userId, productId);
@@ -61,8 +42,29 @@ router.get("/tools/:productId/autologin", async (req, res): Promise<void> => {
     return;
   }
 
-  // For isAutoLogin tools redirect to the reverse proxy (single IP / device)
+  // For isAutoLogin tools, redirect to the reverse proxy (single IP / device)
+  // — but only if the admin has switched on One-Click Auth for this tool.
+  // Plain form-submit login (below) never uses the masking proxy, so it is
+  // unaffected by the toggle and keeps working exactly as before.
   if (server.isAutoLogin) {
+    const [product] = await db
+      .select({ oneClickAuthEnabled: productsTable.oneClickAuthEnabled })
+      .from(productsTable)
+      .where(eq(productsTable.id, productId));
+    if (!product?.oneClickAuthEnabled) {
+      res.status(403).send(`
+        <!DOCTYPE html>
+        <html>
+        <head><title>Not Enabled</title></head>
+        <body style="font-family:sans-serif;text-align:center;padding:60px;">
+          <h2>One-Click Auth is not enabled</h2>
+          <p>This tool's one-click login has not been turned on yet.</p>
+          <a href="/">Return to SubsHub</a>
+        </body>
+        </html>
+      `);
+      return;
+    }
     res.redirect(302, `/api/proxy/${productId}/`);
     return;
   }
