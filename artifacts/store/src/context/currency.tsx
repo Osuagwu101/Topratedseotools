@@ -29,6 +29,7 @@ interface CurrencyContextValue {
   currency: CurrencyMeta;
   rates: Record<string, number>;
   loading: boolean;
+  ratesReady: boolean;
   setCurrency: (code: string) => void;
   formatPrice: (kobo: number) => string;
 }
@@ -44,21 +45,38 @@ function findMeta(code: string): CurrencyMeta {
   return CURRENCIES.find((c) => c.code === code) ?? CURRENCIES[0];
 }
 
+const NGN_META = CURRENCIES[0];
 const NO_DECIMALS = new Set(["NGN", "TZS", "UGX", "XAF", "XOF", "RWF"]);
+
+function formatKobo(kobo: number, meta: CurrencyMeta, rate: number): string {
+  const ngn = kobo / 100;
+  const converted = ngn * rate;
+  const decimals = NO_DECIMALS.has(meta.code) ? 0 : 2;
+  const formatted = converted.toLocaleString("en", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  return `${meta.symbol}${formatted}`;
+}
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
   const [currencyCode, setCurrencyCode] = useState<string>(getSaved);
   const [rates, setRates] = useState<Record<string, number>>({ NGN: 1 });
   const [loading, setLoading] = useState(true);
+  const [ratesReady, setRatesReady] = useState(false);
 
   const fetchRates = useCallback(async () => {
     try {
       const res = await fetch(`${API}/fx-rates`);
-      if (!res.ok) throw new Error("bad response");
+      if (!res.ok) throw new Error(`FX rates fetch failed: HTTP ${res.status}`);
       const data = (await res.json()) as { rates: Record<string, number> };
+      if (!data.rates || typeof data.rates !== "object") {
+        throw new Error("FX rates response malformed");
+      }
       setRates(data.rates);
-    } catch {
-      // keep previous rates silently on error
+      setRatesReady(true);
+    } catch (err) {
+      console.error("[CurrencyProvider] Failed to fetch exchange rates:", err);
     } finally {
       setLoading(false);
     }
@@ -79,21 +97,17 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
 
   const formatPrice = useCallback(
     (kobo: number): string => {
-      const ngn = kobo / 100;
-      const rate = rates[currencyCode] ?? 1;
-      const converted = ngn * rate;
-      const decimals = NO_DECIMALS.has(currencyCode) ? 0 : 2;
-      const formatted = converted.toLocaleString("en", {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-      });
-      return `${currency.symbol}${formatted}`;
+      const rate = rates[currencyCode];
+      if (!ratesReady || rate === undefined) {
+        return formatKobo(kobo, NGN_META, 1);
+      }
+      return formatKobo(kobo, currency, rate);
     },
-    [currencyCode, rates, currency.symbol],
+    [currencyCode, rates, currency, ratesReady],
   );
 
   return (
-    <CurrencyContext.Provider value={{ currency, rates, loading, setCurrency, formatPrice }}>
+    <CurrencyContext.Provider value={{ currency, rates, loading, ratesReady, setCurrency, formatPrice }}>
       {children}
     </CurrencyContext.Provider>
   );

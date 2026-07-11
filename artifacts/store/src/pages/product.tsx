@@ -90,7 +90,7 @@ export default function ProductDetail() {
     query: { enabled: !!productId, queryKey: getGetProductQueryKey(productId) }
   });
   const { data: allProducts } = useListProducts();
-  const { formatPrice, currency } = useCurrency();
+  const { formatPrice, currency, ratesReady } = useCurrency();
 
   if (isLoading) {
     return (
@@ -183,7 +183,7 @@ export default function ProductDetail() {
                   <span className="text-5xl font-heading text-primary">{formatPrice(product.priceKobo)}</span>
                   <div className="text-muted-foreground font-bold uppercase tracking-widest mt-2">
                     / {product.billingPeriod === 'monthly' ? 'month' : 'check'}
-                    {currency.code !== "NGN" && <span className="text-xs ml-1 text-gray-400">(est.)</span>}
+                    {ratesReady && currency.code !== "NGN" && <span className="text-xs ml-1 text-gray-400">(est.)</span>}
                   </div>
                 </div>
                 

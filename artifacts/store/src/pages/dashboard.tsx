@@ -123,11 +123,11 @@ function CredentialBox({
 }
 
 function TransactionPrice({ amountKobo }: { amountKobo: number }) {
-  const { formatPrice, currency } = useCurrency();
+  const { formatPrice, currency, ratesReady } = useCurrency();
   return (
     <>
       {formatPrice(amountKobo)}
-      {currency.code !== "NGN" && <span className="ml-1 text-xs text-gray-400">(est.)</span>}
+      {ratesReady && currency.code !== "NGN" && <span className="ml-1 text-xs text-gray-400">(est.)</span>}
     </>
   );
 }

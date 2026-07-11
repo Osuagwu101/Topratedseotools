@@ -56,7 +56,7 @@ export interface ToolCardProps {
 }
 
 export function ToolCard({ name, category, imageUrl, priceKobo, billingPeriod, footer, testId }: ToolCardProps) {
-  const { formatPrice, currency } = useCurrency();
+  const { formatPrice, currency, ratesReady } = useCurrency();
   const key = getLogoKey(name);
   const logoSrc = imageUrl || LOGOS[key] || "";
   const bgColor = BG_COLORS[key] ?? "#F7F8FA";
@@ -95,7 +95,7 @@ export function ToolCard({ name, category, imageUrl, priceKobo, billingPeriod, f
           </span>
           <span className="text-xs text-muted-foreground font-semibold uppercase tracking-widest block mt-0.5">
             / {billingPeriod === "monthly" ? "month" : "check"}
-            {currency.code !== "NGN" && (
+            {ratesReady && currency.code !== "NGN" && (
               <span className="ml-1 text-gray-400">(est.)</span>
             )}
           </span>
