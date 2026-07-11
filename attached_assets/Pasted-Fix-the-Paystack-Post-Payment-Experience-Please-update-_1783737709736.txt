@@ -1,0 +1,63 @@
+Fix the Paystack Post-Payment Experience
+
+Please update the payment flow on the Top Rated SEO Tools website.
+
+Current problem
+
+After a user completes payment through Paystack, the browser remains on the checkout page. The user does not receive a clear confirmation, and they are not automatically returned to their dashboard.
+
+Required behaviour
+
+When Paystack confirms that a payment was successful:
+
+Verify the transaction securely on the server using the Paystack transaction reference. Do not rely only on the frontend Paystack response.
+Confirm that:
+The payment status is successful.
+The payment amount matches the tool price.
+The payment belongs to the logged-in user.
+The payment reference has not already been processed.
+Record the purchase in the database and immediately grant the user access to the purchased tool.
+Display a success modal or pop-up on the payment page with the following message:
+
+Purchase Successful!
+You have successfully purchased [Tool Name] from Top Rated SEO Tools.
+
+Replace [Tool Name] dynamically with the actual name of the purchased tool.
+
+Include a visible countdown message below the confirmation:
+
+You will be redirected to your dashboard in 20 seconds.
+
+The countdown should decrease every second.
+
+Provide a button labelled:
+
+Go to Dashboard Now
+
+Clicking this button should redirect the user immediately without waiting for the countdown.
+
+Automatically redirect the user to their dashboard after a maximum of 20 seconds.
+On the dashboard, the newly purchased tool must be displayed immediately under the user’s purchased tools, subscriptions, or available tools section. The user should not need to refresh the page manually.
+Failure handling
+
+If Paystack does not confirm the transaction, do not grant access to the tool. Display a clear message such as:
+
+Payment Verification Failed
+We could not confirm your payment. Please try again or contact support if you have already been charged.
+
+Do not show the success pop-up or redirect the user as though the purchase was successful.
+
+Additional requirements
+Prevent duplicate purchase records when Paystack sends the same callback or webhook more than once.
+Use both the Paystack callback response and server-side verification.
+Save the Paystack reference, transaction ID, payment status, amount, user ID, tool ID, tool name, and purchase date.
+Ensure the purchase remains available after the user logs out and logs back in.
+Preserve the existing website design and use the current dark navy and purple colour scheme for the modal.
+The success modal should work properly on desktop and mobile devices.
+Do not redirect the user before the purchase has been successfully saved in the database.
+Keep all existing checkout and Paystack functionality working.
+Expected flow
+
+User selects a tool → User completes Paystack payment → Server verifies payment → Purchase is saved → User receives access → Success modal appears with the tool name → 20-second countdown begins → User is redirected to the dashboard → Purchased tool appears on the dashboard.
+
+Please inspect the existing codebase, identify the current Paystack checkout, callback, webhook, purchase-recording, and dashboard-loading logic, and implement this change using the project’s existing framework and database structure. Do not create duplicate payment systems or unnecessary new pages.

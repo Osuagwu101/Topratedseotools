@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
-import { db, ordersTable } from "@workspace/db";
+import { db, ordersTable, productsTable } from "@workspace/db";
 import {
   InitializePaymentBody,
   InitializePaymentResponse,
@@ -181,6 +181,7 @@ router.get("/paystack/verify/:reference", async (req, res): Promise<void> => {
 
     let txStatus: string = paystackData.data.status;
     let orderId: number | null = null;
+    let productName: string | null = null;
 
     if (txStatus === "success") {
       const result = await activateOrderByReference(reference, paystackData.data.amount);
@@ -192,12 +193,28 @@ router.get("/paystack/verify/:reference", async (req, res): Promise<void> => {
       // this mirrors whatever the webhook already produced (or will produce shortly).
     }
 
+    // Look up the product name for the order so the success page can display it.
+    if (orderId !== null) {
+      try {
+        const [row] = await db
+          .select({ name: productsTable.name })
+          .from(ordersTable)
+          .innerJoin(productsTable, eq(ordersTable.productId, productsTable.id))
+          .where(eq(ordersTable.id, orderId))
+          .limit(1);
+        productName = row?.name ?? null;
+      } catch {
+        // non-fatal — success page falls back gracefully when null
+      }
+    }
+
     res.json(
       VerifyPaymentResponse.parse({
         status: txStatus,
         reference: paystackData.data.reference,
         amount: paystackData.data.amount,
         orderId,
+        productName,
       }),
     );
   } catch (err) {

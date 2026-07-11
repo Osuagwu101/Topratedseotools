@@ -180,7 +180,8 @@ export const VerifyPaymentResponse = zod.object({
   "status": zod.string(),
   "reference": zod.string(),
   "amount": zod.number(),
-  "orderId": zod.number().nullish()
+  "orderId": zod.number().nullish(),
+  "productName": zod.string().nullish()
 })
 
 

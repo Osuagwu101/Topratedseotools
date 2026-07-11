@@ -386,3 +386,5 @@ components:
           type: integer
         orderId:
           type: ["integer", "null"]
+        productName:
+          type: ["string", "null"]

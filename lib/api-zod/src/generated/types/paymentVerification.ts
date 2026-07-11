@@ -12,4 +12,6 @@ export interface PaymentVerification {
   amount: number;
   /** @nullable */
   orderId?: number | null;
+  /** @nullable */
+  productName?: string | null;
 }
