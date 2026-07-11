@@ -11,6 +11,7 @@ interface FxCache {
 }
 
 let cache: FxCache | null = null;
+let refreshing = false;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
 async function fetchRates(): Promise<Record<string, number>> {
@@ -26,12 +27,32 @@ async function fetchRates(): Promise<Record<string, number>> {
   return result;
 }
 
+function startBackgroundRefresh(log: { error: (obj: object, msg: string) => void }): void {
+  if (refreshing) return;
+  refreshing = true;
+  fetchRates()
+    .then((rates) => {
+      cache = { rates, fetchedAt: Date.now() };
+    })
+    .catch((err: unknown) => {
+      log.error({ err }, "Background FX refresh failed — keeping stale cache");
+    })
+    .finally(() => {
+      refreshing = false;
+    });
+}
+
 router.get("/fx-rates", async (req, res) => {
   try {
     const now = Date.now();
-    if (!cache || now - cache.fetchedAt > CACHE_TTL_MS) {
+    if (!cache) {
+      // Cold start: no cached value yet — must block until we have rates
       const rates = await fetchRates();
       cache = { rates, fetchedAt: now };
+    } else if (now - cache.fetchedAt > CACHE_TTL_MS) {
+      // Stale-while-revalidate: serve the stale cache immediately,
+      // kick off a background refresh so the next request gets fresh rates
+      startBackgroundRefresh(req.log);
     }
     res.json({ rates: cache.rates, fetchedAt: cache.fetchedAt });
   } catch (err) {
