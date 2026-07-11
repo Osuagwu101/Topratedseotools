@@ -1,9 +1,56 @@
+import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { Show, useUser, useClerk } from "@clerk/react";
 import { Button } from "@/components/ui/button";
-import { User, LogOut, LayoutDashboard } from "lucide-react";
+import { User, LogOut, LayoutDashboard, ChevronDown } from "lucide-react";
+import { useCurrency, CURRENCIES } from "@/context/currency";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function CurrencySwitcher() {
+  const { currency, setCurrency, loading } = useCurrency();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        disabled={loading}
+        className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-foreground hover:text-primary transition-colors border border-gray-200 rounded-md px-2.5 py-1.5 bg-white hover:border-primary/40"
+      >
+        <span>{currency.label}</span>
+        <ChevronDown className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1.5 w-36 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-1 overflow-hidden">
+          {CURRENCIES.map((c) => (
+            <button
+              key={c.code}
+              onClick={() => { setCurrency(c.code); setOpen(false); }}
+              className={`w-full text-left px-4 py-2 text-sm font-semibold transition-colors ${
+                c.code === currency.code
+                  ? "bg-primary/10 text-primary"
+                  : "text-foreground hover:bg-gray-50"
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function NavAuth() {
   const { user } = useUser();
@@ -63,7 +110,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <Link href="/" className="flex items-center gap-2 group" data-testid="link-home">
             <span className="font-heading text-2xl tracking-tight text-primary uppercase">Top Rated SEO Tools</span>
           </Link>
-          <nav className="flex items-center gap-6 text-sm font-bold uppercase tracking-wider text-foreground">
+          <nav className="flex items-center gap-4 text-sm font-bold uppercase tracking-wider text-foreground">
             <Link href="/" className="hidden sm:block hover:text-primary transition-colors" data-testid="link-nav-home">
               Home
             </Link>
@@ -73,6 +120,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <a href="#" className="hidden sm:block hover:text-primary transition-colors" data-testid="link-nav-support">
               Support
             </a>
+            <CurrencySwitcher />
             <NavAuth />
           </nav>
         </div>

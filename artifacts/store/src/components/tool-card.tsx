@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useCurrency } from "@/context/currency";
 
 export const LOGOS: Record<string, string> = {
   grammarly: "/logos/grammarly.png",
@@ -55,6 +56,7 @@ export interface ToolCardProps {
 }
 
 export function ToolCard({ name, category, imageUrl, priceKobo, billingPeriod, footer, testId }: ToolCardProps) {
+  const { formatPrice, currency } = useCurrency();
   const key = getLogoKey(name);
   const logoSrc = imageUrl || LOGOS[key] || "";
   const bgColor = BG_COLORS[key] ?? "#F7F8FA";
@@ -89,10 +91,13 @@ export function ToolCard({ name, category, imageUrl, priceKobo, billingPeriod, f
 
         <div className="mt-auto mb-4">
           <span className="text-3xl font-heading text-primary font-bold">
-            ₦{(priceKobo / 100).toLocaleString()}
+            {formatPrice(priceKobo)}
           </span>
           <span className="text-xs text-muted-foreground font-semibold uppercase tracking-widest block mt-0.5">
             / {billingPeriod === "monthly" ? "month" : "check"}
+            {currency.code !== "NGN" && (
+              <span className="ml-1 text-gray-400">(est.)</span>
+            )}
           </span>
         </div>
 

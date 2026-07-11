@@ -1,4 +1,5 @@
 import { useGetProduct, getGetProductQueryKey, useListProducts } from "@workspace/api-client-react";
+import { useCurrency } from "@/context/currency";
 import { Link, useRoute, useLocation } from "wouter";
 import { useAuth } from "@clerk/react";
 import { Layout } from "@/components/layout";
@@ -89,6 +90,7 @@ export default function ProductDetail() {
     query: { enabled: !!productId, queryKey: getGetProductQueryKey(productId) }
   });
   const { data: allProducts } = useListProducts();
+  const { formatPrice, currency } = useCurrency();
 
   if (isLoading) {
     return (
@@ -178,8 +180,11 @@ export default function ProductDetail() {
               <div className="bg-[#F7F8F9] p-8 rounded-2xl border-2 border-primary/20 text-center sticky top-24 shadow-sm">
                 <div className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-2">Price</div>
                 <div className="mb-6">
-                  <span className="text-5xl font-heading text-primary">₦{(product.priceKobo / 100).toLocaleString()}</span>
-                  <div className="text-muted-foreground font-bold uppercase tracking-widest mt-2">/ {product.billingPeriod === 'monthly' ? 'month' : 'check'}</div>
+                  <span className="text-5xl font-heading text-primary">{formatPrice(product.priceKobo)}</span>
+                  <div className="text-muted-foreground font-bold uppercase tracking-widest mt-2">
+                    / {product.billingPeriod === 'monthly' ? 'month' : 'check'}
+                    {currency.code !== "NGN" && <span className="text-xs ml-1 text-gray-400">(est.)</span>}
+                  </div>
                 </div>
                 
                 <div className="space-y-4 text-left mb-8 font-semibold text-sm">

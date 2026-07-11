@@ -6,6 +6,7 @@ import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wo
 import { QueryClient, QueryClientProvider, QueryCache, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { CurrencyProvider } from "@/context/currency";
 import Home from "@/pages/home";
 import ProductDetail from "@/pages/product";
 import Checkout from "@/pages/checkout";
@@ -236,6 +237,7 @@ function ClerkProviderWithRoutes() {
   const isSuspended = useIsSuspended();
 
   return (
+    <CurrencyProvider>
     <ClerkProvider
       publishableKey={clerkPubKey}
       proxyUrl={clerkProxyUrl}
@@ -269,6 +271,7 @@ function ClerkProviderWithRoutes() {
         </TooltipProvider>
       </QueryClientProvider>
     </ClerkProvider>
+    </CurrencyProvider>
   );
 }
 

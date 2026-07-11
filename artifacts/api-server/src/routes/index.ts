@@ -8,12 +8,14 @@ import adminRouter from "./admin";
 import autologinRouter from "./autologin";
 import proxyRouter from "./proxy";
 import storageRouter from "./storage";
+import fxRouter from "./fx";
 import { deviceTrackingMiddleware } from "../middlewares/deviceTracking";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(storageRouter);
+router.use(fxRouter);
 router.use(productsRouter);
 router.use(ordersRouter);
 router.use(paystackRouter);
