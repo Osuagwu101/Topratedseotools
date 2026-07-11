@@ -2,11 +2,7 @@ import crypto from "crypto";
 import { db, conversionEventsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger";
-
-const PIXEL_ID = process.env.META_PIXEL_ID ?? "";
-const ACCESS_TOKEN = process.env.META_CONVERSIONS_API_TOKEN ?? "";
-const TEST_EVENT_CODE = process.env.META_TEST_EVENT_CODE;
-const SITE_URL = process.env.SITE_URL ?? "";
+import { getCapiRuntimeSettings } from "./analyticsSettings";
 
 function sha256(value: string): string {
   return crypto.createHash("sha256").update(value.toLowerCase().trim()).digest("hex");
@@ -34,18 +30,25 @@ export interface CapiEvent {
 
 /**
  * Send a server-side event to the Meta Conversions API.
+ * Settings are loaded from the DB (with env-var fallback) on each call.
  * Idempotent — duplicate event_ids are silently skipped via DB unique constraint.
  * Never throws: safe to fire-and-forget without blocking the payment flow.
  * Returns true when the event was actually sent, false when skipped or not configured.
  */
 export async function sendCapiEvent(event: CapiEvent): Promise<boolean> {
-  if (!PIXEL_ID || !ACCESS_TOKEN) {
-    logger.warn("META_PIXEL_ID or META_CONVERSIONS_API_TOKEN not set — CAPI skipped");
+  const settings = await getCapiRuntimeSettings();
+
+  if (!settings.enabled || !settings.pixelId || !settings.accessToken) {
+    logger.warn("CAPI not enabled or missing credentials — skipped");
     return false;
   }
 
+  const PIXEL_ID = settings.pixelId;
+  const ACCESS_TOKEN = settings.accessToken;
+  const TEST_EVENT_CODE = settings.testEventCode;
+  const SITE_URL = settings.siteUrl;
+
   try {
-    // Optimistic dedup: insert a "sending" row. If event_id already exists, skip.
     const inserted = await db
       .insert(conversionEventsTable)
       .values({
@@ -115,7 +118,10 @@ export async function sendCapiEvent(event: CapiEvent): Promise<boolean> {
 
     if (fetchErr || metaErr) {
       const msg = fetchErr ?? metaErr ?? "unknown";
-      logger.error({ eventId: event.eventId, err: msg }, fetchErr ? "CAPI network error" : "CAPI event rejected by Meta");
+      logger.error(
+        { eventId: event.eventId, err: msg },
+        fetchErr ? "CAPI network error" : "CAPI event rejected by Meta",
+      );
       await db
         .update(conversionEventsTable)
         .set({ status: "failed", errorMessage: msg })
@@ -130,21 +136,8 @@ export async function sendCapiEvent(event: CapiEvent): Promise<boolean> {
       .where(eq(conversionEventsTable.eventId, event.eventId));
     return true;
   } catch (err) {
-    // Outer catch for unexpected errors (e.g. DB connection down at dedup stage)
     const msg = err instanceof Error ? err.message : String(err);
     logger.error({ eventId: event.eventId, err: msg }, "CAPI unexpected error");
     return false;
   }
-}
-
-export function getCapiStatus() {
-  return {
-    pixelConfigured: !!PIXEL_ID,
-    tokenConfigured: !!ACCESS_TOKEN,
-    testEventCode: TEST_EVENT_CODE ?? null,
-    siteUrlConfigured: !!SITE_URL,
-    maskedToken: ACCESS_TOKEN
-      ? `${"*".repeat(Math.max(0, ACCESS_TOKEN.length - 4))}${ACCESS_TOKEN.slice(-4)}`
-      : null,
-  };
 }

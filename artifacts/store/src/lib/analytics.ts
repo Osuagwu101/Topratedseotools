@@ -7,8 +7,27 @@ declare global {
   }
 }
 
-const PIXEL_ID = import.meta.env.VITE_META_PIXEL_ID as string | undefined;
-const GTM_ID = import.meta.env.VITE_GTM_ID as string | undefined;
+// ── Runtime config (loaded from /api/tracking/config at startup) ─────────────
+// Keeps VITE_ vars as a compile-time fallback in case the fetch hasn't happened yet.
+let runtimePixelEnabled: boolean = !!import.meta.env.VITE_META_PIXEL_ID;
+let runtimePixelId: string | undefined = import.meta.env.VITE_META_PIXEL_ID as string | undefined;
+let runtimeGtmEnabled: boolean = !!import.meta.env.VITE_GTM_ID;
+let runtimeGtmId: string | undefined = import.meta.env.VITE_GTM_ID as string | undefined;
+
+export interface TrackingConfig {
+  metaPixelEnabled: boolean;
+  metaPixelId: string | null;
+  gtmEnabled: boolean;
+  gtmContainerId: string | null;
+}
+
+/** Called by App.tsx after fetching /api/tracking/config. Idempotent. */
+export function setTrackingConfig(config: TrackingConfig): void {
+  runtimePixelEnabled = config.metaPixelEnabled;
+  runtimePixelId = config.metaPixelId ?? undefined;
+  runtimeGtmEnabled = config.gtmEnabled;
+  runtimeGtmId = config.gtmContainerId ?? undefined;
+}
 
 let pixelInitialized = false;
 let gtmInjected = false;
@@ -51,9 +70,10 @@ export function pushDataLayer(data: Record<string, unknown>): void {
 /**
  * Initialize Google Tag Manager with default-denied Google Consent Mode.
  * Safe to call once on app startup regardless of user consent status.
+ * Requires setTrackingConfig() to have been called first.
  */
 export function initGtm(): void {
-  if (!GTM_ID || gtmInjected) return;
+  if (!runtimeGtmEnabled || !runtimeGtmId || gtmInjected) return;
   gtmInjected = true;
 
   // Google Consent Mode — default denied before user responds
@@ -72,13 +92,13 @@ export function initGtm(): void {
   const script = document.createElement("script");
   script.id = "gtm-js";
   script.async = true;
-  script.src = `https://www.googletagmanager.com/gtm.js?id=${GTM_ID}`;
+  script.src = `https://www.googletagmanager.com/gtm.js?id=${runtimeGtmId}`;
   document.head.appendChild(script);
 
   // GTM noscript iframe
   const noscript = document.createElement("noscript");
   const iframe = document.createElement("iframe");
-  iframe.src = `https://www.googletagmanager.com/ns.html?id=${GTM_ID}`;
+  iframe.src = `https://www.googletagmanager.com/ns.html?id=${runtimeGtmId}`;
   iframe.height = "0";
   iframe.width = "0";
   iframe.style.display = "none";
@@ -93,10 +113,11 @@ export function initGtm(): void {
 
 /**
  * Initialize Meta Pixel. Only call after the user grants consent.
+ * Requires setTrackingConfig() to have been called first.
  * Idempotent — safe to call multiple times.
  */
 export function initPixel(): void {
-  if (!PIXEL_ID || pixelInitialized) return;
+  if (!runtimePixelEnabled || !runtimePixelId || pixelInitialized) return;
   if (getConsent() !== "granted") return;
 
   if (!window.fbq) {
@@ -118,7 +139,7 @@ export function initPixel(): void {
     first?.parentNode?.insertBefore(script, first);
   }
 
-  window.fbq?.("init", PIXEL_ID);
+  window.fbq?.("init", runtimePixelId);
   pixelInitialized = true;
 }
 
@@ -235,4 +256,4 @@ export function trackPurchase(params: {
   }
 }
 
-export { PIXEL_ID, GTM_ID };
+export { runtimePixelId as PIXEL_ID, runtimeGtmId as GTM_ID };

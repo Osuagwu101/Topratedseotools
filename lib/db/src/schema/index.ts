@@ -7,3 +7,4 @@ export * from "./userDailyUsage";
 export * from "./siteSettings";
 export * from "./conversionEvents";
 export * from "./orderAttributions";
+export * from "./analyticsSettings";

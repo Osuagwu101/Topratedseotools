@@ -10,6 +10,7 @@ import proxyRouter from "./proxy";
 import storageRouter from "./storage";
 import fxRouter from "./fx";
 import siteSettingsRouter from "./siteSettings";
+import trackingRouter from "./tracking";
 import { deviceTrackingMiddleware } from "../middlewares/deviceTracking";
 
 const router: IRouter = Router();
@@ -18,6 +19,7 @@ router.use(healthRouter);
 router.use(storageRouter);
 router.use(fxRouter);
 router.use(siteSettingsRouter);
+router.use(trackingRouter);
 router.use(productsRouter);
 router.use(ordersRouter);
 router.use(paystackRouter);

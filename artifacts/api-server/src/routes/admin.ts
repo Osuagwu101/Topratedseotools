@@ -9,7 +9,13 @@ import {
   ordersTable,
   conversionEventsTable,
 } from "@workspace/db";
-import { sendCapiEvent, getCapiStatus } from "../lib/metaCapi";
+import { sendCapiEvent } from "../lib/metaCapi";
+import {
+  getIntegrationSettings,
+  saveMetaPixelSettings,
+  saveMetaCapiSettings,
+  saveGtmSettings,
+} from "../lib/analyticsSettings";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { activateOrderByReference } from "../lib/activateOrder";
@@ -828,27 +834,77 @@ router.post("/admin/grant", requireAdmin, async (req, res): Promise<void> => {
   res.status(201).json({ ok: true, orderId: order.id, reference, outcome: result.outcome });
 });
 
-// ── Analytics / Tracking ──────────────────────────────────────────────────────
+// ── Analytics / Integrations ──────────────────────────────────────────────────
 
-router.get("/admin/analytics/status", requireAdmin, (_req, res): void => {
-  res.json(getCapiStatus());
+router.get("/admin/integrations", requireAdmin, async (_req, res): Promise<void> => {
+  const settings = await getIntegrationSettings();
+  res.json(settings);
 });
 
-router.get("/admin/analytics/events", requireAdmin, async (_req, res): Promise<void> => {
-  const events = await db
-    .select()
-    .from(conversionEventsTable)
-    .orderBy(desc(conversionEventsTable.createdAt))
-    .limit(50);
-  res.json(events);
+router.put("/admin/integrations/meta-pixel", requireAdmin, async (req, res): Promise<void> => {
+  const { enabled, pixelId } = req.body as { enabled?: boolean; pixelId?: string | null };
+  if (typeof enabled !== "boolean") {
+    res.status(400).json({ error: "enabled (boolean) is required" });
+    return;
+  }
+  const trimmed = typeof pixelId === "string" ? pixelId.trim() : null;
+  if (enabled && trimmed && !/^\d+$/.test(trimmed)) {
+    res.status(400).json({ error: "Pixel ID must be numeric (e.g. 1371893314574468)" });
+    return;
+  }
+  await saveMetaPixelSettings({ enabled, pixelId: trimmed || null }, "admin");
+  res.json({ ok: true });
 });
 
-router.post("/admin/analytics/test-event", requireAdmin, async (_req, res): Promise<void> => {
-  const status = getCapiStatus();
-  if (!status.pixelConfigured || !status.tokenConfigured) {
+router.put("/admin/integrations/meta-capi", requireAdmin, async (req, res): Promise<void> => {
+  const { enabled, accessToken, testEventCode, siteUrl } = req.body as {
+    enabled?: boolean;
+    accessToken?: string;
+    testEventCode?: string | null;
+    siteUrl?: string | null;
+  };
+  if (typeof enabled !== "boolean") {
+    res.status(400).json({ error: "enabled (boolean) is required" });
+    return;
+  }
+  const trimmedUrl = typeof siteUrl === "string" ? siteUrl.trim().replace(/\/$/, "") : null;
+  if (trimmedUrl && !/^https?:\/\/.+/.test(trimmedUrl)) {
+    res.status(400).json({ error: "Site URL must be a valid URL starting with https://" });
+    return;
+  }
+  await saveMetaCapiSettings(
+    {
+      enabled,
+      ...(typeof accessToken === "string" ? { accessToken: accessToken.trim() } : {}),
+      ...(typeof testEventCode !== "undefined" ? { testEventCode: typeof testEventCode === "string" ? testEventCode.trim() || null : null } : {}),
+      ...(typeof siteUrl !== "undefined" ? { siteUrl: trimmedUrl || null } : {}),
+    },
+    "admin",
+  );
+  res.json({ ok: true });
+});
+
+router.put("/admin/integrations/google-tag-manager", requireAdmin, async (req, res): Promise<void> => {
+  const { enabled, containerId } = req.body as { enabled?: boolean; containerId?: string | null };
+  if (typeof enabled !== "boolean") {
+    res.status(400).json({ error: "enabled (boolean) is required" });
+    return;
+  }
+  const trimmedId = typeof containerId === "string" ? containerId.trim().toUpperCase() : null;
+  if (trimmedId && !/^GTM-[A-Z0-9]+$/.test(trimmedId)) {
+    res.status(400).json({ error: "Container ID must start with GTM- (e.g. GTM-XXXXXXX)" });
+    return;
+  }
+  await saveGtmSettings({ enabled, containerId: trimmedId || null }, "admin");
+  res.json({ ok: true });
+});
+
+router.post("/admin/integrations/meta-capi/test", requireAdmin, async (_req, res): Promise<void> => {
+  const settings = await getIntegrationSettings();
+  if (!settings.metaCapi.enabled || !settings.metaCapi.pixelId || !settings.metaCapi.tokenConfigured || !settings.metaCapi.siteUrl) {
     res.status(400).json({
       ok: false,
-      reason: "META_PIXEL_ID and META_CONVERSIONS_API_TOKEN must both be set before sending test events",
+      reason: "CAPI must be enabled with a Pixel ID, access token, and site URL configured before sending test events",
     });
     return;
   }
@@ -865,6 +921,15 @@ router.post("/admin/analytics/test-event", requireAdmin, async (_req, res): Prom
   } else {
     res.status(500).json({ ok: false, reason: "CAPI returned an error — check server logs" });
   }
+});
+
+router.get("/admin/analytics/events", requireAdmin, async (_req, res): Promise<void> => {
+  const events = await db
+    .select()
+    .from(conversionEventsTable)
+    .orderBy(desc(conversionEventsTable.createdAt))
+    .limit(50);
+  res.json(events);
 });
 
 export default router;

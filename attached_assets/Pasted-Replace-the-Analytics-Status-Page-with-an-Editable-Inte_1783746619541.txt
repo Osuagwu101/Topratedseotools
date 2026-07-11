@@ -1,0 +1,1086 @@
+Replace the Analytics Status Page with an Editable Integration Settings Page
+
+
+
+The current **Analytics & Tracking** admin page only displays environment-variable names and “Missing” status labels. It does not allow the administrator to enter, edit, save, enable or disable the Meta Pixel, Meta Conversions API or Google Tag Manager configuration.
+
+
+
+Please redesign and implement this page as a complete, editable integration-settings interface for **Top Rated SEO Tools**.
+
+
+
+### 1. Important architectural change
+
+
+
+Do not use frontend build-time environment variables such as:
+
+
+
+```env
+
+VITE_META_PIXEL_ID
+
+VITE_GTM_ID
+
+```
+
+
+
+as the only source of runtime settings.
+
+
+
+Values prefixed with `VITE_` are compiled into the frontend and normally require the application to be rebuilt before changes appear. They are also unsuitable for secret values.
+
+
+
+Instead:
+
+
+
+* Store editable integration settings in the database.
+
+* Allow only authorised administrators to read or update them.
+
+* Keep the Meta Conversions API access token encrypted or stored securely on the server.
+
+* Never return the full Meta access token to the browser after it has been saved.
+
+* The frontend should receive only safe public values, such as the Pixel ID, GTM ID and enabled status.
+
+* Continue supporting environment variables as optional fallback values if needed.
+
+
+
+### 2. Redesign the page
+
+
+
+Create a polished admin page similar in usability to the Selar Facebook Pixel integration page.
+
+
+
+Use separate cards or sections for:
+
+
+
+1. **Meta Pixel**
+
+2. **Meta Conversions API**
+
+3. **Google Tag Manager**
+
+4. **Testing and event status**
+
+
+
+Use the existing Top Rated SEO Tools navy, purple and white design.
+
+
+
+---
+
+
+
+## Meta Pixel section
+
+
+
+Add the following controls:
+
+
+
+### Enable Meta Pixel
+
+
+
+A toggle or checkbox:
+
+
+
+```text
+
+Enable Meta Pixel
+
+```
+
+
+
+### Meta Pixel ID
+
+
+
+An editable text field labelled:
+
+
+
+```text
+
+Meta Pixel ID
+
+```
+
+
+
+Placeholder:
+
+
+
+```text
+
+Enter the Pixel ID from Meta Events Manager
+
+```
+
+
+
+Example format:
+
+
+
+```text
+
+1371893314574468
+
+```
+
+
+
+Validation requirements:
+
+
+
+* Accept numeric Pixel IDs only.
+
+* Trim spaces.
+
+* Show an inline error for an invalid value.
+
+* Do not save an empty value when Meta Pixel is enabled.
+
+
+
+Add a help note:
+
+
+
+```text
+
+You can find this ID in Meta Events Manager under Data Sources.
+
+```
+
+
+
+Add buttons:
+
+
+
+```text
+
+Save Meta Pixel
+
+Test Pixel
+
+```
+
+
+
+After saving successfully, display:
+
+
+
+```text
+
+Meta Pixel configured successfully
+
+```
+
+
+
+When enabled and properly configured, show a green status badge:
+
+
+
+```text
+
+ACTIVE
+
+```
+
+
+
+When disabled, show:
+
+
+
+```text
+
+DISABLED
+
+```
+
+
+
+When enabled but incomplete, show:
+
+
+
+```text
+
+REQUIRES CONFIGURATION
+
+```
+
+
+
+---
+
+
+
+## Meta Conversions API section
+
+
+
+Add a toggle:
+
+
+
+```text
+
+Enable Meta Conversions API
+
+```
+
+
+
+Add editable fields for:
+
+
+
+### Pixel ID
+
+
+
+Label:
+
+
+
+```text
+
+Meta Pixel ID
+
+```
+
+
+
+Use the same Pixel ID as the browser Pixel by default. Avoid asking the administrator to enter the same value twice unless a separate value is deliberately required.
+
+
+
+### Access Token
+
+
+
+Label:
+
+
+
+```text
+
+Conversions API Access Token
+
+```
+
+
+
+Use a password-type input.
+
+
+
+After the token is saved:
+
+
+
+* Never display it in full again.
+
+* Display a masked value such as:
+
+
+
+```text
+
+************************abcd
+
+```
+
+
+
+* Allow the administrator to replace the token by entering a new one.
+
+* Do not send the saved token back to the frontend.
+
+
+
+### Test Event Code
+
+
+
+Label:
+
+
+
+```text
+
+Meta Test Event Code
+
+```
+
+
+
+This field is optional and is used only while testing events through Meta Events Manager.
+
+
+
+### Site URL
+
+
+
+Label:
+
+
+
+```text
+
+Production Site URL
+
+```
+
+
+
+Placeholder:
+
+
+
+```text
+
+https://topratedseotools.com
+
+```
+
+
+
+Validation requirements:
+
+
+
+* Require HTTPS in production.
+
+* Remove unnecessary trailing slashes before saving.
+
+* Display a clear validation message for invalid URLs.
+
+
+
+Add buttons:
+
+
+
+```text
+
+Save Conversions API Settings
+
+Send Test Event
+
+```
+
+
+
+The **Send Test Event** button must remain disabled until:
+
+
+
+* Meta Conversions API is enabled;
+
+* a Pixel ID exists;
+
+* an access token exists;
+
+* a valid Site URL exists; and
+
+* a Test Event Code exists.
+
+
+
+When the test succeeds, show:
+
+
+
+```text
+
+Test event sent successfully. Check Meta Events Manager under Test Events.
+
+```
+
+
+
+When it fails, show the real safe error message without exposing the access token.
+
+
+
+---
+
+
+
+## Google Tag Manager section
+
+
+
+Add a toggle:
+
+
+
+```text
+
+Enable Google Tag Manager
+
+```
+
+
+
+Add an editable text field:
+
+
+
+```text
+
+Google Tag Manager Container ID
+
+```
+
+
+
+Placeholder:
+
+
+
+```text
+
+GTM-XXXXXXX
+
+```
+
+
+
+Validation:
+
+
+
+* Require the value to begin with `GTM-`.
+
+* Trim spaces.
+
+* Convert it to uppercase.
+
+* Do not save an invalid container ID.
+
+
+
+Add buttons:
+
+
+
+```text
+
+Save GTM Settings
+
+Test GTM
+
+```
+
+
+
+Show a help note:
+
+
+
+```text
+
+You can find this ID in your Google Tag Manager workspace.
+
+```
+
+
+
+---
+
+
+
+## 3. Database structure
+
+
+
+Create or reuse an integration-settings table.
+
+
+
+A suitable structure may include:
+
+
+
+```text
+
+id
+
+meta_pixel_enabled
+
+meta_pixel_id
+
+meta_capi_enabled
+
+meta_capi_access_token_encrypted
+
+meta_test_event_code
+
+gtm_enabled
+
+gtm_container_id
+
+site_url
+
+created_at
+
+updated_at
+
+updated_by
+
+```
+
+
+
+Requirements:
+
+
+
+* Keep only one active site-level integration-settings record unless the project supports multiple stores.
+
+* Track which administrator last updated the settings.
+
+* Encrypt the Meta access token before storing it.
+
+* Never store the token in browser local storage.
+
+* Never expose it in frontend API responses.
+
+* Never write it into application logs.
+
+
+
+If the current database or framework already has a secure settings or secrets system, reuse it instead of creating duplicate infrastructure.
+
+
+
+---
+
+
+
+## 4. Admin API endpoints
+
+
+
+Create protected server endpoints such as:
+
+
+
+```text
+
+GET /api/admin/integrations
+
+PUT /api/admin/integrations/meta-pixel
+
+PUT /api/admin/integrations/meta-capi
+
+PUT /api/admin/integrations/google-tag-manager
+
+POST /api/admin/integrations/meta-capi/test
+
+```
+
+
+
+Requirements:
+
+
+
+* Require administrator authentication and authorisation.
+
+* Validate all inputs on the server.
+
+* Return only masked token information.
+
+* Include CSRF protection where relevant.
+
+* Apply rate limiting to the test-event endpoint.
+
+* Record safe audit information for updates.
+
+
+
+Example safe response:
+
+
+
+```json
+
+{
+
+  "metaPixel": {
+
+    "enabled": true,
+
+    "pixelId": "1371893314574468"
+
+  },
+
+  "metaCapi": {
+
+    "enabled": true,
+
+    "tokenConfigured": true,
+
+    "maskedToken": "****************abcd",
+
+    "testEventCode": "TEST12345"
+
+  },
+
+  "googleTagManager": {
+
+    "enabled": true,
+
+    "containerId": "GTM-XXXXXXX"
+
+  },
+
+  "siteUrl": "https://topratedseotools.com"
+
+}
+
+```
+
+
+
+Do not return:
+
+
+
+```json
+
+{
+
+  "accessToken": "the-full-secret-token"
+
+}
+
+```
+
+
+
+---
+
+
+
+## 5. Public runtime configuration
+
+
+
+Create a safe public endpoint for browser tracking, for example:
+
+
+
+```text
+
+GET /api/tracking/config
+
+```
+
+
+
+It may return only:
+
+
+
+```json
+
+{
+
+  "metaPixelEnabled": true,
+
+  "metaPixelId": "1371893314574468",
+
+  "gtmEnabled": true,
+
+  "gtmContainerId": "GTM-XXXXXXX"
+
+}
+
+```
+
+
+
+It must never return:
+
+
+
+* the Meta Conversions API access token;
+
+* the database encryption key;
+
+* private admin data;
+
+* the complete server configuration.
+
+
+
+Use this public runtime configuration to load Meta Pixel and GTM dynamically.
+
+
+
+---
+
+
+
+## 6. Runtime loading
+
+
+
+Update the frontend tracking system so it uses the saved database settings.
+
+
+
+### Meta Pixel
+
+
+
+When Meta Pixel is enabled and a valid Pixel ID exists:
+
+
+
+* Load the Meta Pixel script once.
+
+* Initialise it with the saved Pixel ID.
+
+* Track `PageView`.
+
+* Track route changes correctly.
+
+* Prevent duplicate script loading.
+
+* Respect marketing-consent settings.
+
+
+
+When disabled:
+
+
+
+* Do not load Meta Pixel.
+
+* Do not send Meta browser events.
+
+
+
+### Google Tag Manager
+
+
+
+When GTM is enabled and a valid GTM ID exists:
+
+
+
+* Load the GTM script once.
+
+* Add the required noscript fallback where supported.
+
+* Prevent duplicate loading.
+
+* Respect analytics and advertising consent settings.
+
+
+
+### Meta Conversions API
+
+
+
+Use the server-side stored token only.
+
+
+
+When disabled:
+
+
+
+* Do not send events to Meta’s Conversions API.
+
+
+
+When enabled:
+
+
+
+* Continue using server-side verified events.
+
+* The Purchase event must fire only after Paystack verification and database recording.
+
+* Tracking errors must never block a successful purchase.
+
+
+
+---
+
+
+
+## 7. Improve the page status display
+
+
+
+Replace the current “Missing” rows with editable controls and useful status information.
+
+
+
+For each integration, display:
+
+
+
+```text
+
+Enabled/Disabled
+
+Configured/Incomplete
+
+Last updated
+
+Last test result
+
+Last successful event
+
+```
+
+
+
+Add status badges such as:
+
+
+
+```text
+
+ACTIVE
+
+DISABLED
+
+INCOMPLETE
+
+TEST SUCCESSFUL
+
+TEST FAILED
+
+```
+
+
+
+Do not show variable names such as:
+
+
+
+```text
+
+VITE_META_PIXEL_ID
+
+META_CONVERSIONS_API_TOKEN
+
+```
+
+
+
+as the main user-facing interface. These may appear only in a developer-help section if necessary.
+
+
+
+---
+
+
+
+## 8. Events being tracked
+
+
+
+Under the Meta section, display a short informational list:
+
+
+
+```text
+
+What your Meta integration tracks:
+
+✓ Page and tool views
+
+✓ Tool searches
+
+✓ Checkout initiation
+
+✓ Verified purchases
+
+```
+
+
+
+Under the GTM section, display:
+
+
+
+```text
+
+What Google Tag Manager can receive:
+
+✓ Page views
+
+✓ Tool views
+
+✓ Checkout events
+
+✓ Verified purchase events
+
+```
+
+
+
+The existing tracking implementation must continue to use real verified purchase data.
+
+
+
+---
+
+
+
+## 9. User experience requirements
+
+
+
+* Use properly labelled input fields.
+
+* Use responsive layouts for desktop, tablet and mobile.
+
+* Add loading states to save and test buttons.
+
+* Prevent duplicate submissions.
+
+* Display success and error notifications.
+
+* Ask for confirmation before disabling an active integration.
+
+* Preserve unsaved values if an API request fails.
+
+* Do not refresh the whole page after saving.
+
+* Use accessible labels, keyboard navigation and visible focus states.
+
+
+
+---
+
+
+
+## 10. Initial migration
+
+
+
+If existing environment variables are already configured, migrate or import their values into the database once where safe.
+
+
+
+Possible fallback variables may include:
+
+
+
+```env
+
+META_PIXEL_ID
+
+META_CONVERSIONS_API_TOKEN
+
+META_TEST_EVENT_CODE
+
+GOOGLE_TAG_MANAGER_ID
+
+SITE_URL
+
+```
+
+
+
+Avoid relying on `VITE_` variables for secrets.
+
+
+
+After migration:
+
+
+
+* the administrator must be able to manage settings from the admin dashboard;
+
+* a normal application redeployment should not be necessary whenever a Pixel ID or GTM ID is changed;
+
+* the Meta access token must remain protected.
+
+
+
+---
+
+
+
+## 11. Final result
+
+
+
+The completed page should allow the administrator to:
+
+
+
+1. Enter the Meta Pixel ID.
+
+2. Enable or disable Meta Pixel.
+
+3. Enter and securely save the Conversions API access token.
+
+4. Add the Meta Test Event Code.
+
+5. Enter the website URL.
+
+6. Send a server-side test event.
+
+7. Enter the GTM container ID.
+
+8. Enable or disable GTM.
+
+9. See the configuration and test status.
+
+10. Update these settings without editing source code or rebuilding the application.
+
+
+
+Do not merely redesign the existing status cards. Implement the full database, backend, validation, security and runtime-loading functionality.
+
+
+
+Before making changes, inspect the current database, authentication, admin routing, tracking utilities and server framework. Reuse the project’s established patterns and provide a summary of every file changed.
+
+
+
+---
+
+
+
+The finished interface should resemble Selar’s simplicity, but it should support **Meta Pixel, Conversions API and Google Tag Manager** in separate, clearly organised sections.
+

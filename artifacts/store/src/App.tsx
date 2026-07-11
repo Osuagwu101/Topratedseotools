@@ -17,7 +17,7 @@ import AdminPanel from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 import { setDeviceId, ApiError } from "@workspace/api-client-react";
 import { PhoneOff } from "lucide-react";
-import { initGtm, initPixel, trackPageView, getConsent } from "@/lib/analytics";
+import { initGtm, initPixel, trackPageView, getConsent, setTrackingConfig, type TrackingConfig } from "@/lib/analytics";
 import { captureAttribution } from "@/lib/attribution";
 import { CookieConsent } from "@/components/CookieConsent";
 
@@ -162,9 +162,18 @@ const clerkAppearance = {
 // ── Analytics bootstrap ───────────────────────────────────────────────────────
 function AppInit() {
   useEffect(() => {
-    initGtm();
     captureAttribution();
-    if (getConsent() === "granted") initPixel();
+    fetch("/api/tracking/config")
+      .then((r) => r.json())
+      .then((config: TrackingConfig) => {
+        setTrackingConfig(config);
+        initGtm();
+        if (getConsent() === "granted") initPixel();
+      })
+      .catch(() => {
+        initGtm();
+        if (getConsent() === "granted") initPixel();
+      });
   }, []);
   return null;
 }
