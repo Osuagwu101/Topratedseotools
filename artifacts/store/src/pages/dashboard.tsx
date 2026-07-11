@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useCurrency } from "@/context/currency";
 import { useUser, useClerk, Show } from "@clerk/react";
 import { useGetMyOrders } from "@workspace/api-client-react";
 import { Link } from "wouter";
@@ -121,6 +122,16 @@ function CredentialBox({
   );
 }
 
+function TransactionPrice({ amountKobo }: { amountKobo: number }) {
+  const { formatPrice, currency } = useCurrency();
+  return (
+    <>
+      {formatPrice(amountKobo)}
+      {currency.code !== "NGN" && <span className="ml-1 text-xs text-gray-400">(est.)</span>}
+    </>
+  );
+}
+
 function TransactionRow({
   order,
 }: {
@@ -159,7 +170,7 @@ function TransactionRow({
         </div>
         <div className="flex items-center gap-3 mt-1">
           <span className="text-muted-foreground font-bold text-sm">
-            ₦{(order.amountKobo / 100).toLocaleString()}
+            <TransactionPrice amountKobo={order.amountKobo} />
           </span>
         </div>
         <p className="text-xs text-muted-foreground mt-0.5 font-mono">{order.reference}</p>
