@@ -6,6 +6,7 @@ import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { trackPurchase } from "@/lib/analytics";
 
 const COUNTDOWN_SECONDS = 20;
 const BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -33,6 +34,32 @@ export default function Success() {
     if (!isSuccess) return;
     queryClient.invalidateQueries({ queryKey: getGetMyOrdersQueryKey() });
   }, [isSuccess, queryClient]);
+
+  // Fire client-side purchase tracking once, after server verification succeeds.
+  // Uses sessionStorage to prevent duplicate events on page refresh.
+  // The stable event_id (purchase_{reference}) matches the server-side CAPI event for deduplication.
+  useEffect(() => {
+    if (!isSuccess || !verification) return;
+    let toolId: string | number = verification.orderId ?? "unknown";
+    let toolName = verification.productName ?? "Tool";
+    try {
+      const raw = sessionStorage.getItem(`checkout_product_${reference}`);
+      if (raw) {
+        const cached = JSON.parse(raw) as { productId: number; productName: string; priceKobo: number };
+        toolId = cached.productId;
+        toolName = cached.productName;
+      }
+    } catch {
+      // ignore
+    }
+    trackPurchase({
+      reference,
+      toolId,
+      toolName,
+      amountKobo: verification.amount,
+      currency: "NGN",
+    });
+  }, [isSuccess]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isSuccess || redirectStarted) return;

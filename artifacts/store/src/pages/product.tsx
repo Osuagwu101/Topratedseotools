@@ -2,12 +2,14 @@ import { useGetProduct, getGetProductQueryKey, useListProducts } from "@workspac
 import { useCurrency } from "@/context/currency";
 import { Link, useRoute, useLocation } from "wouter";
 import { useAuth } from "@clerk/react";
+import { useEffect } from "react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SiGrammarly, SiNordvpn, SiSemrush } from "react-icons/si";
 import { Check, Video, Bot, Shield, Pencil } from "lucide-react";
 import { ToolCard } from "@/components/tool-card";
+import { trackViewContent } from "@/lib/analytics";
 
 function RecommendationRow({
   title,
@@ -92,6 +94,17 @@ export default function ProductDetail() {
   const { data: allProducts } = useListProducts();
   const { formatPrice, currency, ratesReady } = useCurrency();
 
+  // Fire ViewContent when product data is available
+  useEffect(() => {
+    if (!product) return;
+    trackViewContent({
+      toolId: product.id,
+      toolName: product.name,
+      priceKobo: product.priceKobo,
+      currency: currency.code,
+    });
+  }, [product?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (isLoading) {
     return (
       <Layout>
@@ -163,82 +176,76 @@ export default function ProductDetail() {
                       <div className="mt-1 flex-shrink-0 bg-primary/10 p-1 rounded-full">
                         <Check className="w-5 h-5 text-primary" strokeWidth={3} />
                       </div>
-                      <span className="text-foreground font-semibold text-lg">Full premium access</span>
+                      <span className="text-foreground font-semibold text-lg">Full access included with subscription</span>
                     </li>
                   )}
-                  <li className="flex items-start gap-4">
-                    <div className="mt-1 flex-shrink-0 bg-primary/10 p-1 rounded-full">
-                      <Check className="w-5 h-5 text-primary" strokeWidth={3} />
-                    </div>
-                    <span className="text-foreground font-semibold text-lg">Instant delivery to your email</span>
-                  </li>
                 </ul>
               </div>
             </div>
             
             <div className="lg:col-span-1">
-              <div className="bg-[#F7F8F9] p-8 rounded-2xl border-2 border-primary/20 text-center sticky top-24 shadow-sm">
-                <div className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-2">Price</div>
-                <div className="mb-6">
-                  <span className="text-5xl font-heading text-primary">{formatPrice(product.priceKobo)}</span>
-                  <div className="text-muted-foreground font-bold uppercase tracking-widest mt-2">
-                    / {product.billingPeriod === 'monthly' ? 'month' : 'check'}
-                    {ratesReady && currency.code !== "NGN" && <span className="text-xs ml-1 text-gray-400">(est.)</span>}
+              <div className="sticky top-8 bg-[#F7F8F9] rounded-2xl border border-border p-6 space-y-6">
+                <div>
+                  <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Starting from</div>
+                  <div className="font-heading text-4xl text-primary">
+                    {ratesReady ? formatPrice(product.priceKobo) : `₦${(product.priceKobo / 100).toLocaleString()}`}
                   </div>
-                </div>
-                
-                <div className="space-y-4 text-left mb-8 font-semibold text-sm">
-                  <div className="flex justify-between py-3 border-b border-border">
-                    <span className="text-muted-foreground">Cycle</span>
-                    <span className="capitalize">{product.billingPeriod.replace('_', ' ')}</span>
-                  </div>
-                  <div className="flex justify-between py-3 border-b border-border">
-                    <span className="text-muted-foreground">Payment</span>
-                    <span>Paystack</span>
+                  <div className="text-xs text-muted-foreground font-semibold mt-1">
+                    {product.billingPeriod === "per_check" ? "per check" : "per month"}
                   </div>
                 </div>
                 
                 <Button
-                  className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary/90 text-white rounded-xl uppercase tracking-wider shadow-md hover:shadow-lg transition-all"
-                  data-testid="button-subscribe"
+                  className="w-full h-14 text-base font-bold bg-primary hover:bg-primary/90 text-white rounded-xl uppercase tracking-wider shadow-md transition-all"
                   onClick={() => {
-                    if (isSignedIn) {
-                      setLocation(`/checkout?productId=${product.id}`);
+                    if (!isSignedIn) {
+                      setLocation("/sign-in");
                     } else {
-                      setLocation(`/sign-in`);
+                      setLocation(`/checkout?productId=${product.id}`);
                     }
                   }}
+                  data-testid="button-get-access"
                 >
-                  Buy Now
+                  {isSignedIn ? "Get Access Now" : "Sign In to Subscribe"}
                 </Button>
-                <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-6 flex items-center justify-center gap-2">
-                   Secured by Paystack
+                
+                <div className="pt-2 border-t border-border space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground font-semibold">
+                    <Check className="w-4 h-4 text-primary shrink-0" strokeWidth={3} />
+                    Instant access after payment
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground font-semibold">
+                    <Check className="w-4 h-4 text-primary shrink-0" strokeWidth={3} />
+                    Secured by Paystack
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground font-semibold">
+                    <Check className="w-4 h-4 text-primary shrink-0" strokeWidth={3} />
+                    Cancel anytime
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-
-          <div className="px-8 md:px-12 pb-12">
-            <RecommendationRow
-              title="You may also like"
-              subtitle="Tools that pair well with this one"
-              ids={product.crossSellProductIds}
-              allProducts={allProducts}
-            />
-            <RecommendationRow
-              title="Upgrade to"
-              subtitle="Want more power? Consider these instead"
-              ids={product.upSellProductIds}
-              allProducts={allProducts}
-            />
-            <RecommendationRow
-              title="Or try instead"
-              subtitle="Lighter, more affordable options"
-              ids={product.downSellProductIds}
-              allProducts={allProducts}
-            />
-          </div>
         </div>
+        
+        <RecommendationRow
+          title="Better alternatives"
+          subtitle="Users who viewed this also considered these upgrades"
+          ids={product.upSellProductIds ?? undefined}
+          allProducts={allProducts}
+        />
+        <RecommendationRow
+          title="Goes well with"
+          subtitle="Pair this tool with these complementary subscriptions"
+          ids={product.crossSellProductIds ?? undefined}
+          allProducts={allProducts}
+        />
+        <RecommendationRow
+          title="More affordable options"
+          subtitle="Similar tools at a lower price point"
+          ids={product.downSellProductIds ?? undefined}
+          allProducts={allProducts}
+        />
       </div>
     </Layout>
   );

@@ -7,8 +7,10 @@ import {
   productsTable,
   userDeviceSessionsTable,
   ordersTable,
+  conversionEventsTable,
 } from "@workspace/db";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { sendCapiEvent, getCapiStatus } from "../lib/metaCapi";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { activateOrderByReference } from "../lib/activateOrder";
 import { logger } from "../lib/logger";
@@ -824,6 +826,37 @@ router.post("/admin/grant", requireAdmin, async (req, res): Promise<void> => {
 
   logger.info({ clerkUserId, productId, orderId: order.id }, "Manual entitlement grant issued");
   res.status(201).json({ ok: true, orderId: order.id, reference, outcome: result.outcome });
+});
+
+// ── Analytics / Tracking ──────────────────────────────────────────────────────
+
+router.get("/admin/analytics/status", requireAdmin, (_req, res): void => {
+  const status = getCapiStatus();
+  res.json({
+    ...status,
+    gtmConfigured: !!process.env.VITE_GTM_ID || !!process.env.GTM_ID,
+  });
+});
+
+router.get("/admin/analytics/events", requireAdmin, async (_req, res): Promise<void> => {
+  const events = await db
+    .select()
+    .from(conversionEventsTable)
+    .orderBy(desc(conversionEventsTable.createdAt))
+    .limit(50);
+  res.json(events);
+});
+
+router.post("/admin/analytics/test-event", requireAdmin, async (_req, res): Promise<void> => {
+  const eventId = `test_pageview_${Date.now()}`;
+  await sendCapiEvent({
+    eventName: "PageView",
+    eventId,
+    reference: undefined,
+    userData: {},
+    customData: {},
+  });
+  res.json({ ok: true, eventId });
 });
 
 export default router;

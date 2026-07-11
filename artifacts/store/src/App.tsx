@@ -17,6 +17,9 @@ import AdminPanel from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 import { setDeviceId, ApiError } from "@workspace/api-client-react";
 import { PhoneOff } from "lucide-react";
+import { initGtm, initPixel, trackPageView, getConsent } from "@/lib/analytics";
+import { captureAttribution } from "@/lib/attribution";
+import { CookieConsent } from "@/components/CookieConsent";
 
 // ── Device ID ────────────────────────────────────────────────────────────────
 function getOrCreateDeviceId(): string {
@@ -156,6 +159,24 @@ const clerkAppearance = {
   },
 };
 
+// ── Analytics bootstrap ───────────────────────────────────────────────────────
+function AppInit() {
+  useEffect(() => {
+    initGtm();
+    captureAttribution();
+    if (getConsent() === "granted") initPixel();
+  }, []);
+  return null;
+}
+
+function RouteTracker() {
+  const [location] = useLocation();
+  useEffect(() => {
+    trackPageView();
+  }, [location]);
+  return null;
+}
+
 function ClerkQueryClientCacheInvalidator() {
   const { addListener } = useClerk();
   const qc = useQueryClient();
@@ -219,17 +240,20 @@ function ProtectedCheckout() {
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/dashboard" component={ProtectedDashboard} />
-      <Route path="/products/:id" component={ProductDetail} />
-      <Route path="/checkout" component={ProtectedCheckout} />
-      <Route path="/success" component={Success} />
-      <Route path="/sign-in/*?" component={SignInPage} />
-      <Route path="/sign-up/*?" component={SignUpPage} />
-      <Route path="/admin" component={AdminPanel} />
-      <Route component={NotFound} />
-    </Switch>
+    <>
+      <RouteTracker />
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/dashboard" component={ProtectedDashboard} />
+        <Route path="/products/:id" component={ProductDetail} />
+        <Route path="/checkout" component={ProtectedCheckout} />
+        <Route path="/success" component={Success} />
+        <Route path="/sign-in/*?" component={SignInPage} />
+        <Route path="/sign-up/*?" component={SignUpPage} />
+        <Route path="/admin" component={AdminPanel} />
+        <Route component={NotFound} />
+      </Switch>
+    </>
   );
 }
 
@@ -270,6 +294,7 @@ function ClerkProviderWithRoutes() {
           <ClerkQueryClientCacheInvalidator />
           {isSuspended ? <SuspendedScreen /> : <Router />}
           <Toaster />
+          <CookieConsent />
         </TooltipProvider>
       </QueryClientProvider>
     </ClerkProvider>
@@ -281,6 +306,7 @@ function ClerkProviderWithRoutes() {
 function App() {
   return (
     <WouterRouter base={basePath}>
+      <AppInit />
       <ClerkProviderWithRoutes />
     </WouterRouter>
   );

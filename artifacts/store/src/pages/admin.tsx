@@ -41,6 +41,11 @@ import {
   PencilLine,
   Palette,
   RefreshCw,
+  BarChart3,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Clock,
 } from "lucide-react";
 
 interface ToolServer {
@@ -2152,6 +2157,235 @@ function BrandingPanel({ token }: { token: string }) {
   );
 }
 
+function AnalyticsPanel({ token }: { token: string }) {
+  const { toast } = useToast();
+  const [status, setStatus] = useState<{
+    pixelConfigured: boolean;
+    tokenConfigured: boolean;
+    testEventCode: string | null;
+    siteUrlConfigured: boolean;
+    maskedToken: string | null;
+  } | null>(null);
+  const [events, setEvents] = useState<Array<{
+    id: number;
+    eventId: string;
+    eventName: string;
+    reference: string | null;
+    status: string;
+    errorMessage: string | null;
+    createdAt: string;
+  }>>([]);
+  const [testing, setTesting] = useState(false);
+
+  const pixelConfigured = !!import.meta.env.VITE_META_PIXEL_ID;
+  const gtmConfigured = !!import.meta.env.VITE_GTM_ID;
+
+  const loadData = () => {
+    const headers = { Authorization: token };
+    Promise.all([
+      fetch("/api/admin/analytics/status", { headers }).then((r) => r.json()),
+      fetch("/api/admin/analytics/events", { headers }).then((r) => r.json()),
+    ])
+      .then(([s, e]) => {
+        setStatus(s as typeof status);
+        setEvents(Array.isArray(e) ? e : []);
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => { loadData(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleTest = async () => {
+    setTesting(true);
+    try {
+      const res = await fetch("/api/admin/analytics/test-event", {
+        method: "POST",
+        headers: { Authorization: token },
+      });
+      const data = (await res.json()) as { ok: boolean; eventId?: string };
+      if (data.ok) {
+        toast({ title: "Test event sent", description: `Event ID: ${data.eventId ?? ""}` });
+        loadData();
+      } else {
+        toast({ title: "Test event failed", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Test event failed", variant: "destructive" });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const StatusBadge = ({ ok }: { ok: boolean }) => (
+    <span
+      className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+        ok ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+      }`}
+    >
+      {ok ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+      {ok ? "Set" : "Missing"}
+    </span>
+  );
+
+  const eventStatusIcon = (s: string) => {
+    if (s === "sent") return <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />;
+    if (s === "failed") return <XCircle className="w-3.5 h-3.5 text-red-500" />;
+    return <Clock className="w-3.5 h-3.5 text-yellow-500" />;
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="mb-8">
+        <h2 className="text-2xl font-heading font-bold text-foreground uppercase">
+          Analytics &amp; <span className="text-primary">Tracking</span>
+        </h2>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Monitor Meta Pixel, Conversions API, and Google Tag Manager configuration and events.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-white rounded-xl border border-border p-5 space-y-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Browser (Frontend)
+          </h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Meta Pixel ID</p>
+                <p className="text-xs text-muted-foreground font-mono">VITE_META_PIXEL_ID</p>
+              </div>
+              <StatusBadge ok={pixelConfigured} />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">GTM Container ID</p>
+                <p className="text-xs text-muted-foreground font-mono">VITE_GTM_ID</p>
+              </div>
+              <StatusBadge ok={gtmConfigured} />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-border p-5 space-y-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Server (Conversions API)
+          </h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Pixel ID</p>
+                <p className="text-xs text-muted-foreground font-mono">META_PIXEL_ID</p>
+              </div>
+              <StatusBadge ok={status?.pixelConfigured ?? false} />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Access Token</p>
+                <p className="text-xs text-muted-foreground font-mono">META_CONVERSIONS_API_TOKEN</p>
+              </div>
+              <StatusBadge ok={status?.tokenConfigured ?? false} />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Test Event Code</p>
+                <p className="text-xs text-muted-foreground font-mono">META_TEST_EVENT_CODE</p>
+              </div>
+              <StatusBadge ok={!!status?.testEventCode} />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Site URL</p>
+                <p className="text-xs text-muted-foreground font-mono">SITE_URL</p>
+              </div>
+              <StatusBadge ok={status?.siteUrlConfigured ?? false} />
+            </div>
+          </div>
+          {status?.maskedToken && (
+            <p className="text-[11px] font-mono text-muted-foreground bg-gray-50 px-3 py-1.5 rounded border border-border">
+              Token: {status.maskedToken}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-border p-5 flex items-center justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wider">Test CAPI Event</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Sends a test PageView event to Meta CAPI.
+            {status?.testEventCode
+              ? ` Uses test code: ${status.testEventCode}`
+              : " Set META_TEST_EVENT_CODE to verify in Meta Events Manager."}
+          </p>
+        </div>
+        <Button
+          size="sm"
+          onClick={handleTest}
+          disabled={testing || !status?.tokenConfigured}
+          className="shrink-0 font-bold text-xs uppercase tracking-wider"
+        >
+          {testing ? (
+            <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Sending…</>
+          ) : (
+            "Send Test Event"
+          )}
+        </Button>
+      </div>
+
+      <div className="bg-white rounded-xl border border-border overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+          <h3 className="text-sm font-bold uppercase tracking-wider">Recent CAPI Events</h3>
+          <Button variant="ghost" size="sm" onClick={loadData} className="h-7 px-2 text-xs font-bold">
+            <RefreshCw className="w-3.5 h-3.5 mr-1" />
+            Refresh
+          </Button>
+        </div>
+        {events.length === 0 ? (
+          <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+            No CAPI events recorded yet. Events appear here after the first verified purchase.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-gray-50 border-b border-border">
+                <tr>
+                  <th className="px-4 py-3 text-left font-bold uppercase tracking-wider text-muted-foreground">Event</th>
+                  <th className="px-4 py-3 text-left font-bold uppercase tracking-wider text-muted-foreground">Reference</th>
+                  <th className="px-4 py-3 text-left font-bold uppercase tracking-wider text-muted-foreground">Status</th>
+                  <th className="px-4 py-3 text-left font-bold uppercase tracking-wider text-muted-foreground">Time</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {events.map((ev) => (
+                  <tr key={ev.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-semibold">{ev.eventName}</td>
+                    <td className="px-4 py-3 font-mono text-muted-foreground">{ev.reference ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 font-semibold">
+                        {eventStatusIcon(ev.status)}
+                        {ev.status}
+                      </span>
+                      {ev.errorMessage && (
+                        <p className="text-red-500 text-[10px] mt-0.5 max-w-[180px] truncate" title={ev.errorMessage}>
+                          {ev.errorMessage}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                      {new Date(ev.createdAt).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPanel() {
   const [token, setToken] = useState(() => sessionStorage.getItem("admin_token") ?? "");
   const [usernameInput, setUsernameInput] = useState("");
@@ -2160,7 +2394,7 @@ export default function AdminPanel() {
   const [products, setProducts] = useState<ProductWithServers[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"tools" | "devices" | "users" | "branding">("tools");
+  const [tab, setTab] = useState<"tools" | "devices" | "users" | "branding" | "analytics">("tools");
   const [addToolOpen, setAddToolOpen] = useState(false);
   const { toast } = useToast();
 
@@ -2321,6 +2555,12 @@ export default function AdminPanel() {
           >
             Branding
           </button>
+          <button
+            onClick={() => setTab("analytics")}
+            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "analytics" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            Analytics
+          </button>
         </div>
       </div>
 
@@ -2384,6 +2624,8 @@ export default function AdminPanel() {
         {tab === "devices" && <DeviceSessionsPanel token={token} />}
 
         {tab === "branding" && <BrandingPanel token={token} />}
+
+        {tab === "analytics" && <AnalyticsPanel token={token} />}
       </main>
 
       <AddToolDialog

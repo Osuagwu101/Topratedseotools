@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { trackInitiateCheckout } from "@/lib/analytics";
 
 type Duration = 1 | 3 | 12;
 
@@ -67,6 +68,22 @@ export default function Checkout() {
           amountKobo: order.amountKobo
         }
       });
+
+      // Track checkout initiation and cache product info for the success page
+      trackInitiateCheckout({
+        toolId: productId,
+        toolName: product.name,
+        priceKobo: order.amountKobo,
+        currency: "NGN",
+      });
+      try {
+        sessionStorage.setItem(
+          `checkout_product_${order.reference}`,
+          JSON.stringify({ productId, productName: product.name, priceKobo: order.amountKobo }),
+        );
+      } catch {
+        // ignore
+      }
 
       window.location.href = payment.authorizationUrl;
     } catch (error) {

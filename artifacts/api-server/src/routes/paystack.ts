@@ -10,11 +10,44 @@ import { eq } from "drizzle-orm";
 import crypto from "crypto";
 import { logger } from "../lib/logger";
 import { activateOrderByReference, markOrderFailed } from "../lib/activateOrder";
+import { sendCapiEvent } from "../lib/metaCapi";
 
 const router: IRouter = Router();
 
 const PAYSTACK_SECRET_KEY =
   process.env.PAYSTACK_SECRET_KEY ?? process.env.PAYSTACK_API_KEY ?? "";
+
+/**
+ * Look up the order and fire a server-side CAPI Purchase event.
+ * Fire-and-forget: call with `void` so it never blocks the response.
+ */
+async function firePurchaseCapi(
+  reference: string,
+  clientIp: string,
+  userAgent: string,
+): Promise<void> {
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.reference, reference));
+  if (!order) return;
+  await sendCapiEvent({
+    eventName: "Purchase",
+    eventId: `purchase_${reference}`,
+    reference,
+    userData: {
+      email: order.customerEmail,
+      externalId: order.clerkUserId ?? undefined,
+      clientIpAddress: clientIp,
+      clientUserAgent: userAgent,
+    },
+    customData: {
+      value: order.amountKobo / 100,
+      currency: "NGN",
+      content_ids: [String(order.productId)],
+      content_type: "product",
+      order_id: reference,
+      num_items: 1,
+    },
+  });
+}
 
 router.post("/paystack/initialize", async (req, res): Promise<void> => {
   const parsed = InitializePaymentBody.safeParse(req.body);
@@ -124,6 +157,9 @@ router.post("/paystack/webhook", async (req, res): Promise<void> => {
       if (verifyData.status && verifyData.data?.status === "success") {
         const result = await activateOrderByReference(reference, verifyData.data.amount);
         logger.info({ reference, result: result.outcome }, "Paystack webhook processed");
+        if (result.outcome === "activated") {
+          void firePurchaseCapi(reference, req.ip ?? "", req.get("user-agent") ?? "");
+        }
       } else {
         await markOrderFailed(reference);
         logger.error({ reference, verifyData }, "Paystack webhook charge.success but re-verify failed");
@@ -191,6 +227,9 @@ router.get("/paystack/verify/:reference", async (req, res): Promise<void> => {
       }
       // "activated" and "already_active" both reflect a successful, entitled order —
       // this mirrors whatever the webhook already produced (or will produce shortly).
+      if (result.outcome === "activated") {
+        void firePurchaseCapi(reference, req.ip ?? "", req.get("user-agent") ?? "");
+      }
     }
 
     // Look up the product name for the order so the success page can display it.

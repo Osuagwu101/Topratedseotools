@@ -1,0 +1,485 @@
+Use this prompt in Replit:
+
+---
+
+## Integrate Meta Pixel, Meta Conversions API and Google Tag Manager
+
+Please inspect the existing **Top Rated SEO Tools** codebase and implement complete conversion tracking for advertising and analytics.
+
+The integrations required are:
+
+1. **Meta Pixel**
+2. **Meta Conversions API**
+3. **Google Tag Manager**
+
+The purpose is to track genuine user actions and completed purchases accurately before running Facebook, Instagram or Google ads. Tracking must distinguish between page visits, checkout attempts and verified successful purchases.
+
+## 1. Configuration and environment variables
+
+Add the required settings to the project’s environment-variable configuration.
+
+Use variables such as:
+
+```env
+META_PIXEL_ID=
+META_CONVERSIONS_API_TOKEN=
+META_TEST_EVENT_CODE=
+GOOGLE_TAG_MANAGER_ID=
+SITE_URL=
+```
+
+Requirements:
+
+* Never hard-code access tokens or private credentials in frontend code.
+* `META_CONVERSIONS_API_TOKEN` must only be used on the server.
+* Do not expose server-side secrets in browser requests, page source or public repositories.
+* The integration should fail safely when an environment variable is missing.
+* Document where each value should be added in Replit Secrets.
+
+## 2. Meta Pixel browser integration
+
+Install the Meta Pixel globally so that it loads on all public pages of the website.
+
+The base pixel should:
+
+* Load only once.
+* Use the value from `META_PIXEL_ID`.
+* Track `PageView` on page loads and route changes.
+* Work correctly if the website is a single-page application.
+* Avoid duplicate events during navigation.
+* Include the Meta `<noscript>` fallback where appropriate.
+
+Do not place the Conversions API token in this browser-side integration.
+
+## 3. Events to track
+
+Implement the following Meta standard events.
+
+### PageView
+
+Trigger when a page is opened or when the user changes routes.
+
+### ViewContent
+
+Trigger when a user views an individual SEO tool or product page.
+
+Include:
+
+```javascript
+{
+  content_ids: [toolId],
+  content_name: toolName,
+  content_type: "product",
+  value: toolPrice,
+  currency: selectedCurrency
+}
+```
+
+### Search
+
+Trigger when the user searches the catalogue.
+
+Include the search term.
+
+### InitiateCheckout
+
+Trigger only when a user genuinely begins the checkout process for a specific tool.
+
+Include:
+
+```javascript
+{
+  content_ids: [toolId],
+  content_name: toolName,
+  content_type: "product",
+  value: toolPrice,
+  currency: selectedCurrency,
+  num_items: 1
+}
+```
+
+### Purchase
+
+Trigger only after:
+
+* Paystack confirms the transaction;
+* the server independently verifies the transaction;
+* the amount and currency match the purchased tool;
+* the purchase is successfully saved in the database; and
+* access to the tool has been granted.
+
+The Purchase event must never fire merely because the user visits the callback or success page.
+
+Include:
+
+```javascript
+{
+  content_ids: [toolId],
+  content_name: toolName,
+  content_type: "product",
+  value: verifiedAmount,
+  currency: verifiedCurrency,
+  num_items: 1,
+  order_id: purchaseId
+}
+```
+
+Use the actual verified purchase amount, not a frontend-submitted price.
+
+## 4. Meta Conversions API integration
+
+Create a secure server-side Meta Conversions API service.
+
+The server-side service should:
+
+* Send events to Meta’s Graph API.
+* Use the Meta Pixel ID and server-side access token.
+* Support both production events and Meta Test Events.
+* Log failures safely without exposing tokens or sensitive customer data.
+* Retry temporary failures where appropriate.
+* Never delay completion of the user’s purchase because Meta’s API is unavailable.
+
+Send these events through the Conversions API where appropriate:
+
+* `PageView`
+* `ViewContent`
+* `InitiateCheckout`
+* `Purchase`
+
+The most important server-side event is `Purchase`.
+
+## 5. Browser and server event deduplication
+
+Meta Pixel and Conversions API must not count the same conversion twice.
+
+For each shared event, generate a unique `event_id`.
+
+Use the exact same `event_id` for:
+
+* the browser Meta Pixel event; and
+* the matching server-side Conversions API event.
+
+For purchases, create a stable event ID based on the verified transaction or purchase record, for example:
+
+```text
+purchase_[PAYSTACK_REFERENCE]
+```
+
+Do not generate separate random IDs for the browser and server copies of the same event.
+
+A transaction must produce only one Purchase conversion, even when:
+
+* the callback page is refreshed;
+* Paystack sends the webhook more than once;
+* the user revisits the success page;
+* the verification endpoint is called repeatedly.
+
+## 6. Meta user-data matching
+
+Where lawfully available, send Meta properly normalised and SHA-256 hashed user data through the Conversions API.
+
+Possible fields include:
+
+* email;
+* telephone number;
+* first name;
+* last name;
+* city;
+* state;
+* country;
+* external user ID.
+
+Requirements:
+
+* Lowercase and trim values before hashing.
+* Hash data on the server.
+* Do not send empty or invalid values.
+* Do not expose hashed or unhashed personal data in public logs.
+* Include the user’s IP address and browser user agent when available.
+* Include `_fbp` and `_fbc` values when available and permitted.
+* Store attribution identifiers only as necessary and in accordance with the site’s privacy policy.
+
+Use `action_source: "website"` and include the correct page URL and event timestamp.
+
+## 7. Google Tag Manager integration
+
+Install the Google Tag Manager container globally.
+
+Use the environment variable:
+
+```env
+GOOGLE_TAG_MANAGER_ID=
+```
+
+Requirements:
+
+* Add the official GTM script in the document `<head>`.
+* Add the official GTM `<noscript>` iframe immediately after the opening `<body>` tag.
+* Ensure GTM loads only once.
+* Ensure it works across route changes if the site is a single-page application.
+* Do not directly hard-code Google Analytics or Google Ads tags if they are intended to be managed through GTM.
+
+## 8. Data Layer implementation
+
+Create a structured `dataLayer` event system for Google Tag Manager.
+
+Push the following events.
+
+### page_view
+
+```javascript
+dataLayer.push({
+  event: "page_view",
+  page_title: document.title,
+  page_location: window.location.href,
+  page_path: window.location.pathname
+});
+```
+
+### view_item
+
+```javascript
+dataLayer.push({
+  event: "view_item",
+  ecommerce: {
+    currency: selectedCurrency,
+    value: toolPrice,
+    items: [
+      {
+        item_id: toolId,
+        item_name: toolName,
+        price: toolPrice,
+        quantity: 1
+      }
+    ]
+  }
+});
+```
+
+### begin_checkout
+
+```javascript
+dataLayer.push({
+  event: "begin_checkout",
+  ecommerce: {
+    currency: selectedCurrency,
+    value: toolPrice,
+    items: [
+      {
+        item_id: toolId,
+        item_name: toolName,
+        price: toolPrice,
+        quantity: 1
+      }
+    ]
+  }
+});
+```
+
+### purchase
+
+Push this only after the Paystack payment has been verified and saved:
+
+```javascript
+dataLayer.push({
+  event: "purchase",
+  ecommerce: {
+    transaction_id: paystackReference,
+    currency: verifiedCurrency,
+    value: verifiedAmount,
+    items: [
+      {
+        item_id: toolId,
+        item_name: toolName,
+        price: verifiedAmount,
+        quantity: 1
+      }
+    ]
+  }
+});
+```
+
+Prevent duplicate purchase events when the success page is refreshed.
+
+## 9. Attribution and campaign information
+
+Capture useful campaign parameters when users arrive on the website, including:
+
+* `utm_source`
+* `utm_medium`
+* `utm_campaign`
+* `utm_content`
+* `utm_term`
+* `fbclid`
+* `gclid`
+
+Preserve these values through the checkout flow where appropriate.
+
+Associate them with the purchase record or an attribution record so completed purchases can be connected to the campaign that generated them.
+
+Do not overwrite an existing valid first-touch attribution unnecessarily.
+
+Where practical, retain both:
+
+* first-touch attribution; and
+* last-touch attribution.
+
+## 10. Consent and privacy
+
+Add a consent-aware tracking structure.
+
+Requirements:
+
+* Advertising and analytics tracking should respect the user’s consent where legally required.
+* Do not fire non-essential marketing tags before the required consent is given.
+* Provide separate consent categories where appropriate, such as:
+
+  * necessary;
+  * analytics;
+  * advertising.
+* Preserve the user’s consent decision.
+* Allow users to update their tracking preferences.
+* Update the privacy and cookie information to disclose Meta Pixel, Meta Conversions API and Google Tag Manager.
+* Do not block essential checkout, login or payment functionality when tracking consent is refused.
+
+Where Google Consent Mode is implemented, use the current recommended consent settings through GTM.
+
+## 11. Purchase-tracking source of truth
+
+The database and Paystack server-side verification must remain the source of truth.
+
+A successful advertising conversion must only be recorded after all of the following are true:
+
+```text
+Paystack payment successful
+→ Server verification successful
+→ Correct amount and currency confirmed
+→ Purchase saved in database
+→ User granted access to the purchased tool
+→ Purchase conversion dispatched
+```
+
+Do not fire a Purchase event for:
+
+* failed payments;
+* abandoned checkout sessions;
+* pending transactions;
+* cancelled transactions;
+* mismatched amounts;
+* transactions belonging to another user;
+* duplicate callbacks;
+* unverified frontend responses.
+
+## 12. Reliability and error handling
+
+Implement:
+
+* idempotent payment processing;
+* idempotent Purchase-event sending;
+* safe structured logging;
+* reasonable retry handling for server-side Meta requests;
+* validation of event properties;
+* duplicate prevention;
+* clear separation between production and test configurations.
+
+Meta or GTM tracking failures must not prevent the user from accessing a tool they successfully purchased.
+
+## 13. Admin controls
+
+Add an Analytics or Tracking section to the admin dashboard where the site administrator can:
+
+* enable or disable Meta Pixel;
+* enable or disable Meta Conversions API;
+* enable or disable Google Tag Manager;
+* view whether the required IDs and tokens are configured;
+* view the latest successful and failed server-side conversion events;
+* view the purchase reference, event name, event ID, status and timestamp;
+* test a Meta event using `META_TEST_EVENT_CODE`;
+* clear test mode before production use.
+
+Do not display the full Meta access token in the admin dashboard. Show only a masked value such as:
+
+```text
+********abcd
+```
+
+## 14. Testing requirements
+
+After implementation, test the full flow.
+
+### Meta
+
+Verify using:
+
+* Meta Pixel Helper;
+* Meta Events Manager;
+* Meta Test Events;
+* browser and server event deduplication;
+* correct Purchase amount and currency;
+* correct event IDs;
+* no duplicate Purchase event after refreshing the page.
+
+### Google Tag Manager
+
+Verify using:
+
+* GTM Preview mode;
+* Tag Assistant;
+* browser developer tools;
+* correct `dataLayer` events;
+* correct ecommerce payload;
+* one Purchase event per verified transaction.
+
+### Payment tests
+
+Test:
+
+* successful payment;
+* failed payment;
+* cancelled payment;
+* pending payment;
+* duplicate Paystack webhook;
+* repeated callback;
+* refreshed success page;
+* incorrect payment amount;
+* payment made for another tool;
+* user leaving and returning to the success page.
+
+## 15. Final implementation requirements
+
+Please:
+
+1. Inspect the current project framework before changing the code.
+2. Reuse the existing Paystack verification and purchase database structure.
+3. Do not create a second or conflicting payment system.
+4. Keep the website’s current design and checkout flow intact.
+5. Explain every file changed.
+6. List every environment variable required.
+7. Provide clear instructions for obtaining and adding:
+
+   * Meta Pixel ID;
+   * Meta Conversions API token;
+   * Meta Test Event Code;
+   * Google Tag Manager container ID.
+8. Provide a testing checklist.
+9. Do not claim that tracking works until it has been tested through the full verified-payment flow.
+
+### Expected tracking flow
+
+```text
+Visitor arrives from an advert
+→ Campaign parameters are recorded
+→ PageView is tracked
+→ Tool view is tracked
+→ Checkout initiation is tracked
+→ User pays through Paystack
+→ Server verifies the payment
+→ Purchase is saved
+→ User receives tool access
+→ Meta browser Purchase event fires
+→ Meta server Purchase event is sent with the same event ID
+→ Google dataLayer purchase event is pushed
+→ User is redirected to the dashboard
+```
+
+The completed integration must provide reliable conversion data so ad platforms optimise for genuine, verified purchases rather than page visits or unconfirmed checkout activity.
