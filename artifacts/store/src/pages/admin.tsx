@@ -2176,6 +2176,9 @@ function AnalyticsPanel({ token }: { token: string }) {
   const { toast } = useToast();
   const authHeaders = { Authorization: token };
 
+  type SubPage = "all" | "facebook" | "gtm";
+  const [subPage, setSubPage] = useState<SubPage>("all");
+
   const [settings, setSettings] = useState<IntegrationSettingsResponse | null>(null);
   const [events, setEvents] = useState<Array<{
     id: number; eventId: string; eventName: string;
@@ -2228,52 +2231,49 @@ function AnalyticsPanel({ token }: { token: string }) {
 
   useEffect(() => { loadData(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const savePixel = async () => {
+  const savePixelAndCapi = async () => {
     setPixelError("");
+    setCapiError("");
     const tid = pixelId.trim();
-    if (pixelEnabled && tid && !/^\d+$/.test(tid)) {
+    if (tid && !/^\d+$/.test(tid)) {
       setPixelError("Pixel ID must be numeric (e.g. 1371893314574468)");
       return;
     }
-    setPixelSaving(true);
-    try {
-      const res = await fetch("/api/admin/integrations/meta-pixel", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({ enabled: pixelEnabled, pixelId: tid || null }),
-      });
-      const d = await res.json() as { error?: string };
-      if (!res.ok) setPixelError(d.error ?? "Save failed");
-      else { toast({ title: "Meta Pixel settings saved" }); loadData(); }
-    } catch { setPixelError("Network error. Please try again."); }
-    finally { setPixelSaving(false); }
-  };
-
-  const saveCapi = async () => {
-    setCapiError("");
     const url = siteUrl.trim().replace(/\/$/, "");
     if (url && !/^https?:\/\/.+/.test(url)) {
       setCapiError("Site URL must start with https://");
       return;
     }
+    setPixelSaving(true);
     setCapiSaving(true);
     try {
-      const body: Record<string, unknown> = {
+      const pixelRes = await fetch("/api/admin/integrations/meta-pixel", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ enabled: pixelEnabled, pixelId: tid || null }),
+      });
+      const pixelD = await pixelRes.json() as { error?: string };
+      if (!pixelRes.ok) { setPixelError(pixelD.error ?? "Save failed"); return; }
+
+      const capiBody: Record<string, unknown> = {
         enabled: capiEnabled,
         testEventCode: testEventCode.trim() || null,
         siteUrl: url || null,
       };
-      if (accessToken.trim()) body.accessToken = accessToken.trim();
-      const res = await fetch("/api/admin/integrations/meta-capi", {
+      if (accessToken.trim()) capiBody.accessToken = accessToken.trim();
+      const capiRes = await fetch("/api/admin/integrations/meta-capi", {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify(body),
+        body: JSON.stringify(capiBody),
       });
-      const d = await res.json() as { error?: string };
-      if (!res.ok) setCapiError(d.error ?? "Save failed");
-      else { toast({ title: "Conversions API settings saved" }); setAccessToken(""); loadData(); }
-    } catch { setCapiError("Network error. Please try again."); }
-    finally { setCapiSaving(false); }
+      const capiD = await capiRes.json() as { error?: string };
+      if (!capiRes.ok) { setCapiError(capiD.error ?? "Save failed"); return; }
+
+      toast({ title: "Facebook Pixel settings saved" });
+      setAccessToken("");
+      loadData();
+    } catch { setPixelError("Network error. Please try again."); }
+    finally { setPixelSaving(false); setCapiSaving(false); }
   };
 
   const saveGtm = async () => {
@@ -2316,51 +2316,33 @@ function AnalyticsPanel({ token }: { token: string }) {
     finally { setCapiTesting(false); }
   };
 
-  const getStatusLabel = (enabled: boolean, configured: boolean) => {
-    if (!enabled) return "DISABLED";
-    if (!configured) return "INCOMPLETE";
-    return "ACTIVE";
+  const getIntegrationStatus = (enabled: boolean, configured: boolean) => {
+    if (!enabled) return "disabled" as const;
+    if (!configured) return "incomplete" as const;
+    return "active" as const;
   };
 
-  const IntegrationStatusBadge = ({ enabled, configured }: { enabled: boolean; configured: boolean }) => {
-    const label = getStatusLabel(enabled, configured);
-    const styles: Record<string, string> = {
-      ACTIVE: "bg-green-100 text-green-700 border border-green-200",
-      DISABLED: "bg-gray-100 text-gray-500 border border-gray-200",
-      INCOMPLETE: "bg-amber-50 text-amber-700 border border-amber-200",
-    };
-    return (
-      <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${styles[label] ?? styles.DISABLED}`}>
-        {label === "ACTIVE" && <CheckCircle2 className="w-3 h-3" />}
-        {label === "DISABLED" && <XCircle className="w-3 h-3" />}
-        {label === "INCOMPLETE" && <Clock className="w-3 h-3" />}
-        {label}
-      </span>
-    );
-  };
-
-  const FieldLabel = ({ label, help }: { label: string; help?: string }) => (
-    <div className="mb-1.5">
-      <p className="text-xs font-bold uppercase tracking-wider text-gray-600">{label}</p>
-      {help && <p className="text-[11px] text-muted-foreground mt-0.5">{help}</p>}
-    </div>
+  const facebookStatus = getIntegrationStatus(
+    pixelEnabled || capiEnabled,
+    !!(settings?.metaPixel.pixelId || settings?.metaCapi.pixelId)
   );
+  const gtmStatus = getIntegrationStatus(gtmEnabled, !!settings?.googleTagManager.containerId);
+
+  const StatusDot = ({ status }: { status: "active" | "disabled" | "incomplete" }) => {
+    if (status === "active") return <span className="inline-block w-2 h-2 rounded-full bg-green-500 shrink-0" />;
+    if (status === "incomplete") return <span className="inline-block w-2 h-2 rounded-full bg-amber-400 shrink-0" />;
+    return <span className="inline-block w-2 h-2 rounded-full bg-gray-300 shrink-0" />;
+  };
 
   const TrackList = ({ items }: { items: string[] }) => (
-    <ul className="space-y-1.5">
+    <ul className="space-y-2 mt-3">
       {items.map((item, i) => (
-        <li key={i} className="flex items-start gap-2 text-[12px] text-muted-foreground">
-          <CheckCircle2 className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+        <li key={i} className="flex items-start gap-2 text-[13px] text-muted-foreground">
+          <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
           {item}
         </li>
       ))}
     </ul>
-  );
-
-  if (loading) return (
-    <div className="flex items-center justify-center py-24">
-      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-    </div>
   );
 
   const capiTestReady = !!(
@@ -2370,267 +2352,380 @@ function AnalyticsPanel({ token }: { token: string }) {
     settings.metaCapi.siteUrl &&
     settings.metaCapi.testEventCode
   );
+  const isFbSaving = pixelSaving || capiSaving;
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-24">
+      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+
+  const navItems: { key: SubPage; label: string }[] = [
+    { key: "all", label: "All Integrations" },
+    { key: "facebook", label: "Facebook Pixel + Conv API" },
+    { key: "gtm", label: "Google Tag Manager" },
+  ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-heading font-bold text-foreground uppercase">
-          Analytics &amp; <span className="text-primary">Tracking</span>
-        </h2>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Manage Meta Pixel, Conversions API, and Google Tag Manager. Changes take effect immediately — no rebuild required.
-        </p>
+    <div className="flex bg-white rounded-xl border border-border overflow-hidden" style={{ minHeight: 520 }}>
+      {/* ── Left sidebar ──────────────────────────────────────────── */}
+      <div className="w-52 shrink-0 border-r border-border flex flex-col bg-[#fafafa]">
+        <div className="px-4 py-4 border-b border-border">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Analytics</p>
+        </div>
+        <nav className="flex-1 py-2">
+          {navItems.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setSubPage(key)}
+              className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2.5 ${
+                subPage === key
+                  ? "bg-primary/10 text-primary font-semibold border-r-2 border-primary"
+                  : "text-foreground hover:bg-gray-100"
+              }`}
+            >
+              {key === "facebook" && <StatusDot status={facebookStatus} />}
+              {key === "gtm" && <StatusDot status={gtmStatus} />}
+              {key === "all" && <span className="w-2 shrink-0" />}
+              <span className="leading-snug">{label}</span>
+            </button>
+          ))}
+        </nav>
         {settings?.updatedAt && (
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            Last updated {new Date(settings.updatedAt).toLocaleString()}
-            {settings.updatedBy ? ` by ${settings.updatedBy}` : ""}
-          </p>
+          <div className="px-4 py-3 border-t border-border">
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              Last saved<br />
+              {new Date(settings.updatedAt).toLocaleString()}
+            </p>
+          </div>
         )}
       </div>
 
-      {/* ── Meta Pixel ────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-border overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gray-50/60">
-          <div>
-            <h3 className="font-bold text-sm">Meta Pixel</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Browser-side pixel for Meta advertising attribution</p>
-          </div>
-          <IntegrationStatusBadge enabled={pixelEnabled} configured={!!settings?.metaPixel.pixelId} />
-        </div>
-        <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">What your Meta integration tracks:</p>
-            <TrackList items={[
-              "Page and tool views",
-              "Tool searches and product views",
-              "Checkout initiation",
-              "Verified purchases",
-            ]} />
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <Switch checked={pixelEnabled} onCheckedChange={setPixelEnabled} id="pixel-enabled" />
-              <label htmlFor="pixel-enabled" className="text-sm font-medium cursor-pointer select-none">Enable Meta Pixel</label>
-            </div>
-            <div>
-              <FieldLabel label="Meta Pixel ID" help="Find this in Meta Events Manager under Data Sources." />
-              <Input
-                value={pixelId}
-                onChange={(e) => { setPixelId(e.target.value); setPixelError(""); }}
-                placeholder="e.g. 1371893314574468"
-                className="font-mono text-sm"
-              />
-              {pixelError && <p className="text-xs text-red-600 mt-1.5">{pixelError}</p>}
-            </div>
-          </div>
-        </div>
-        <div className="px-5 py-3 border-t border-border bg-gray-50/60 flex justify-end">
-          <Button size="sm" onClick={savePixel} disabled={pixelSaving} className="font-bold text-xs uppercase tracking-wider">
-            {pixelSaving ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Saving…</> : "Save Meta Pixel"}
-          </Button>
-        </div>
-      </div>
+      {/* ── Main content ──────────────────────────────────────────── */}
+      <div className="flex-1 min-w-0 overflow-auto">
 
-      {/* ── Meta Conversions API ──────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-border overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gray-50/60">
-          <div>
-            <h3 className="font-bold text-sm">Meta Conversions API</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Server-side event delivery for accurate attribution — token stored encrypted</p>
-          </div>
-          <IntegrationStatusBadge
-            enabled={capiEnabled}
-            configured={!!(settings?.metaCapi.pixelId && settings.metaCapi.tokenConfigured && settings.metaCapi.siteUrl)}
-          />
-        </div>
-        <div className="p-5 space-y-5">
-          <div className="flex items-center gap-3">
-            <Switch checked={capiEnabled} onCheckedChange={setCapiEnabled} id="capi-enabled" />
-            <label htmlFor="capi-enabled" className="text-sm font-medium cursor-pointer select-none">Enable Meta Conversions API</label>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <FieldLabel label="Meta Pixel ID" help="Shared with the Meta Pixel section above." />
-              <Input
-                value={pixelId}
-                onChange={(e) => { setPixelId(e.target.value); setPixelError(""); }}
-                placeholder={settings?.metaCapi.pixelId ?? "e.g. 1371893314574468"}
-                className="font-mono text-sm"
-              />
-            </div>
-            <div>
-              <FieldLabel label="Conversions API Access Token" />
-              <div className="relative">
-                <Input
-                  type={showToken ? "text" : "password"}
-                  value={accessToken}
-                  onChange={(e) => setAccessToken(e.target.value)}
-                  placeholder={
-                    settings?.metaCapi.tokenConfigured
-                      ? (settings.metaCapi.maskedToken ?? "••••••••••••abcd")
-                      : "Paste your access token here"
-                  }
-                  className="font-mono text-sm pr-10"
-                  autoComplete="new-password"
-                />
+        {/* ALL INTEGRATIONS ───────────────────────────────────────── */}
+        {subPage === "all" && (
+          <div className="p-8">
+            <h2 className="text-xl font-bold text-foreground mb-1">All Integrations</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Connect analytics and marketing tools to your store. Changes take effect immediately — no rebuild required.
+            </p>
+            <div className="space-y-3">
+              {[
+                {
+                  key: "facebook" as SubPage,
+                  title: "Facebook Pixel + Conv API",
+                  desc: "Track purchases, checkouts, and page views via browser pixel and server-side Conversions API.",
+                  status: facebookStatus,
+                },
+                {
+                  key: "gtm" as SubPage,
+                  title: "Google Tag Manager",
+                  desc: "Push store events to Google Analytics, Google Ads, and other tools via GTM triggers.",
+                  status: gtmStatus,
+                },
+              ].map(({ key, title, desc, status }) => (
                 <button
-                  type="button"
-                  onClick={() => setShowToken((v) => !v)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  tabIndex={-1}
+                  key={key}
+                  onClick={() => setSubPage(key)}
+                  className="w-full text-left flex items-center justify-between px-5 py-4 rounded-lg border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors group"
                 >
-                  {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  <div className="flex items-center gap-3">
+                    <StatusDot status={status} />
+                    <div>
+                      <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">{title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    status === "active" ? "bg-green-100 text-green-700" :
+                    status === "incomplete" ? "bg-amber-50 text-amber-700" :
+                    "bg-gray-100 text-gray-500"
+                  }`}>
+                    {status === "active" ? "Active" : status === "incomplete" ? "Incomplete" : "Disabled"}
+                  </span>
                 </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* FACEBOOK PIXEL + CONV API ─────────────────────────────── */}
+        {subPage === "facebook" && (
+          <div className="p-8 space-y-6">
+            <h2 className="text-xl font-bold text-foreground">Facebook Pixel Integration</h2>
+
+            {/* Main config card */}
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+                {/* Left: description */}
+                <div className="p-6 border-b lg:border-b-0 lg:border-r border-border bg-gray-50/40">
+                  <p className="font-semibold text-sm text-foreground mb-1">
+                    Integrate Facebook Pixel on your store
+                  </p>
+                  <p className="text-xs text-primary font-medium mb-1">What your Facebook Pixel tracks:</p>
+                  <TrackList items={[
+                    "Profile and product page views",
+                    "Add to cart / product views",
+                    "Initiate Checkout — when the user attempts to checkout",
+                    "Purchase — when a user successfully pays for your product",
+                  ]} />
+                </div>
+
+                {/* Right: form */}
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
+                      Pixel ID <span className="normal-case font-normal text-muted-foreground">(Facebook Events Manager)</span>
+                    </label>
+                    <Input
+                      value={pixelId}
+                      onChange={(e) => { setPixelId(e.target.value); setPixelError(""); }}
+                      placeholder="e.g. 1371893314574468"
+                      className="font-mono text-sm"
+                    />
+                    {pixelError && <p className="text-xs text-red-600 mt-1.5">{pixelError}</p>}
+                  </div>
+
+                  <div className="flex items-center gap-2.5 pt-1">
+                    <input
+                      type="checkbox"
+                      id="capi-toggle"
+                      checked={capiEnabled}
+                      onChange={(e) => setCapiEnabled(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-primary accent-primary cursor-pointer"
+                    />
+                    <label htmlFor="capi-toggle" className="text-sm font-medium cursor-pointer select-none">
+                      Enable Conversion API
+                    </label>
+                  </div>
+
+                  {capiEnabled && (
+                    <div className="space-y-3 pt-1 border-t border-border/60">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
+                          Conversions API Access Token
+                        </label>
+                        <div className="relative">
+                          <Input
+                            type={showToken ? "text" : "password"}
+                            value={accessToken}
+                            onChange={(e) => setAccessToken(e.target.value)}
+                            placeholder={
+                              settings?.metaCapi.tokenConfigured
+                                ? (settings.metaCapi.maskedToken ?? "••••••••••••abcd")
+                                : "Paste your access token here"
+                            }
+                            className="font-mono text-sm pr-10"
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowToken((v) => !v)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            tabIndex={-1}
+                          >
+                            {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        {settings?.metaCapi.tokenConfigured && (
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            Token saved. Leave blank to keep existing, or paste a new one to replace it.
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
+                          Test Event Code <span className="normal-case font-normal text-muted-foreground">(optional)</span>
+                        </label>
+                        <Input
+                          value={testEventCode}
+                          onChange={(e) => setTestEventCode(e.target.value)}
+                          placeholder="e.g. TEST12345"
+                          className="font-mono text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
+                          Production Site URL
+                        </label>
+                        <Input
+                          value={siteUrl}
+                          onChange={(e) => { setSiteUrl(e.target.value); setCapiError(""); }}
+                          placeholder="https://topratedseotools.com"
+                          type="url"
+                        />
+                        {capiError && <p className="text-xs text-red-600 mt-1.5">{capiError}</p>}
+                      </div>
+                    </div>
+                  )}
+
+                  {capiTestResult && (
+                    <div className={`flex items-start gap-2 text-sm rounded-lg px-3 py-2.5 border ${capiTestResult.ok ? "bg-green-50 text-green-800 border-green-200" : "bg-red-50 text-red-700 border-red-200"}`}>
+                      {capiTestResult.ok
+                        ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                        : <XCircle className="w-4 h-4 shrink-0 mt-0.5" />}
+                      <span className="text-xs">{capiTestResult.message}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between gap-3 pt-2 flex-wrap">
+                    {capiEnabled && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={sendTestEvent}
+                        disabled={capiTesting || !capiTestReady}
+                        className="text-xs"
+                        title={!capiTestReady ? "Requires Pixel ID, access token, site URL, and test event code" : undefined}
+                      >
+                        {capiTesting ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Sending…</> : "Send Test Event"}
+                      </Button>
+                    )}
+                    <Button
+                      onClick={savePixelAndCapi}
+                      disabled={isFbSaving}
+                      className="ml-auto font-bold"
+                    >
+                      {isFbSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : "Update Pixel"}
+                    </Button>
+                  </div>
+                </div>
               </div>
-              {settings?.metaCapi.tokenConfigured && (
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Token saved. Leave blank to keep the existing token, or paste a new one to replace it.
-                </p>
+            </div>
+
+            {/* CAPI events table */}
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-gray-50/40">
+                <div>
+                  <h3 className="text-sm font-bold">Recent CAPI Events</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Last 50 server-side events sent to Meta Conversions API</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={loadData} className="h-7 px-2 text-xs font-bold">
+                  <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                  Refresh
+                </Button>
+              </div>
+              {events.length === 0 ? (
+                <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+                  No CAPI events recorded yet. Events appear here after the first verified purchase or test event.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-gray-50 border-b border-border">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-bold uppercase tracking-wider text-muted-foreground">Event</th>
+                        <th className="px-4 py-3 text-left font-bold uppercase tracking-wider text-muted-foreground">Reference</th>
+                        <th className="px-4 py-3 text-left font-bold uppercase tracking-wider text-muted-foreground">Status</th>
+                        <th className="px-4 py-3 text-left font-bold uppercase tracking-wider text-muted-foreground">Time</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {events.map((ev) => (
+                        <tr key={ev.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 font-semibold">{ev.eventName}</td>
+                          <td className="px-4 py-3 font-mono text-muted-foreground">{ev.reference ?? "—"}</td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center gap-1 font-semibold">
+                              {ev.status === "sent" && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
+                              {ev.status === "failed" && <XCircle className="w-3.5 h-3.5 text-red-500" />}
+                              {ev.status === "sending" && <Clock className="w-3.5 h-3.5 text-yellow-500" />}
+                              {ev.status}
+                            </span>
+                            {ev.errorMessage && (
+                              <p className="text-red-500 text-[10px] mt-0.5 max-w-[180px] truncate" title={ev.errorMessage}>
+                                {ev.errorMessage}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                            {new Date(ev.createdAt).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
-            <div>
-              <FieldLabel label="Meta Test Event Code" help="Optional. Used to verify events in Meta Events Manager." />
-              <Input
-                value={testEventCode}
-                onChange={(e) => setTestEventCode(e.target.value)}
-                placeholder="e.g. TEST12345"
-                className="font-mono text-sm"
-              />
-            </div>
-            <div>
-              <FieldLabel label="Production Site URL" help="Used as the event source URL for server-side events." />
-              <Input
-                value={siteUrl}
-                onChange={(e) => { setSiteUrl(e.target.value); setCapiError(""); }}
-                placeholder="https://topratedseotools.com"
-                type="url"
-              />
-            </div>
-          </div>
-          {capiError && <p className="text-xs text-red-600">{capiError}</p>}
-          {capiTestResult && (
-            <div className={`flex items-start gap-2 text-sm rounded-lg px-3 py-2.5 border ${capiTestResult.ok ? "bg-green-50 text-green-800 border-green-200" : "bg-red-50 text-red-700 border-red-200"}`}>
-              {capiTestResult.ok
-                ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                : <XCircle className="w-4 h-4 shrink-0 mt-0.5" />}
-              <span>{capiTestResult.message}</span>
-            </div>
-          )}
-        </div>
-        <div className="px-5 py-3 border-t border-border bg-gray-50/60 flex items-center justify-between gap-3 flex-wrap">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={sendTestEvent}
-            disabled={capiTesting || !capiTestReady}
-            className="font-bold text-xs uppercase tracking-wider"
-            title={!capiTestReady ? "Requires CAPI enabled, Pixel ID, access token, site URL, and test event code" : undefined}
-          >
-            {capiTesting ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Sending…</> : "Send Test Event"}
-          </Button>
-          <Button size="sm" onClick={saveCapi} disabled={capiSaving} className="font-bold text-xs uppercase tracking-wider">
-            {capiSaving ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Saving…</> : "Save Conversions API Settings"}
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Google Tag Manager ────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-border overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gray-50/60">
-          <div>
-            <h3 className="font-bold text-sm">Google Tag Manager</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Tag management for analytics and marketing tools</p>
-          </div>
-          <IntegrationStatusBadge enabled={gtmEnabled} configured={!!settings?.googleTagManager.containerId} />
-        </div>
-        <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">What Google Tag Manager can receive:</p>
-            <TrackList items={[
-              "Page views",
-              "Tool views",
-              "Checkout events",
-              "Verified purchase events",
-            ]} />
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <Switch checked={gtmEnabled} onCheckedChange={setGtmEnabled} id="gtm-enabled" />
-              <label htmlFor="gtm-enabled" className="text-sm font-medium cursor-pointer select-none">Enable Google Tag Manager</label>
-            </div>
-            <div>
-              <FieldLabel label="Google Tag Manager Container ID" help="Find this in your Google Tag Manager workspace." />
-              <Input
-                value={containerId}
-                onChange={(e) => { setContainerId(e.target.value.toUpperCase()); setGtmError(""); }}
-                placeholder="GTM-XXXXXXX"
-                className="font-mono text-sm"
-              />
-              {gtmError && <p className="text-xs text-red-600 mt-1.5">{gtmError}</p>}
-            </div>
-          </div>
-        </div>
-        <div className="px-5 py-3 border-t border-border bg-gray-50/60 flex justify-end">
-          <Button size="sm" onClick={saveGtm} disabled={gtmSaving} className="font-bold text-xs uppercase tracking-wider">
-            {gtmSaving ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Saving…</> : "Save GTM Settings"}
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Recent CAPI Events ────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-border overflow-hidden">
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-bold uppercase tracking-wider">Recent CAPI Events</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Last 50 server-side events sent to Meta Conversions API</p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={loadData} className="h-7 px-2 text-xs font-bold">
-            <RefreshCw className="w-3.5 h-3.5 mr-1" />
-            Refresh
-          </Button>
-        </div>
-        {events.length === 0 ? (
-          <div className="px-5 py-12 text-center text-sm text-muted-foreground">
-            No CAPI events recorded yet. Events appear here after the first verified purchase or test event.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="bg-gray-50 border-b border-border">
-                <tr>
-                  <th className="px-4 py-3 text-left font-bold uppercase tracking-wider text-muted-foreground">Event</th>
-                  <th className="px-4 py-3 text-left font-bold uppercase tracking-wider text-muted-foreground">Reference</th>
-                  <th className="px-4 py-3 text-left font-bold uppercase tracking-wider text-muted-foreground">Status</th>
-                  <th className="px-4 py-3 text-left font-bold uppercase tracking-wider text-muted-foreground">Time</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {events.map((ev) => (
-                  <tr key={ev.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-semibold">{ev.eventName}</td>
-                    <td className="px-4 py-3 font-mono text-muted-foreground">{ev.reference ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1 font-semibold">
-                        {ev.status === "sent" && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
-                        {ev.status === "failed" && <XCircle className="w-3.5 h-3.5 text-red-500" />}
-                        {ev.status === "sending" && <Clock className="w-3.5 h-3.5 text-yellow-500" />}
-                        {ev.status}
-                      </span>
-                      {ev.errorMessage && (
-                        <p className="text-red-500 text-[10px] mt-0.5 max-w-[180px] truncate" title={ev.errorMessage}>
-                          {ev.errorMessage}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                      {new Date(ev.createdAt).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         )}
+
+        {/* GOOGLE TAG MANAGER ─────────────────────────────────────── */}
+        {subPage === "gtm" && (
+          <div className="p-8 space-y-6">
+            <h2 className="text-xl font-bold text-foreground">Google Tag Manager Integration</h2>
+
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+                {/* Left: description */}
+                <div className="p-6 border-b lg:border-b-0 lg:border-r border-border bg-gray-50/40">
+                  <p className="font-semibold text-sm text-foreground mb-1">
+                    Integrate Google Tag Manager on your store
+                  </p>
+                  <p className="text-xs text-primary font-medium mb-1">What you can do with Google Tag Manager:</p>
+                  <TrackList items={[
+                    "Connect your Google Analytics to track page views and traffic sources",
+                    "Use Google Tag Manager to add other script tags to your store",
+                    "Track store events to push to Google Analytics or Google Ads",
+                    "Create Custom Event triggers on Google Analytics with the following event names:",
+                  ]} />
+                  <div className="mt-3 space-y-1.5 pl-6">
+                    {[
+                      { name: "TopRated_AddToCart", desc: "When user views a product" },
+                      { name: "TopRated_InitiateCheckout", desc: "When user enters their details and initiates checkout" },
+                      { name: "TopRated_Purchase", desc: "When user purchases a product" },
+                    ].map(({ name, desc }) => (
+                      <p key={name} className="text-[12px] text-muted-foreground flex items-start gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                        <span><span className="font-mono text-primary font-semibold">- {name}</span> — {desc}</span>
+                      </p>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right: form */}
+                <div className="p-6 flex flex-col gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">GTM_ID</label>
+                    <Input
+                      value={containerId}
+                      onChange={(e) => { setContainerId(e.target.value.toUpperCase()); setGtmError(""); }}
+                      placeholder="<!-- Google tag (gtag.js) -->"
+                      className="font-mono text-sm"
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Enter your Container ID (e.g. GTM-XXXXXXX) from your Google Tag Manager workspace.
+                    </p>
+                    {gtmError && <p className="text-xs text-red-600 mt-1.5">{gtmError}</p>}
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <input
+                      type="checkbox"
+                      id="gtm-toggle"
+                      checked={gtmEnabled}
+                      onChange={(e) => setGtmEnabled(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-primary accent-primary cursor-pointer"
+                    />
+                    <label htmlFor="gtm-toggle" className="text-sm font-medium cursor-pointer select-none">
+                      Enable Google Tag Manager
+                    </label>
+                  </div>
+
+                  <div className="flex justify-end pt-2 mt-auto">
+                    <Button onClick={saveGtm} disabled={gtmSaving} className="font-bold">
+                      {gtmSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : "Update GTM"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
