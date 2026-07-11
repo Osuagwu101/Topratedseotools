@@ -1,0 +1,181 @@
+Use the following implementation prompt in Replit:
+
+## WEBSITE BRANDING AND ADMIN DASHBOARD UPDATE
+
+Please update the **Top Rated SEO Tools** website according to the following requirements.
+
+### 1. Replace the Current Text Logo
+
+Replace the text **“Top Rated SEO Tools”** currently displayed in the website header/navigation area with the logo image I have provided.
+
+Logo requirements:
+
+* Use the uploaded image as the official website logo.
+* Make the logo fit neatly within the existing header area.
+* Preserve the logo’s original proportions.
+* Do not stretch, distort, crop, or blur the image.
+* Ensure the logo is clearly visible on desktop, tablet, and mobile screens.
+* Use responsive sizing so that it automatically adjusts to different screen sizes.
+* Vertically and horizontally align it properly with the navigation menu.
+* Clicking the logo should take the user back to the website homepage.
+* Add suitable alternative text, such as: `Top Rated SEO Tools Logo`.
+* Optimise the logo file so that it does not slow down the website.
+
+### 2. Change the Payment Footer Text
+
+Find the current footer or payment notice that says:
+
+> Powered by Paystack, made in Nigeria.
+
+Replace it with:
+
+> All payments are securely processed with Paystack's end-to-end encryption.
+
+Ensure the new text is properly aligned, readable, and responsive on all devices.
+
+### 3. Add Full Branding Controls to the Admin Dashboard
+
+Create a new section in the Admin Dashboard called:
+
+**Website Settings** or **Branding Settings**
+
+Only authorised administrators should be able to access and edit these settings.
+
+The administrator must be able to manage the following:
+
+#### A. Change Site Logo
+
+* Upload a new site logo.
+* Preview the logo before saving.
+* Replace the existing logo.
+* Remove or reset the logo when necessary.
+* Accept common image formats such as PNG, JPG, JPEG, SVG, and WebP.
+* Validate the file type and file size.
+* Save the uploaded logo securely.
+* Automatically update the logo throughout the website after it is saved.
+* Preserve the correct aspect ratio on all screen sizes.
+
+#### B. Change Site Headline
+
+Add an editable field for the website’s main headline.
+
+Requirements:
+
+* Display the current headline in the admin field.
+* Allow the administrator to edit and save it.
+* Update the public website immediately after saving.
+* Prevent empty or invalid values from being saved.
+* Display a success message after the update.
+
+#### C. Change Site Subheadline
+
+Add an editable field for the website’s subheadline or supporting description.
+
+Requirements:
+
+* Display the existing subheadline in the admin field.
+* Allow the administrator to edit and save it.
+* Update the public website immediately after saving.
+* Support normal punctuation and reasonable text length.
+* Prevent empty or invalid values from being saved.
+
+#### D. Change the Copyright Year and Text
+
+Make the current copyright information, including **“© 2025”**, editable from the Admin Dashboard.
+
+The administrator should be able to:
+
+* Change the year.
+* Change the complete copyright text.
+* Choose whether the year should update automatically each year.
+* Preview the copyright text before saving.
+* Save the changes and display them immediately in the website footer.
+
+Include an option such as:
+
+`Automatically use the current year`
+
+When enabled, the website should display the current year dynamically rather than requiring manual updates.
+
+Example:
+
+`© 2026 Top Rated SEO Tools. All rights reserved.`
+
+### 4. Data Storage
+
+Do not hard-code the logo, headline, subheadline, payment notice, or copyright information directly into the frontend.
+
+Create a persistent website settings record in the database. Suggested fields include:
+
+* `site_logo`
+* `site_headline`
+* `site_subheadline`
+* `payment_footer_text`
+* `copyright_text`
+* `copyright_year`
+* `use_dynamic_copyright_year`
+* `updated_at`
+* `updated_by`
+
+The public website should retrieve and display the saved settings.
+
+Changes must remain available after:
+
+* Refreshing the page.
+* Logging out and logging back in.
+* Restarting the application.
+* Redeploying the website.
+
+### 5. Admin Permissions and Security
+
+* Only authenticated users with an administrator role should be able to access or change the website settings.
+* Normal users must not see the branding management controls.
+* Protect all related backend routes and API endpoints.
+* Validate and sanitise all text inputs.
+* Validate uploaded image files on both the frontend and backend.
+* Prevent unauthorised file uploads.
+* Do not expose sensitive server paths or credentials.
+* Record which administrator made the most recent change.
+
+### 6. User Experience
+
+For every update made from the Admin Dashboard:
+
+* Show a loading state while saving.
+* Disable the save button while the request is being processed.
+* Display a clear success notification after saving.
+* Display a useful error message if the update fails.
+* Keep the existing value if the update is unsuccessful.
+* Allow the administrator to preview changes before publishing where practical.
+* Add a reset or cancel option for unsaved changes.
+
+Example success message:
+
+> Website branding settings updated successfully.
+
+### 7. Responsive Design
+
+Ensure that:
+
+* The logo fits properly in the header on desktop, tablet, and mobile devices.
+* The logo does not overlap the navigation menu.
+* The headline and subheadline remain properly aligned.
+* The footer text wraps neatly on smaller screens.
+* Existing website functionality and styling remain unchanged unless required for this update.
+
+### 8. Completion Checks
+
+Before considering the task complete, test and confirm that:
+
+1. The uploaded logo has replaced the “Top Rated SEO Tools” header text.
+2. The logo is clear, proportional, clickable, and responsive.
+3. The payment footer text has been replaced with the new wording.
+4. The administrator can upload and change the site logo.
+5. The administrator can change the site headline.
+6. The administrator can change the site subheadline.
+7. The administrator can change the copyright year and text.
+8. The dynamic copyright-year option works correctly.
+9. All settings remain saved after refreshing or restarting the website.
+10. Normal users cannot access the website settings.
+11. Existing payment, login, dashboard, and purchasing features continue to work correctly.
+12. No existing website data or functionality has been removed or broken.

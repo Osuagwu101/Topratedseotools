@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider, QueryCache, useQueryClient } from "@t
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CurrencyProvider } from "@/context/currency";
+import { SiteSettingsProvider } from "@/context/siteSettings";
 import Home from "@/pages/home";
 import ProductDetail from "@/pages/product";
 import Checkout from "@/pages/checkout";
@@ -237,6 +238,7 @@ function ClerkProviderWithRoutes() {
   const isSuspended = useIsSuspended();
 
   return (
+    <SiteSettingsProvider>
     <CurrencyProvider>
     <ClerkProvider
       publishableKey={clerkPubKey}
@@ -272,6 +274,7 @@ function ClerkProviderWithRoutes() {
       </QueryClientProvider>
     </ClerkProvider>
     </CurrencyProvider>
+    </SiteSettingsProvider>
   );
 }
 

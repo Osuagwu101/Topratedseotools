@@ -28,6 +28,7 @@ import type {
   PaymentVerification,
   PaystackWebhookPayload,
   Product,
+  SiteSettings,
   UserOrder
 } from './api.schemas';
 
@@ -503,6 +504,83 @@ export function useGetMyOrders<TData = Awaited<ReturnType<typeof getMyOrders>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMyOrdersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetSiteSettingsUrl = () => {
+
+
+
+
+  return `/api/site-settings`
+}
+
+/**
+ * @summary Get public site branding settings
+ */
+export const getSiteSettings = async ( options?: RequestInit): Promise<SiteSettings> => {
+
+  return customFetch<SiteSettings>(getGetSiteSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSiteSettingsQueryKey = () => {
+    return [
+    `/api/site-settings`
+    ] as const;
+    }
+
+
+export const getGetSiteSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getSiteSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSiteSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSiteSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSiteSettings>>> = ({ signal }) => getSiteSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSiteSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSiteSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getSiteSettings>>>
+export type GetSiteSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get public site branding settings
+ */
+
+export function useGetSiteSettings<TData = Awaited<ReturnType<typeof getSiteSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSiteSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSiteSettingsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

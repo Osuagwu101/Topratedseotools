@@ -128,6 +128,22 @@ export interface PaystackWebhookPayload {
   data?: PaystackWebhookPayloadData;
 }
 
+export interface SiteSettings {
+  id: number;
+  /** @nullable */
+  siteLogoUrl?: string | null;
+  siteHeadline: string;
+  siteSubheadline: string;
+  paymentFooterText: string;
+  copyrightText: string;
+  copyrightYear: string;
+  useDynamicCopyrightYear: boolean;
+  /** @nullable */
+  updatedAt?: string | null;
+  /** @nullable */
+  updatedBy?: string | null;
+}
+
 export interface PaymentVerification {
   status: string;
   reference: string;

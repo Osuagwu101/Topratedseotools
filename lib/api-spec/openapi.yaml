@@ -128,6 +128,19 @@ paths:
         "401":
           description: Unauthorized
 
+  /site-settings:
+    get:
+      operationId: getSiteSettings
+      tags: [products]
+      summary: Get public site branding settings
+      responses:
+        "200":
+          description: Current site settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteSettings"
+
   /paystack/initialize:
     post:
       operationId: initializePayment
@@ -373,6 +386,31 @@ components:
               type: integer
             status:
               type: string
+
+    SiteSettings:
+      type: object
+      required: [id, siteHeadline, siteSubheadline, paymentFooterText, copyrightText, copyrightYear, useDynamicCopyrightYear]
+      properties:
+        id:
+          type: integer
+        siteLogoUrl:
+          type: ["string", "null"]
+        siteHeadline:
+          type: string
+        siteSubheadline:
+          type: string
+        paymentFooterText:
+          type: string
+        copyrightText:
+          type: string
+        copyrightYear:
+          type: string
+        useDynamicCopyrightYear:
+          type: boolean
+        updatedAt:
+          type: ["string", "null"]
+        updatedBy:
+          type: ["string", "null"]
 
     PaymentVerification:
       type: object

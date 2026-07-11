@@ -1,28 +1,27 @@
 import { useListProducts } from "@workspace/api-client-react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { useAuth } from "@clerk/react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToolCard } from "@/components/tool-card";
+import { useSiteSettings } from "@/context/siteSettings";
 
 export default function Home() {
   const { data: products, isLoading } = useListProducts();
   const { isSignedIn } = useAuth();
   const [, setLocation] = useLocation();
+  const { settings } = useSiteSettings();
 
   return (
     <Layout>
       <section className="pt-20 pb-16 bg-white border-b border-border shadow-sm text-center">
         <div className="container mx-auto px-4 md:px-6 max-w-5xl">
           <h1 className="text-4xl md:text-6xl font-heading font-bold tracking-tight mb-6 text-foreground leading-[1.15]">
-            Everything You Need to Get More Done <span className="text-primary">with AI</span>
+            {settings.siteHeadline}
           </h1>
-          <p className="text-base md:text-lg font-heading font-semibold text-primary mb-3">
-            The Vendor You Can Count On!
-          </p>
           <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto font-medium">
-            Access premium AI tools, manage your subscription with ease, and work smarter—all from one platform.
+            {settings.siteSubheadline}
           </p>
           <Button
             size="lg"

@@ -4,6 +4,7 @@ import { Show, useUser, useClerk } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { User, LogOut, LayoutDashboard, ChevronDown } from "lucide-react";
 import { useCurrency, CURRENCIES } from "@/context/currency";
+import { useSiteSettings } from "@/context/siteSettings";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -103,12 +104,38 @@ function NavAuth() {
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const { settings } = useSiteSettings();
+
+  const copyrightYear = settings.useDynamicCopyrightYear
+    ? String(new Date().getFullYear())
+    : settings.copyrightYear;
+
   return (
     <div className="min-h-screen bg-[#F7F8F9] flex flex-col font-sans text-foreground">
       <header className="sticky top-0 z-50 w-full border-b border-border bg-white shadow-sm">
         <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group" data-testid="link-home">
-            <span className="font-heading text-2xl tracking-tight text-primary uppercase">Top Rated SEO Tools</span>
+            {settings.siteLogoUrl ? (
+              <img
+                src={settings.siteLogoUrl}
+                alt="Top Rated SEO Tools Logo"
+                className="h-9 w-auto max-w-[180px] object-contain"
+              />
+            ) : (
+              <img
+                src={`${basePath}/logo.png`}
+                alt="Top Rated SEO Tools Logo"
+                className="h-9 w-auto max-w-[180px] object-contain"
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  img.style.display = "none";
+                  const span = document.createElement("span");
+                  span.className = "font-heading text-2xl tracking-tight text-primary uppercase";
+                  span.textContent = "Top Rated SEO Tools";
+                  img.parentElement?.appendChild(span);
+                }}
+              />
+            )}
           </Link>
           <nav className="flex items-center gap-4 text-sm font-bold uppercase tracking-wider text-foreground">
             <Link href="/" className="hidden sm:block hover:text-primary transition-colors" data-testid="link-nav-home">
@@ -130,14 +157,33 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </main>
       <footer className="border-t border-border py-12 mt-24 bg-white">
         <div className="container mx-auto px-4 md:px-6 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
-          <div className="flex items-center gap-2">
-            <span className="font-heading text-lg text-primary uppercase tracking-wider">Top Rated SEO Tools</span>
-            <span className="font-semibold text-muted-foreground ml-2 text-sm">&copy; 2025</span>
+          <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
+            {settings.siteLogoUrl ? (
+              <img
+                src={settings.siteLogoUrl}
+                alt="Top Rated SEO Tools Logo"
+                className="h-7 w-auto max-w-[140px] object-contain"
+              />
+            ) : (
+              <img
+                src={`${basePath}/logo.png`}
+                alt="Top Rated SEO Tools Logo"
+                className="h-7 w-auto max-w-[140px] object-contain"
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  img.style.display = "none";
+                  const span = document.createElement("span");
+                  span.className = "font-heading text-lg text-primary uppercase tracking-wider";
+                  span.textContent = settings.copyrightText;
+                  img.parentElement?.appendChild(span);
+                }}
+              />
+            )}
+            <span className="font-semibold text-muted-foreground ml-2 text-sm">&copy; {copyrightYear}</span>
           </div>
-          <div className="text-sm text-muted-foreground flex gap-4 font-bold uppercase tracking-wider">
-            <span>Powered by Paystack</span>
-            <span>Made in Nigeria</span>
-          </div>
+          <p className="text-xs text-muted-foreground max-w-xs md:max-w-sm text-center md:text-right leading-relaxed">
+            {settings.paymentFooterText}
+          </p>
         </div>
       </footer>
     </div>

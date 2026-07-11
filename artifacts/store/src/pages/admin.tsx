@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,6 +39,8 @@ import {
   Upload,
   X,
   PencilLine,
+  Palette,
+  RefreshCw,
 } from "lucide-react";
 
 interface ToolServer {
@@ -1791,6 +1793,365 @@ function UsersPanel({ token, products }: { token: string; products: ProductWithS
   );
 }
 
+interface SiteSettingsData {
+  id: number;
+  siteLogoUrl: string | null;
+  siteHeadline: string;
+  siteSubheadline: string;
+  paymentFooterText: string;
+  copyrightText: string;
+  copyrightYear: string;
+  useDynamicCopyrightYear: boolean;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+function BrandingPanel({ token }: { token: string }) {
+  const { toast } = useToast();
+  const [settings, setSettings] = useState<SiteSettingsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const [headline, setHeadline] = useState("");
+  const [subheadline, setSubheadline] = useState("");
+  const [paymentFooter, setPaymentFooter] = useState("");
+  const [copyrightText, setCopyrightText] = useState("");
+  const [copyrightYear, setCopyrightYear] = useState("");
+  const [useDynamic, setUseDynamic] = useState(true);
+
+  const loadSettings = async () => {
+    try {
+      const res = await fetch(`${API}/admin/site-settings`, {
+        headers: { Authorization: token },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json() as SiteSettingsData;
+      setSettings(data);
+      setHeadline(data.siteHeadline);
+      setSubheadline(data.siteSubheadline);
+      setPaymentFooter(data.paymentFooterText);
+      setCopyrightText(data.copyrightText);
+      setCopyrightYear(data.copyrightYear);
+      setUseDynamic(data.useDynamicCopyrightYear);
+    } catch (e) {
+      toast({ title: "Error", description: String(e), variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadSettings(); }, []);
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const allowed = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml"];
+    if (!allowed.includes(file.type)) {
+      toast({ title: "Invalid file type", description: "Please upload a PNG, JPG, WebP, or SVG image.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Logo must be under 8 MB.", variant: "destructive" });
+      return;
+    }
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  };
+
+  const handleLogoUpload = async () => {
+    if (!logoFile) return;
+    setLogoUploading(true);
+    try {
+      const form = new FormData();
+      form.append("logo", logoFile);
+      const res = await fetch(`${API}/admin/site-settings/logo`, {
+        method: "POST",
+        headers: { Authorization: token },
+        body: form,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json() as { siteLogoUrl: string };
+      setSettings((prev) => prev ? { ...prev, siteLogoUrl: data.siteLogoUrl } : prev);
+      setLogoFile(null);
+      setLogoPreview(null);
+      toast({ title: "Logo updated", description: "Site logo has been updated successfully." });
+      window.location.reload();
+    } catch (e) {
+      toast({ title: "Upload failed", description: String(e), variant: "destructive" });
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    try {
+      const res = await fetch(`${API}/admin/site-settings/logo`, {
+        method: "DELETE",
+        headers: { Authorization: token },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setSettings((prev) => prev ? { ...prev, siteLogoUrl: null } : prev);
+      toast({ title: "Logo removed", description: "The site logo has been removed." });
+      window.location.reload();
+    } catch (e) {
+      toast({ title: "Error", description: String(e), variant: "destructive" });
+    }
+  };
+
+  const handleSaveText = async () => {
+    if (!headline.trim()) { toast({ title: "Headline cannot be empty", variant: "destructive" }); return; }
+    if (!subheadline.trim()) { toast({ title: "Subheadline cannot be empty", variant: "destructive" }); return; }
+    if (!copyrightText.trim()) { toast({ title: "Copyright text cannot be empty", variant: "destructive" }); return; }
+    setSaving(true);
+    try {
+      const res = await fetch(`${API}/admin/site-settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: token },
+        body: JSON.stringify({
+          siteHeadline: headline.trim(),
+          siteSubheadline: subheadline.trim(),
+          paymentFooterText: paymentFooter.trim(),
+          copyrightText: copyrightText.trim(),
+          copyrightYear: copyrightYear.trim(),
+          useDynamicCopyrightYear: useDynamic,
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const updated = await res.json() as SiteSettingsData;
+      setSettings(updated);
+      toast({ title: "Branding settings saved", description: "Website branding settings updated successfully." });
+    } catch (e) {
+      toast({ title: "Save failed", description: String(e), variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (!settings) return;
+    setHeadline(settings.siteHeadline);
+    setSubheadline(settings.siteSubheadline);
+    setPaymentFooter(settings.paymentFooterText);
+    setCopyrightText(settings.copyrightText);
+    setCopyrightYear(settings.copyrightYear);
+    setUseDynamic(settings.useDynamicCopyrightYear);
+    setLogoFile(null);
+    setLogoPreview(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const currentLogoUrl = settings?.siteLogoUrl ?? null;
+  const previewCopyrightYear = useDynamic ? String(new Date().getFullYear()) : copyrightYear;
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-2xl font-heading font-bold text-foreground uppercase">
+          Website <span className="text-primary">Branding</span>
+        </h2>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Manage the site logo, headline, subheadline, footer text, and copyright information.
+        </p>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h3 className="font-bold text-base mb-4 flex items-center gap-2">
+          <ImageIcon className="w-4 h-4 text-primary" />
+          Site Logo
+        </h3>
+
+        <div className="flex flex-col sm:flex-row gap-6 items-start">
+          <div className="w-48 h-20 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center bg-gray-50 shrink-0 overflow-hidden">
+            {logoPreview ? (
+              <img src={logoPreview} alt="Preview" className="h-full w-full object-contain p-2" />
+            ) : currentLogoUrl ? (
+              <img src={currentLogoUrl} alt="Current logo" className="h-full w-full object-contain p-2" />
+            ) : (
+              <span className="text-xs text-muted-foreground text-center px-2">No logo uploaded</span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-3 flex-1">
+            <p className="text-sm text-muted-foreground">
+              Accepted formats: PNG, JPG, JPEG, SVG, WebP. Max 8 MB.
+              {currentLogoUrl && <span className="text-primary font-medium ml-1">A custom logo is currently active.</span>}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 font-bold"
+                onClick={() => logoInputRef.current?.click()}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                {currentLogoUrl ? "Replace Logo" : "Upload Logo"}
+              </Button>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                className="hidden"
+                onChange={handleLogoChange}
+              />
+              {logoFile && (
+                <Button
+                  size="sm"
+                  className="gap-1.5 font-bold bg-primary hover:bg-primary/90 text-white"
+                  onClick={handleLogoUpload}
+                  disabled={logoUploading}
+                >
+                  {logoUploading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  Save Logo
+                </Button>
+              )}
+              {logoFile && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gap-1.5 font-bold text-muted-foreground"
+                  onClick={() => { setLogoFile(null); setLogoPreview(null); }}
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Cancel
+                </Button>
+              )}
+              {currentLogoUrl && !logoFile && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gap-1.5 font-bold text-red-500 hover:text-red-600"
+                  onClick={handleRemoveLogo}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Remove Logo
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+        <h3 className="font-bold text-base flex items-center gap-2">
+          <PencilLine className="w-4 h-4 text-primary" />
+          Homepage Text
+        </h3>
+
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+            Main Headline
+          </label>
+          <Input
+            value={headline}
+            onChange={(e) => setHeadline(e.target.value)}
+            placeholder="Everything You Need to Get More Done with AI"
+            className="font-medium"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+            Subheadline / Description
+          </label>
+          <Textarea
+            value={subheadline}
+            onChange={(e) => setSubheadline(e.target.value)}
+            placeholder="Access premium AI tools…"
+            rows={3}
+            className="font-medium resize-none"
+          />
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+        <h3 className="font-bold text-base flex items-center gap-2">
+          <Palette className="w-4 h-4 text-primary" />
+          Footer &amp; Copyright
+        </h3>
+
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+            Payment Footer Text
+          </label>
+          <Input
+            value={paymentFooter}
+            onChange={(e) => setPaymentFooter(e.target.value)}
+            placeholder="All payments are securely processed with Paystack's end-to-end encryption."
+            className="font-medium"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+            Copyright Name
+          </label>
+          <Input
+            value={copyrightText}
+            onChange={(e) => setCopyrightText(e.target.value)}
+            placeholder="Top Rated SEO Tools"
+            className="font-medium"
+          />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Switch
+            checked={useDynamic}
+            onCheckedChange={setUseDynamic}
+            id="dynamic-year"
+          />
+          <label htmlFor="dynamic-year" className="text-sm font-semibold cursor-pointer">
+            Automatically use the current year
+          </label>
+        </div>
+
+        {!useDynamic && (
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">
+              Copyright Year
+            </label>
+            <Input
+              value={copyrightYear}
+              onChange={(e) => setCopyrightYear(e.target.value)}
+              placeholder={String(new Date().getFullYear())}
+              className="font-medium w-32"
+            />
+          </div>
+        )}
+
+        <div className="bg-gray-50 rounded-xl px-4 py-3 text-sm text-muted-foreground border border-gray-100">
+          <span className="font-semibold text-foreground">Preview: </span>
+          &copy; {previewCopyrightYear} {copyrightText}
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-3">
+        <Button variant="outline" className="font-bold" onClick={handleCancel}>
+          Cancel
+        </Button>
+        <Button
+          className="bg-primary hover:bg-primary/90 text-white font-bold gap-2"
+          onClick={handleSaveText}
+          disabled={saving}
+        >
+          {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Save Branding Settings
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPanel() {
   const [token, setToken] = useState(() => sessionStorage.getItem("admin_token") ?? "");
   const [usernameInput, setUsernameInput] = useState("");
@@ -1799,7 +2160,7 @@ export default function AdminPanel() {
   const [products, setProducts] = useState<ProductWithServers[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"tools" | "devices" | "users">("tools");
+  const [tab, setTab] = useState<"tools" | "devices" | "users" | "branding">("tools");
   const [addToolOpen, setAddToolOpen] = useState(false);
   const { toast } = useToast();
 
@@ -1954,6 +2315,12 @@ export default function AdminPanel() {
           >
             Device Sessions
           </button>
+          <button
+            onClick={() => setTab("branding")}
+            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "branding" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            Branding
+          </button>
         </div>
       </div>
 
@@ -2015,6 +2382,8 @@ export default function AdminPanel() {
         )}
 
         {tab === "devices" && <DeviceSessionsPanel token={token} />}
+
+        {tab === "branding" && <BrandingPanel token={token} />}
       </main>
 
       <AddToolDialog

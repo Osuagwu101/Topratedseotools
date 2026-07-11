@@ -140,6 +140,23 @@ export const GetMyOrdersResponse = zod.array(GetMyOrdersResponseItem)
 
 
 /**
+ * @summary Get public site branding settings
+ */
+export const GetSiteSettingsResponse = zod.object({
+  "id": zod.number(),
+  "siteLogoUrl": zod.string().nullish(),
+  "siteHeadline": zod.string(),
+  "siteSubheadline": zod.string(),
+  "paymentFooterText": zod.string(),
+  "copyrightText": zod.string(),
+  "copyrightYear": zod.string(),
+  "useDynamicCopyrightYear": zod.boolean(),
+  "updatedAt": zod.string().nullish(),
+  "updatedBy": zod.string().nullish()
+})
+
+
+/**
  * @summary Initialize a Paystack payment
  */
 export const InitializePaymentBody = zod.object({

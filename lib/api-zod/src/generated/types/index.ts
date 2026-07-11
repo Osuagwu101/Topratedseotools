@@ -15,4 +15,5 @@ export * from './paymentVerification';
 export * from './paystackWebhookPayload';
 export * from './paystackWebhookPayloadData';
 export * from './product';
+export * from './siteSettings';
 export * from './userOrder';
