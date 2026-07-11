@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { trackInitiateCheckout } from "@/lib/analytics";
+import { getAttribution, getFbc, getFbp } from "@/lib/attribution";
 
 type Duration = 1 | 3 | 12;
 
@@ -29,7 +30,22 @@ export default function Checkout() {
     query: { enabled: !!productId, queryKey: getGetProductQueryKey(productId) }
   });
 
-  const createOrder = useCreateOrder();
+  // Build the X-Attribution header once — attribution is stable for the session
+  const attributionHeader = (() => {
+    try {
+      const attr = getAttribution();
+      const fbc = getFbc();
+      const fbp = getFbp();
+      if (!attr && !fbc && !fbp) return undefined;
+      return JSON.stringify({ ...attr, fbc: fbc ?? undefined, fbp: fbp ?? undefined });
+    } catch {
+      return undefined;
+    }
+  })();
+
+  const createOrder = useCreateOrder(
+    attributionHeader ? { request: { headers: { "x-attribution": attributionHeader } } } : undefined,
+  );
   const initPayment = useInitializePayment();
 
   const availableDurations = useMemo(() => {
@@ -51,6 +67,18 @@ export default function Checkout() {
     if (!product || !email) return;
 
     setIsProcessing(true);
+
+    // Fire InitiateCheckout BEFORE the async payment calls so the event reliably
+    // reaches GTM/Pixel even if network latency is long. Price is known from the
+    // UI selection at this point (matches what the order will be created for).
+    const selectedPriceKobo = selectedOption?.priceKobo ?? product.priceKobo;
+    trackInitiateCheckout({
+      toolId: productId,
+      toolName: product.name,
+      priceKobo: selectedPriceKobo,
+      currency: "NGN",
+    });
+
     try {
       const order = await createOrder.mutateAsync({
         data: {
@@ -69,20 +97,14 @@ export default function Checkout() {
         }
       });
 
-      // Track checkout initiation and cache product info for the success page
-      trackInitiateCheckout({
-        toolId: productId,
-        toolName: product.name,
-        priceKobo: order.amountKobo,
-        currency: "NGN",
-      });
+      // Cache product info under the order reference so success.tsx can read it
       try {
         sessionStorage.setItem(
           `checkout_product_${order.reference}`,
           JSON.stringify({ productId, productName: product.name, priceKobo: order.amountKobo }),
         );
       } catch {
-        // ignore
+        // ignore storage errors
       }
 
       window.location.href = payment.authorizationUrl;

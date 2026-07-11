@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { getAuth } from "@clerk/express";
-import { db, ordersTable, productsTable } from "@workspace/db";
+import { db, ordersTable, productsTable, orderAttributionsTable } from "@workspace/db";
 import {
   CreateOrderBody,
   CreateOrderResponse,
@@ -9,6 +9,7 @@ import {
 } from "@workspace/api-zod";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -60,6 +61,39 @@ router.post("/orders", async (req, res): Promise<void> => {
       durationMonths,
     })
     .returning();
+
+  // Persist UTM/click attribution sent by the client via X-Attribution header (optional)
+  const attributionHeader = req.headers["x-attribution"];
+  if (typeof attributionHeader === "string" && attributionHeader) {
+    try {
+      const attr = JSON.parse(attributionHeader) as {
+        utmSource?: string;
+        utmMedium?: string;
+        utmCampaign?: string;
+        utmContent?: string;
+        utmTerm?: string;
+        fbclid?: string;
+        gclid?: string;
+        fbp?: string;
+        fbc?: string;
+      };
+      await db.insert(orderAttributionsTable).values({
+        orderId: order.id,
+        utmSource: attr.utmSource ?? null,
+        utmMedium: attr.utmMedium ?? null,
+        utmCampaign: attr.utmCampaign ?? null,
+        utmContent: attr.utmContent ?? null,
+        utmTerm: attr.utmTerm ?? null,
+        fbclid: attr.fbclid ?? null,
+        gclid: attr.gclid ?? null,
+        fbp: attr.fbp ?? null,
+        fbc: attr.fbc ?? null,
+      }).onConflictDoNothing();
+    } catch (err) {
+      // Non-fatal — attribution is best-effort
+      logger.warn({ err, orderId: order.id }, "Failed to save order attribution");
+    }
+  }
 
   res.status(201).json(CreateOrderResponse.parse({ ...order, createdAt: order.createdAt.toISOString() }));
 });

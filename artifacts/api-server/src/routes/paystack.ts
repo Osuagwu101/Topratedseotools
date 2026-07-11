@@ -26,27 +26,32 @@ async function firePurchaseCapi(
   clientIp: string,
   userAgent: string,
 ): Promise<void> {
-  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.reference, reference));
-  if (!order) return;
-  await sendCapiEvent({
-    eventName: "Purchase",
-    eventId: `purchase_${reference}`,
-    reference,
-    userData: {
-      email: order.customerEmail,
-      externalId: order.clerkUserId ?? undefined,
-      clientIpAddress: clientIp,
-      clientUserAgent: userAgent,
-    },
-    customData: {
-      value: order.amountKobo / 100,
-      currency: "NGN",
-      content_ids: [String(order.productId)],
-      content_type: "product",
-      order_id: reference,
-      num_items: 1,
-    },
-  });
+  try {
+    const [order] = await db.select().from(ordersTable).where(eq(ordersTable.reference, reference));
+    if (!order) return;
+    await sendCapiEvent({
+      eventName: "Purchase",
+      eventId: `purchase_${reference}`,
+      reference,
+      userData: {
+        email: order.customerEmail,
+        externalId: order.clerkUserId ?? undefined,
+        clientIpAddress: clientIp,
+        clientUserAgent: userAgent,
+      },
+      customData: {
+        value: order.amountKobo / 100,
+        currency: "NGN",
+        content_ids: [String(order.productId)],
+        content_type: "product",
+        order_id: reference,
+        num_items: 1,
+      },
+    });
+  } catch (err) {
+    // sendCapiEvent itself never throws, but guard the DB lookup too
+    logger.error({ err, reference }, "firePurchaseCapi unexpected error");
+  }
 }
 
 router.post("/paystack/initialize", async (req, res): Promise<void> => {

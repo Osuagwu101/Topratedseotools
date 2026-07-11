@@ -831,11 +831,7 @@ router.post("/admin/grant", requireAdmin, async (req, res): Promise<void> => {
 // ── Analytics / Tracking ──────────────────────────────────────────────────────
 
 router.get("/admin/analytics/status", requireAdmin, (_req, res): void => {
-  const status = getCapiStatus();
-  res.json({
-    ...status,
-    gtmConfigured: !!process.env.VITE_GTM_ID || !!process.env.GTM_ID,
-  });
+  res.json(getCapiStatus());
 });
 
 router.get("/admin/analytics/events", requireAdmin, async (_req, res): Promise<void> => {
@@ -848,15 +844,27 @@ router.get("/admin/analytics/events", requireAdmin, async (_req, res): Promise<v
 });
 
 router.post("/admin/analytics/test-event", requireAdmin, async (_req, res): Promise<void> => {
+  const status = getCapiStatus();
+  if (!status.pixelConfigured || !status.tokenConfigured) {
+    res.status(400).json({
+      ok: false,
+      reason: "META_PIXEL_ID and META_CONVERSIONS_API_TOKEN must both be set before sending test events",
+    });
+    return;
+  }
   const eventId = `test_pageview_${Date.now()}`;
-  await sendCapiEvent({
+  const sent = await sendCapiEvent({
     eventName: "PageView",
     eventId,
     reference: undefined,
     userData: {},
     customData: {},
   });
-  res.json({ ok: true, eventId });
+  if (sent) {
+    res.json({ ok: true, eventId });
+  } else {
+    res.status(500).json({ ok: false, reason: "CAPI returned an error — check server logs" });
+  }
 });
 
 export default router;

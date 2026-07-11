@@ -94,14 +94,15 @@ export default function ProductDetail() {
   const { data: allProducts } = useListProducts();
   const { formatPrice, currency, ratesReady } = useCurrency();
 
-  // Fire ViewContent when product data is available
+  // Fire ViewContent when product data is available.
+  // Always report in NGN (the transaction currency) regardless of display currency.
   useEffect(() => {
     if (!product) return;
     trackViewContent({
       toolId: product.id,
       toolName: product.name,
       priceKobo: product.priceKobo,
-      currency: currency.code,
+      currency: "NGN",
     });
   }, [product?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 

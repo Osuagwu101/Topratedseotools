@@ -2202,15 +2202,19 @@ function AnalyticsPanel({ token }: { token: string }) {
         method: "POST",
         headers: { Authorization: token },
       });
-      const data = (await res.json()) as { ok: boolean; eventId?: string };
+      const data = (await res.json()) as { ok: boolean; eventId?: string; reason?: string };
       if (data.ok) {
         toast({ title: "Test event sent", description: `Event ID: ${data.eventId ?? ""}` });
         loadData();
       } else {
-        toast({ title: "Test event failed", variant: "destructive" });
+        toast({
+          title: "Test event not sent",
+          description: data.reason ?? "Check server logs for details.",
+          variant: "destructive",
+        });
       }
     } catch {
-      toast({ title: "Test event failed", variant: "destructive" });
+      toast({ title: "Test event failed", description: "Network error.", variant: "destructive" });
     } finally {
       setTesting(false);
     }
