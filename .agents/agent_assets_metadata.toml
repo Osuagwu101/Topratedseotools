@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "yZS2IkpAe1FOx8fsKAH11"
@@ -12,3 +11,21 @@ id = "3q4LGT78XQGWG52FfWwSq"
 uri = "file://artifacts/store/public/logos/quillbot.png"
 type = "image"
 title = "quillbot logo clean"
+
+[[outputs]]
+id = "v_4qcQJvkEKUw9j-rB79i"
+uri = "file://.agents/screenshots/home-tall.jpg"
+type = "image"
+title = "Home page — customer counter, testimonials, and footer payment icons"
+
+[[outputs]]
+id = "RumeYY3Vqv-NEz0kL7ZOc"
+uri = "file://.agents/screenshots/product-tall.jpg"
+type = "image"
+title = "Product page — reviews section layout"
+
+[[outputs]]
+id = "XhLZ-HFDpJFK_-D4jj9H0"
+uri = "file://screenshots/admin-login.jpg"
+type = "image"
+title = "Admin login — Trust & Support tab is behind this login"
