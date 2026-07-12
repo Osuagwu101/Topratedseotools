@@ -1,0 +1,459 @@
+Add a complete, professionally designed and SEO-optimised blog system to my existing Top Rated SEO Tools website.
+
+The blog must be integrated cleanly into the existing website design, navigation, branding, colour scheme, typography, responsive layout and admin dashboard. Do not redesign or break any existing store, customer account, payment, product, subscription or admin functionality.
+
+## 1. Public blog pages
+
+Create the following public routes:
+
+* /blog
+* /blog/[slug]
+* /blog/category/[category-slug]
+* /blog/tag/[tag-slug]
+* /blog/author/[author-slug]
+* /blog/search
+
+Add “Blog” to the main website navigation and footer.
+
+The main Blog page should include:
+
+* A clean blog header with a short SEO-focused introduction.
+* One featured article section.
+* A responsive grid of recent articles.
+* Category filters.
+* Blog search.
+* Popular or recommended articles.
+* An optional email newsletter subscription section.
+* Pagination or SEO-friendly “Load More” functionality.
+* A well-designed empty state when no posts are available.
+
+The page must look professional on desktop, tablet and mobile. It should feel like part of the existing Top Rated SEO Tools website rather than a separate application.
+
+## 2. Individual article design
+
+Each blog article page should include:
+
+* Article title.
+* Featured image.
+* Author name and profile image.
+* Published date.
+* Last updated date, where applicable.
+* Estimated reading time.
+* Category and tags.
+* Properly formatted article content.
+* Table of contents automatically generated from H2 and H3 headings.
+* Social-sharing buttons for Facebook, X, LinkedIn and WhatsApp.
+* Copy-link button.
+* Related articles.
+* Previous and next article navigation.
+* Author information box.
+* Newsletter subscription call to action.
+* Relevant calls to action linking to products or subscription plans on the website.
+* Breadcrumb navigation.
+* Reading-progress indicator.
+* A back-to-blog link.
+
+The article body must support:
+
+* Headings from H2 to H4.
+* Paragraphs.
+* Bold and italic formatting.
+* Ordered and unordered lists.
+* Links.
+* Images.
+* Image captions and alt text.
+* Blockquotes.
+* Tables.
+* Code blocks.
+* YouTube or approved video embeds.
+* Callout boxes.
+* Buttons and calls to action.
+* Horizontal dividers.
+
+Keep the reading layout clean and accessible, with a comfortable content width, readable font size and good spacing.
+
+## 3. Blog CMS inside the admin dashboard
+
+Create a secure Blog Management section inside the existing admin dashboard. Only authorised administrators and editors should be able to access it.
+
+Include the following CMS pages:
+
+* All Posts.
+* Add New Post.
+* Edit Post.
+* Drafts.
+* Scheduled Posts.
+* Published Posts.
+* Archived Posts.
+* Categories.
+* Tags.
+* Authors.
+* Media Library.
+* Comments, only if comments are enabled.
+* Blog Settings.
+* SEO Settings.
+
+The post editor should contain:
+
+### Main content fields
+
+* Post title.
+* Automatically generated URL slug.
+* Manual slug editing.
+* Short excerpt.
+* Rich-text article editor.
+* Featured image.
+* Featured-image alt text.
+* Featured-image caption.
+* Author.
+* Category.
+* Multiple tags.
+* Related posts.
+* Product or service call-to-action selection.
+* Publication status.
+* Publication date and time.
+* Last updated date.
+* Featured-post toggle.
+* Allow-comments toggle.
+* No-index toggle.
+
+### Publishing statuses
+
+Support:
+
+* Draft.
+* In Review.
+* Scheduled.
+* Published.
+* Archived.
+
+Allow administrators to:
+
+* Save drafts.
+* Preview articles before publishing.
+* Publish immediately.
+* Schedule an article for a future date and time.
+* Unpublish an article.
+* Duplicate an article.
+* Archive an article.
+* Restore an archived article.
+* Permanently delete an article with confirmation.
+* Bulk-select and update multiple articles.
+* Filter posts by title, author, category, tag, date and status.
+
+Add autosave to protect unsaved writing. Warn the user before leaving the editor when there are unsaved changes.
+
+## 4. Automatic image optimisation
+
+Build a reliable automatic image-optimisation workflow for every blog image uploaded through the CMS.
+
+When an administrator uploads a featured image or an image inside an article:
+
+1. Validate that it is an approved image type.
+2. Reject unsafe or corrupted files.
+3. Display the maximum permitted upload size.
+4. Automatically correct image orientation.
+5. Remove unnecessary metadata, including EXIF metadata, where appropriate.
+6. Resize oversized images while preserving their aspect ratio.
+7. Compress the image without noticeably damaging visual quality.
+8. Convert the image to WebP, or AVIF where fully supported, while keeping a suitable fallback.
+9. Generate responsive image variants for small, medium and large screens.
+10. Generate an optimised thumbnail for blog cards and admin previews.
+11. Store the optimised version rather than serving the original large image.
+12. Prevent duplicate unnecessary image files.
+13. Show upload and optimisation progress.
+14. Show a clear error message if optimisation fails.
+15. Allow administrators to replace or remove an image.
+
+Use practical target dimensions such as:
+
+* Featured article image: maximum width of approximately 1600 pixels.
+* In-article image: maximum width of approximately 1400 pixels.
+* Blog-card thumbnail: approximately 600–800 pixels wide.
+* Author image: approximately 300 pixels square.
+
+Do not upscale small images.
+
+Use responsive `srcset` and `sizes` attributes so mobile users do not download desktop-sized images.
+
+Add explicit width and height values or an aspect-ratio container to prevent layout movement while images load.
+
+Use lazy loading for images below the fold. Do not lazy-load the main featured image when it is the Largest Contentful Paint element. Preload or prioritise that image appropriately.
+
+If Base44 cannot perform all transformations natively, implement the best secure alternative using a supported server-side function or an image service such as Cloudinary or ImageKit. Keep any API secret on the server and never expose it in frontend code.
+
+Include a CMS setting for:
+
+* Preferred output format.
+* Compression quality.
+* Maximum image dimensions.
+* Automatic filename cleaning.
+* Automatic alt-text suggestion.
+
+The final image workflow must reduce file size, maintain good visual quality and prevent large uploads from slowing down the website.
+
+## 5. Media Library
+
+Create a reusable media library that allows administrators to:
+
+* View uploaded blog images.
+* Search images.
+* Filter by upload date and file type.
+* See image dimensions and optimised file size.
+* Add or edit alt text and captions.
+* Copy an image URL.
+* Reuse an existing image in another article.
+* Replace an image.
+* Delete unused images safely.
+* Warn before deleting an image that is currently used in a post.
+* Identify images without alt text.
+
+Use clean, SEO-friendly filenames. Replace spaces and unusual symbols with hyphens, use lowercase filenames and avoid meaningless generated names where practical.
+
+## 6. On-page SEO controls
+
+Add a dedicated SEO panel to every article containing:
+
+* SEO title.
+* Meta description.
+* Focus keyword.
+* Secondary keywords.
+* Canonical URL.
+* Social-sharing title.
+* Social-sharing description.
+* Social-sharing image.
+* Index or no-index setting.
+* Follow or no-follow setting.
+
+Automatically generate suggested SEO values from the article, but allow administrators to edit them.
+
+Display character guidance for:
+
+* SEO title.
+* Meta description.
+* URL slug.
+
+Show an SEO checklist before publication that checks:
+
+* Whether the focus keyword appears naturally in the title.
+* Whether it appears in the introduction.
+* Whether it appears in at least one heading where appropriate.
+* Whether the SEO title and meta description are present.
+* Whether the article has a featured image.
+* Whether all meaningful images have alt text.
+* Whether the article contains internal links.
+* Whether the article contains at least one relevant call to action.
+* Whether heading levels are logically structured.
+* Whether the slug is clear and concise.
+* Whether the article has a category.
+* Whether the article has an excerpt.
+
+Do not force keyword stuffing. SEO suggestions should encourage natural, useful writing.
+
+## 7. Technical SEO
+
+Implement:
+
+* Unique title tags and meta descriptions for blog pages.
+* Clean, human-readable article URLs.
+* Canonical tags.
+* Article structured data using `BlogPosting` or `Article`.
+* Breadcrumb structured data.
+* Author structured data where appropriate.
+* Organisation structured data using the website’s real business information.
+* Open Graph metadata.
+* X/Twitter card metadata.
+* Dynamic social-sharing images.
+* XML sitemap inclusion for published articles, categories and relevant pages.
+* Exclusion of drafts, previews, admin pages, internal searches and no-index articles from the sitemap.
+* Correct robots directives.
+* Proper 404 handling for deleted or invalid article URLs.
+* Redirect support when an article slug changes.
+* RSS feed for published articles, if supported.
+* Pagination metadata and crawlable links.
+* Correct heading hierarchy.
+* Descriptive image alt text.
+* Mobile-responsive pages.
+* Fast page rendering.
+
+Only published articles should be publicly accessible and indexable. Draft, review and scheduled content must remain private until publication.
+
+Use permanent 301 redirects when a published article slug is changed.
+
+## 8. Search and organisation
+
+Create a blog search function that searches:
+
+* Post titles.
+* Excerpts.
+* Article content.
+* Categories.
+* Tags.
+
+Search results should display the article title, thumbnail, excerpt, category and publication date.
+
+Add:
+
+* Categories with names, slugs and descriptions.
+* Tags with names and slugs.
+* Category archive pages.
+* Tag archive pages.
+* Author archive pages.
+* Related-post recommendations based on shared categories, tags and content relevance.
+
+Prevent duplicate category and tag slugs.
+
+## 9. Internal linking and product promotion
+
+Allow administrators to select a relevant website product, subscription plan or service while editing a post.
+
+The system should then be able to display a tasteful call-to-action inside or below the article, including:
+
+* Product or plan name.
+* Short description.
+* Price where appropriate.
+* Button linking to the correct product or plan page.
+
+Also provide a manual internal-link selector so an editor can search and link to:
+
+* Other blog posts.
+* Product pages.
+* Category pages.
+* Important website pages.
+
+Do not overcrowd articles with promotional blocks.
+
+## 10. Performance requirements
+
+Build the blog to protect Core Web Vitals and overall website speed.
+
+Implement:
+
+* Lazy loading below the fold.
+* Responsive images.
+* Image compression.
+* Optimised thumbnails.
+* Minimal unnecessary JavaScript.
+* Pagination for large article collections.
+* Efficient database queries.
+* Caching where supported.
+* Skeleton or lightweight loading states only where useful.
+* No oversized videos or unoptimised embeds.
+* Reserved image dimensions to reduce layout shift.
+* Accessible, lightweight components.
+* Fast mobile performance.
+
+Avoid loading the complete article database on the main Blog page. Only retrieve the fields and number of posts required for the current page.
+
+## 11. Accessibility
+
+Ensure that:
+
+* All interactive elements can be used with a keyboard.
+* Buttons and links have clear labels.
+* Text and background colours have sufficient contrast.
+* Form inputs have labels.
+* Images support meaningful alt text.
+* Decorative images use empty alt text.
+* Heading levels are logical.
+* Focus states are visible.
+* Error messages are clear.
+* The rich-text editor remains usable and understandable.
+* The design works with screen readers where practical.
+
+## 12. Analytics readiness
+
+Prepare the following blog events for Google Tag Manager, Google Analytics 4 and Meta tracking:
+
+* blog_view
+* blog_post_view
+* blog_search
+* blog_category_view
+* article_share
+* newsletter_signup
+* blog_cta_click
+* product_click_from_blog
+* article_read_50_percent
+* article_read_90_percent
+
+Do not hard-code tracking IDs. Keep them configurable through environment variables or the website’s analytics settings.
+
+## 13. Security and permissions
+
+Create role-based permissions:
+
+### Administrator
+
+* Full access to posts, settings, SEO, authors, media and deletion.
+
+### Editor
+
+* Create, edit, review, schedule and publish posts.
+* Manage categories, tags and media.
+* No access to sensitive website or payment settings.
+
+### Author
+
+* Create and edit their own posts.
+* Upload media.
+* Submit articles for review.
+* Cannot publish unless permitted.
+
+Secure all CMS routes. Validate and sanitise rich-text content and uploads. Prevent unauthorised users from accessing drafts, scheduled posts or administration functions.
+
+## 14. Data structure
+
+Create properly related entities for:
+
+* BlogPost.
+* BlogCategory.
+* BlogTag.
+* BlogAuthor.
+* BlogMedia.
+* BlogRedirect.
+* NewsletterSubscriber.
+* BlogComment, only if comments are enabled.
+
+Each BlogPost should include all necessary content, publication, SEO, image, author, category, tag, analytics and status fields.
+
+Maintain created-at and updated-at timestamps.
+
+## 15. Initial content and design state
+
+Create the blog system with editable placeholder content for layout demonstration only.
+
+Do not publish fabricated customer claims, fake expert credentials, invented statistics or misleading testimonials.
+
+Add three clearly marked draft demonstration posts that I can edit or delete:
+
+* What Are SEO Tools and Why Do Businesses Need Them?
+* How to Choose the Right SEO Tool for Your Business
+* A Beginner’s Guide to Keyword Research
+
+Keep these demonstration articles in Draft status by default so they are not publicly indexed until I review and publish them.
+
+## 16. Final testing
+
+After implementation, test and verify:
+
+* Creating a draft.
+* Editing and autosaving a draft.
+* Uploading and optimising a large image.
+* Reusing an image from the media library.
+* Previewing an unpublished article.
+* Publishing immediately.
+* Scheduling a future article.
+* Unpublishing an article.
+* Changing a slug and creating a redirect.
+* Category and tag pages.
+* Blog search.
+* Social-sharing metadata.
+* Structured data.
+* Mobile responsiveness.
+* Sitemap inclusion.
+* No-index behaviour.
+* Role permissions.
+* Article calls to action.
+* Loading speed and image file sizes.
+
+Do not consider the task complete merely because the pages are visible. Confirm that the CMS workflows, image optimisation, SEO controls, security permissions and public blog pages function correctly from beginning to end.
