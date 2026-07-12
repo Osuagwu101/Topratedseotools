@@ -125,6 +125,7 @@ export default function TrustAdminPanel({ token }: { token: string }) {
   // Testimonials
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [testimonialForm, setTestimonialForm] = useState<Partial<Testimonial>>({ displayName: "", jobTitle: "", text: "", rating: 5, published: false, permissionObtained: false });
+  const [testimonialFilter, setTestimonialFilter] = useState({ approvalStatus: "", source: "", published: "" });
   const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
   const [deleteTestimonialId, setDeleteTestimonialId] = useState<number | null>(null);
   const testimonialAvatarRef = useRef<HTMLInputElement>(null);
@@ -419,7 +420,9 @@ export default function TrustAdminPanel({ token }: { token: string }) {
   // ── Testimonials tab ───────────────────────────────────────────────────────
   const TestimonialsTab = () => {
     const filteredTestimonials = testimonials.filter((t) => {
-      const approvalMatches = (testimonialForm as any);
+      if (testimonialFilter.approvalStatus && t.approvalStatus !== testimonialFilter.approvalStatus) return false;
+      if (testimonialFilter.source && (t.source ?? "manual") !== testimonialFilter.source) return false;
+      if (testimonialFilter.published && String(t.published) !== testimonialFilter.published) return false;
       return true;
     });
     const submitTestimonial = async () => {
@@ -509,30 +512,108 @@ export default function TrustAdminPanel({ token }: { token: string }) {
     return (
       <div className="space-y-6">
         <Card className="p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold">Testimonials Settings</h3>
+                <p className="text-sm text-muted-foreground">Control testimonial visibility and display options.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  id="testimonials-enabled"
+                  type="checkbox"
+                  checked={settings?.testimonialsEnabled ?? true}
+                  onChange={(e) => setSettings((s) => ({ ...s!, testimonialsEnabled: e.target.checked }))}
+                  className="w-5 h-5 rounded accent-primary"
+                />
+                <label htmlFor="testimonials-enabled" className="text-sm font-medium">
+                  {settings?.testimonialsEnabled ?? true ? "On" : "Off"}
+                </label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    saveSettings({
+                      testimonialsEnabled: settings?.testimonialsEnabled ?? true,
+                      maxTestimonialsPerPage: settings?.maxTestimonialsPerPage ?? 0,
+                      testimonialDisplayPages: settings?.testimonialDisplayPages ?? [],
+                      verifiedAccessBadgeEnabled: settings?.verifiedAccessBadgeEnabled ?? false,
+                    })
+                  }
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">Max testimonials per page</label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={settings?.maxTestimonialsPerPage ?? 0}
+                  onChange={(e) => setSettings((s) => ({ ...s!, maxTestimonialsPerPage: parseInt(e.target.value, 10) || 0 }))}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">Verified access badge enabled</label>
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    id="verified-access-badge-enabled"
+                    type="checkbox"
+                    checked={settings?.verifiedAccessBadgeEnabled ?? false}
+                    onChange={(e) => setSettings((s) => ({ ...s!, verifiedAccessBadgeEnabled: e.target.checked }))}
+                    className="w-4 h-4 rounded accent-primary"
+                  />
+                  <label htmlFor="verified-access-badge-enabled" className="text-sm font-medium">Enabled</label>
+                </div>
+              </div>
+            </div>
             <div>
-              <h3 className="text-lg font-bold">Show Testimonials</h3>
-              <p className="text-sm text-muted-foreground">Toggle the public testimonials section on or off.</p>
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 block">Testimonial display pages</label>
+              <div className="flex flex-wrap gap-4">
+                {["home", "support", "checkout", "product", "dashboard"].map((page) => (
+                  <label key={page} className="flex items-center gap-2 text-sm font-medium capitalize">
+                    <input
+                      type="checkbox"
+                      checked={(settings?.testimonialDisplayPages ?? []).includes(page)}
+                      onChange={(e) =>
+                        setSettings((s) => ({
+                          ...s!,
+                          testimonialDisplayPages: e.target.checked
+                            ? [...(s?.testimonialDisplayPages ?? []), page]
+                            : (s?.testimonialDisplayPages ?? []).filter((p) => p !== page),
+                        }))
+                      }
+                      className="w-4 h-4 rounded accent-primary"
+                    />
+                    {page}
+                  </label>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <input
-                id="testimonials-enabled"
-                type="checkbox"
-                checked={settings?.testimonialsEnabled ?? true}
-                onChange={(e) => setSettings((s) => ({ ...s!, testimonialsEnabled: e.target.checked }))}
-                className="w-5 h-5 rounded accent-primary"
-              />
-              <label htmlFor="testimonials-enabled" className="text-sm font-medium">
-                {settings?.testimonialsEnabled ?? true ? "On" : "Off"}
-              </label>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => saveSettings({ testimonialsEnabled: settings?.testimonialsEnabled ?? true })}
-              >
-                Save Toggle
-              </Button>
-            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex flex-wrap gap-3">
+            <select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={testimonialFilter.approvalStatus} onChange={(e) => setTestimonialFilter((f) => ({ ...f, approvalStatus: e.target.value }))}>
+              <option value="">All approval statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={testimonialFilter.source} onChange={(e) => setTestimonialFilter((f) => ({ ...f, source: e.target.value }))}>
+              <option value="">All sources</option>
+              <option value="manual">Manual</option>
+              <option value="assignment">Assignment</option>
+              <option value="purchase">Purchase</option>
+            </select>
+            <select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={testimonialFilter.published} onChange={(e) => setTestimonialFilter((f) => ({ ...f, published: e.target.value }))}>
+              <option value="">All publication states</option>
+              <option value="true">Published</option>
+              <option value="false">Unpublished</option>
+            </select>
           </div>
         </Card>
 
@@ -626,7 +707,7 @@ export default function TrustAdminPanel({ token }: { token: string }) {
                 variant="outline"
                 onClick={() => {
                   setEditingTestimonial(null);
-                  setTestimonialForm({ displayName: "", jobTitle: "", text: "", rating: 5, published: false, permissionObtained: false });
+                  setTestimonialForm({ displayName: "", jobTitle: "", text: "", rating: 5, published: false, permissionObtained: false, source: "manual", approvalStatus: "pending", clerkUserId: null, orderId: null, assignmentId: null, adminCreated: false, requestSent: false });
                 }}
               >
                 Cancel
@@ -636,7 +717,7 @@ export default function TrustAdminPanel({ token }: { token: string }) {
         </Card>
 
         <div className="space-y-3">
-          {testimonials.map((t) => (
+          {filteredTestimonials.map((t) => (
             <Card key={t.id} className={`p-5 ${t.isSample ? "border-amber-300 bg-amber-50/30" : ""}`}>
               <div className="flex items-start gap-4">
                 {t.avatarUrl ? (
@@ -857,7 +938,6 @@ export default function TrustAdminPanel({ token }: { token: string }) {
                       {Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`w-4 h-4 ${i < r.rating ? "text-yellow-500 fill-yellow-500" : "text-gray-300"}`} />)}
                     </div>
                     {statusBadge(r.status)}
-                    {r.verified && <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-700 bg-green-100 px-2 py-0.5 rounded-full"><ShieldCheck className="w-3 h-3" /> Verified Purchase</span>}
                     {badgeBadge(r.badge)}
                     <span className="text-xs text-muted-foreground font-semibold">{new Date(r.createdAt).toLocaleString()}</span>
                   </div>
@@ -946,10 +1026,92 @@ export default function TrustAdminPanel({ token }: { token: string }) {
         setEditingAssignment(null);
         await loadAssignments();
         toast({ title: "Saved" });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: "Error", description: data.error || "Failed to save assignment", variant: "destructive" });
       }
     };
     const filteredAssignments = assignments.filter((a) => (!assignmentFilter.userId || a.clerkUserId.includes(assignmentFilter.userId)) && (!assignmentFilter.productId || String(a.productId) === assignmentFilter.productId) && (!assignmentFilter.status || a.status === assignmentFilter.status));
-    return <div className="space-y-6"><Card className="p-4"><div className="flex flex-wrap gap-3"><Input placeholder="User ID" value={assignmentFilter.userId} onChange={(e) => setAssignmentFilter((f) => ({ ...f, userId: e.target.value }))} /><Input placeholder="Product ID" className="w-32" value={assignmentFilter.productId} onChange={(e) => setAssignmentFilter((f) => ({ ...f, productId: e.target.value }))} /><select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={assignmentFilter.status} onChange={(e) => setAssignmentFilter((f) => ({ ...f, status: e.target.value }))}><option value="">All statuses</option><option value="active">Active</option><option value="revoked">Revoked</option><option value="expired">Expired</option></select></div></Card><Card className="p-6"><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4"><Input placeholder="Clerk user ID" value={assignmentForm.clerkUserId ?? ""} onChange={(e) => setAssignmentForm((f) => ({ ...f, clerkUserId: e.target.value }))} /><select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={assignmentForm.productId ?? ""} onChange={(e) => { const v = e.target.value ? Number(e.target.value) : undefined; setAssignmentForm((f) => ({ ...f, productId: v, serverId: null })); }}><option value="">Select product</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select><select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={assignmentForm.serverId ?? ""} onChange={(e) => setAssignmentForm((f) => ({ ...f, serverId: e.target.value ? Number(e.target.value) : null }))}><option value="">Optional server</option>{servers.filter((s) => !assignmentForm.productId || s.productId === assignmentForm.productId).map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select><select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={assignmentForm.source ?? "manual"} onChange={(e) => setAssignmentForm((f) => ({ ...f, source: e.target.value }))}><option value="manual">Manual</option><option value="purchase">Purchase</option><option value="assignment">Assignment</option></select><Textarea placeholder="Reason" value={assignmentForm.reason ?? ""} onChange={(e) => setAssignmentForm((f) => ({ ...f, reason: e.target.value }))} rows={3} /><Input type="datetime-local" value={assignmentForm.expiresAt ?? ""} onChange={(e) => setAssignmentForm((f) => ({ ...f, expiresAt: e.target.value }))} /><div className="flex items-center gap-3"><input type="checkbox" checked={assignmentForm.reviewInvitationEnabled ?? false} onChange={(e) => setAssignmentForm((f) => ({ ...f, reviewInvitationEnabled: e.target.checked }))} /><span>Review invitation</span></div><div className="flex items-center gap-3"><input type="checkbox" checked={assignmentForm.testimonialInvitationEnabled ?? false} onChange={(e) => setAssignmentForm((f) => ({ ...f, testimonialInvitationEnabled: e.target.checked }))} /><span>Testimonial invitation</span></div></div><Button onClick={submitAssignment}><Plus className="w-4 h-4 mr-2" />{editingAssignment ? "Update" : "Add"}</Button></Card><div className="space-y-3">{filteredAssignments.map((a) => <Card key={a.id} className="p-4"><div className="flex items-start justify-between gap-4"><div><div className="font-bold">{a.productName}</div><div className="text-xs text-muted-foreground">User {a.clerkUserId} · {a.source} · {a.status} · Expires {a.expiresAt ?? "—"}</div><div className="text-xs text-muted-foreground">Review invite: {String(a.reviewInvitationEnabled)} · Testimonial invite: {String(a.testimonialInvitationEnabled)} · Active: {String(a.isActive)}</div></div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => { setActiveTab("reviews"); setReviewFilter((f) => ({ ...f, source: "assignment" })); }}>Reviews</Button><Button variant="outline" size="sm" onClick={() => { setActiveTab("testimonials"); setTestimonialForm((f) => ({ ...f, source: "assignment" })); }}>Testimonials</Button><Button variant="outline" size="sm" onClick={() => { setEditingAssignment(a); setAssignmentForm({ ...a, productId: a.productId, serverId: a.serverId, source: a.source, reason: a.reason ?? "", reviewInvitationEnabled: a.reviewInvitationEnabled, testimonialInvitationEnabled: a.testimonialInvitationEnabled, expiresAt: a.expiresAt }); }}>Edit</Button><Button variant="destructive" size="sm" onClick={async () => { if (!window.confirm("Revoke this assignment?")) return; await fetch(`${API}/admin/tool-assignments/${a.id}`, { method: "DELETE", headers: authHeaders }); await loadAssignments(); toast({ title: "Revoked" }); }}>Revoke</Button></div></div></Card>)}</div></div>;
+    return (
+      <div className="space-y-6">
+        <Card className="p-4">
+          <div className="flex flex-wrap gap-3">
+            <Input placeholder="User ID" value={assignmentFilter.userId} onChange={(e) => setAssignmentFilter((f) => ({ ...f, userId: e.target.value }))} />
+            <Input placeholder="Product ID" className="w-32" value={assignmentFilter.productId} onChange={(e) => setAssignmentFilter((f) => ({ ...f, productId: e.target.value }))} />
+            <select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={assignmentFilter.status} onChange={(e) => setAssignmentFilter((f) => ({ ...f, status: e.target.value }))}>
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="revoked">Revoked</option>
+              <option value="expired">Expired</option>
+            </select>
+          </div>
+        </Card>
+        <Card className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <Input placeholder="Clerk user ID" value={assignmentForm.clerkUserId ?? ""} onChange={(e) => setAssignmentForm((f) => ({ ...f, clerkUserId: e.target.value }))} />
+            <select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={assignmentForm.productId ?? ""} onChange={(e) => { const v = e.target.value ? Number(e.target.value) : undefined; setAssignmentForm((f) => ({ ...f, productId: v, serverId: null })); }}>
+              <option value="">Select product</option>
+              {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={assignmentForm.serverId ?? ""} onChange={(e) => setAssignmentForm((f) => ({ ...f, serverId: e.target.value ? Number(e.target.value) : null }))}>
+              <option value="">Optional server</option>
+              {servers.filter((s) => !assignmentForm.productId || s.productId === assignmentForm.productId).map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+            </select>
+            <select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={assignmentForm.source ?? "manual_assignment"} onChange={(e) => setAssignmentForm((f) => ({ ...f, source: e.target.value }))}>
+              <option value="manual_assignment">Manual assignment</option>
+              <option value="purchase">Purchase</option>
+              <option value="renewal">Renewal</option>
+              <option value="complimentary">Complimentary</option>
+              <option value="promotional">Promotional</option>
+              <option value="admin_correction">Admin correction</option>
+            </select>
+            <Textarea placeholder="Reason" value={assignmentForm.reason ?? ""} onChange={(e) => setAssignmentForm((f) => ({ ...f, reason: e.target.value }))} rows={3} />
+            <Input type="datetime-local" value={assignmentForm.expiresAt ?? ""} onChange={(e) => setAssignmentForm((f) => ({ ...f, expiresAt: e.target.value }))} />
+            <div className="flex items-center gap-3"><input type="checkbox" checked={assignmentForm.reviewInvitationEnabled ?? false} onChange={(e) => setAssignmentForm((f) => ({ ...f, reviewInvitationEnabled: e.target.checked }))} /><span>Review invitation</span></div>
+            <div className="flex items-center gap-3"><input type="checkbox" checked={assignmentForm.testimonialInvitationEnabled ?? false} onChange={(e) => setAssignmentForm((f) => ({ ...f, testimonialInvitationEnabled: e.target.checked }))} /><span>Testimonial invitation</span></div>
+          </div>
+          <Button onClick={submitAssignment}>
+            <Plus className="w-4 h-4 mr-2" />
+            {editingAssignment ? "Update" : "Add"}
+          </Button>
+        </Card>
+        <div className="space-y-3">
+          {filteredAssignments.map((a) => (
+            <Card key={a.id} className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="font-bold">{a.productName}</div>
+                  <div className="text-xs text-muted-foreground">User {a.clerkUserId} · {a.source} · {a.status} · Expires {a.expiresAt ?? "—"}</div>
+                  <div className="text-xs text-muted-foreground">Review invite: {String(a.reviewInvitationEnabled)} · Testimonial invite: {String(a.testimonialInvitationEnabled)} · Active: {String(a.isActive)}</div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => { setActiveTab("reviews"); setReviewFilter((f) => ({ ...f, source: "assignment" })); }}>Reviews</Button>
+                  <Button variant="outline" size="sm" onClick={() => { setActiveTab("testimonials"); setTestimonialForm((f) => ({ ...f, source: "assignment" })); }}>Testimonials</Button>
+                  <Button variant="outline" size="sm" onClick={() => { setEditingAssignment(a); setAssignmentForm({ ...a, productId: a.productId, serverId: a.serverId, source: a.source, reason: a.reason ?? "", reviewInvitationEnabled: a.reviewInvitationEnabled, testimonialInvitationEnabled: a.testimonialInvitationEnabled, expiresAt: a.expiresAt }); }}>Edit</Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={async () => {
+                      if (!window.confirm("Revoke this assignment?")) return;
+                      const res = await fetch(`${API}/admin/tool-assignments/${a.id}`, { method: "DELETE", headers: authHeaders });
+                      if (!res.ok) {
+                        const data = await res.json().catch(() => ({}));
+                        toast({ title: "Error", description: data.error || "Failed to revoke assignment", variant: "destructive" });
+                        return;
+                      }
+                      await loadAssignments();
+                      toast({ title: "Revoked" });
+                    }}
+                  >
+                    Revoke
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   // ── Counter tab ────────────────────────────────────────────────────────────

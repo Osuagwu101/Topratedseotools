@@ -9,7 +9,7 @@ import {
   reviewsTable,
   testimonialsTable,
 } from "@workspace/db";
-import { eq, and, desc, asc, sql, isNull, ne } from "drizzle-orm";
+import { eq, and, desc, asc, sql, isNull, ne, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { pickDefaultServerForProduct } from "../lib/toolAccess";
 
@@ -149,13 +149,13 @@ router.get("/admin/tool-assignments", requireAdmin, async (req, res): Promise<vo
 
   const productIds = Array.from(new Set(assignments.map((a) => a.productId)));
   const products = productIds.length
-    ? await db.select().from(productsTable).where(eq(productsTable.id, sql`any(${productIds})`))
+    ? await db.select().from(productsTable).where(inArray(productsTable.id, productIds))
     : [];
   const productNameById = Object.fromEntries(products.map((p) => [p.id, p.name]));
 
   const assignmentIds = assignments.map((a) => a.id);
   const entitlements = assignmentIds.length
-    ? await db.select().from(toolEntitlementsTable).where(eq(toolEntitlementsTable.assignmentId, sql`any(${assignmentIds})`))
+    ? await db.select().from(toolEntitlementsTable).where(inArray(toolEntitlementsTable.assignmentId, assignmentIds))
     : [];
   const entitlementByAssignmentId = Object.fromEntries(entitlements.map((e) => [e.assignmentId, e]));
 
@@ -260,6 +260,15 @@ router.put("/admin/tool-assignments/:id", requireAdmin, async (req, res): Promis
     expiresAt?: unknown;
   };
 
+  const serverId = typeof body.serverId === "number" ? body.serverId : undefined;
+  if (serverId !== undefined && serverId !== null) {
+    const [server] = await db.select().from(toolServersTable).where(eq(toolServersTable.id, serverId));
+    if (!server || server.productId !== assignment.productId) {
+      res.status(400).json({ error: "serverId does not belong to this product" });
+      return;
+    }
+  }
+
   const updates: Partial<typeof toolAssignmentsTable.$inferInsert> = { updatedAt: new Date() };
   if (typeof body.status === "string" && VALID_STATUSES.includes(body.status)) updates.status = body.status;
   if (typeof body.source === "string" && VALID_SOURCES.includes(body.source)) updates.source = body.source;
@@ -269,14 +278,15 @@ router.put("/admin/tool-assignments/:id", requireAdmin, async (req, res): Promis
   if (typeof body.expiresAt === "string" && body.expiresAt) updates.expiresAt = new Date(body.expiresAt);
   if (body.expiresAt === null) updates.expiresAt = null;
 
-  if (Object.keys(updates).length === 1) {
+  if (Object.keys(updates).length === 1 && serverId === undefined) {
     res.status(400).json({ error: "No valid fields" });
     return;
   }
 
-  const [updated] = await db.update(toolAssignmentsTable).set(updates).where(eq(toolAssignmentsTable.id, id)).returning();
+  const [updated] = Object.keys(updates).length > 1
+    ? await db.update(toolAssignmentsTable).set(updates).where(eq(toolAssignmentsTable.id, id)).returning()
+    : [assignment];
 
-  const serverId = typeof body.serverId === "number" ? body.serverId : undefined;
   await createOrUpdateEntitlementForAssignment(updated, serverId);
 
   // If reactivating an assignment, reset its review prompt so the customer can be asked again.
