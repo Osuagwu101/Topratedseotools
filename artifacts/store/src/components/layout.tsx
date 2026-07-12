@@ -1,13 +1,70 @@
 import { useState, useRef, useEffect } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Show, useUser, useClerk } from "@clerk/react";
 import { Button } from "@/components/ui/button";
-import { User, LogOut, LayoutDashboard, ChevronDown } from "lucide-react";
+import { User, LogOut, LayoutDashboard, ChevronDown, Search, X } from "lucide-react";
 import { useCurrency, CURRENCIES } from "@/context/currency";
 import { useSiteSettings } from "@/context/siteSettings";
 import { PaymentIcons } from "./PaymentIcons";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function HeaderSearch() {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = query.trim();
+    setLocation(trimmed ? `/?q=${encodeURIComponent(trimmed)}` : "/");
+    setOpen(false);
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Search"
+        data-testid="button-open-search"
+        className="text-foreground hover:text-primary transition-colors"
+      >
+        <Search className="w-5 h-5" />
+      </button>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="flex items-center gap-1.5">
+      <div className="relative">
+        <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+        <input
+          ref={inputRef}
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search tools..."
+          data-testid="input-search"
+          className="h-9 w-40 sm:w-56 rounded-md border border-input bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
+      </div>
+      <button
+        type="button"
+        onClick={() => { setOpen(false); setQuery(""); }}
+        aria-label="Close search"
+        className="text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <X className="w-4 h-4" />
+      </button>
+    </form>
+  );
+}
 
 function CurrencySwitcher() {
   const { currency, setCurrency, loading } = useCurrency();
@@ -114,19 +171,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[#F7F8F9] flex flex-col font-sans text-foreground">
       <header className="sticky top-0 z-50 w-full border-b border-border bg-white shadow-sm">
-        <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group" data-testid="link-home">
+        <div className="container mx-auto px-4 md:px-6 h-20 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+          <div />
+          <Link href="/" className="flex items-center justify-center gap-2 group" data-testid="link-home">
             {settings.siteLogoUrl ? (
               <img
                 src={settings.siteLogoUrl}
                 alt="Top Rated SEO Tools Logo"
-                className="h-9 w-auto max-w-[180px] object-contain"
+                className="h-10 w-auto max-w-[200px] object-contain"
               />
             ) : (
               <img
                 src={`${basePath}/logo.png`}
                 alt="Top Rated SEO Tools Logo"
-                className="h-9 w-auto max-w-[180px] object-contain"
+                className="h-10 w-auto max-w-[200px] object-contain"
                 onError={(e) => {
                   const img = e.currentTarget;
                   img.style.display = "none";
@@ -138,19 +196,29 @@ export function Layout({ children }: { children: React.ReactNode }) {
               />
             )}
           </Link>
-          <nav className="flex items-center gap-4 text-sm font-bold uppercase tracking-wider text-foreground">
-            <Link href="/" className="hidden sm:block hover:text-primary transition-colors" data-testid="link-nav-home">
-              Home
-            </Link>
-            <Link href="/" className="hidden sm:block hover:text-primary transition-colors" data-testid="link-nav-catalog">
-              Catalog
-            </Link>
-            <Link href="/support" className="hidden sm:block hover:text-primary transition-colors" data-testid="link-nav-support">
-              Support
-            </Link>
-            <CurrencySwitcher />
-            <NavAuth />
-          </nav>
+          <div className="flex items-center justify-end">
+            <HeaderSearch />
+          </div>
+        </div>
+        <div className="border-t border-border">
+          <div className="container mx-auto px-4 md:px-6 h-14 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+            <div />
+            <nav className="flex items-center justify-center gap-6 text-sm font-bold uppercase tracking-wider text-foreground">
+              <Link href="/" className="hidden sm:block hover:text-primary transition-colors" data-testid="link-nav-home">
+                Home
+              </Link>
+              <Link href="/" className="hidden sm:block hover:text-primary transition-colors" data-testid="link-nav-catalog">
+                Catalog
+              </Link>
+              <Link href="/support" className="hidden sm:block hover:text-primary transition-colors" data-testid="link-nav-support">
+                Support
+              </Link>
+            </nav>
+            <div className="flex items-center justify-end gap-4">
+              <CurrencySwitcher />
+              <NavAuth />
+            </div>
+          </div>
         </div>
       </header>
       <main className="flex-1">

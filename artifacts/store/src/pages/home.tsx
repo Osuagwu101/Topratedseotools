@@ -1,5 +1,6 @@
+import { useMemo } from "react";
 import { useListProducts } from "@workspace/api-client-react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useAuth } from "@clerk/react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,19 @@ export default function Home() {
   const { isSignedIn } = useAuth();
   const [, setLocation] = useLocation();
   const { settings } = useSiteSettings();
+  const search = useSearch();
+  const query = new URLSearchParams(search).get("q")?.trim() ?? "";
+
+  const filteredProducts = useMemo(() => {
+    if (!products || !query) return products;
+    const q = query.toLowerCase();
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.category?.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q)
+    );
+  }, [products, query]);
 
   return (
     <Layout>
@@ -39,7 +53,15 @@ export default function Home() {
       <section id="catalog" className="container mx-auto px-4 md:px-6 py-20">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-heading tracking-tight mb-4 uppercase text-foreground">
-            <span className="text-primary">Choose Your</span> Tool
+            {query ? (
+              <>
+                Results for <span className="text-primary">&ldquo;{query}&rdquo;</span>
+              </>
+            ) : (
+              <>
+                <span className="text-primary">Choose Your</span> Tool
+              </>
+            )}
           </h2>
           <div className="w-24 h-1.5 bg-accent mx-auto rounded-full"></div>
         </div>
@@ -53,9 +75,13 @@ export default function Home() {
               <Skeleton key={i} className="h-[340px] rounded-lg bg-gray-100" />
             ))}
           </div>
+        ) : filteredProducts && filteredProducts.length === 0 ? (
+          <p className="text-center text-muted-foreground py-12">
+            No tools match &ldquo;{query}&rdquo;. Try a different search.
+          </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {products?.map((product) => (
+            {filteredProducts?.map((product) => (
               <ToolCard
                 key={product.id}
                 name={product.name}
