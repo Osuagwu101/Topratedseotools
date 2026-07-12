@@ -27,8 +27,6 @@ channel = "stable-25_05"
 
 [userenv.shared]
 ADMIN_SECRET = "subshub-admin-2026"
-ADMIN_USERNAME = "Topratedcarwriter"
-ADMIN_PASSWORD = "Osuagwu1997$"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-db15a4d9-e864-4eaa-b941-39a9a3cd36dc"
