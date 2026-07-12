@@ -17,13 +17,13 @@ export function TrustStrip() {
         <p className="text-center text-xs font-bold uppercase tracking-widest text-muted-foreground mb-6">
           Access to the tools you already trust
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-6 opacity-80">
+        <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
           {logos.map((logo) => (
             <img
               key={logo.name}
               src={logo.src}
               alt={`${logo.name} logo`}
-              className="h-7 md:h-8 w-auto max-w-[120px] object-contain grayscale hover:grayscale-0 transition-all"
+              className="h-9 md:h-11 w-auto max-w-[150px] object-contain"
             />
           ))}
         </div>
