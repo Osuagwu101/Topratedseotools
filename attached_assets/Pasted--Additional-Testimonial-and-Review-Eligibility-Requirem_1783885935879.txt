@@ -1,0 +1,194 @@
+## Additional Testimonial and Review Eligibility Requirements
+
+The testimonial and review systems must also work when the administrator assigns a tool, product, subscription, or service directly to a registered customer from the Admin Dashboard.
+
+### Admin-Assigned Tool Access
+
+When assigning a tool from the backend, the administrator should be able to:
+
+* Search for and select a registered customer
+* Select the tool, product, subscription, or service being assigned
+* Set the access start date
+* Add an optional expiry or renewal date
+* Record an internal reason or note for the assignment
+* Choose whether the user should be invited to submit a review
+* Choose whether the user should be invited to provide a testimonial
+* Revoke or modify the assignment where necessary
+* View the history of tools assigned to that customer
+
+The assignment must be stored in the database and linked to:
+
+* The customer’s account
+* The assigned tool or product
+* The administrator who made the assignment
+* The date and time of assignment
+* The assignment status
+* Any applicable expiry date
+* The source of access, such as purchase, renewal, promotion, manual assignment, complimentary access, or administrative correction
+
+A customer with an active administrator-assigned tool should be able to access the relevant review or testimonial form from their account.
+
+## Testimonial Eligibility for Admin-Assigned Users
+
+A customer may submit a testimonial when:
+
+* The customer completed a genuine purchase; or
+* The administrator assigned the relevant tool or service to the customer from the backend.
+
+The administrator should be able to send or activate a testimonial request for an eligible customer.
+
+The testimonial record should privately show whether the customer received access through:
+
+* A completed purchase
+* A renewal
+* An administrator assignment
+* Complimentary access
+* A promotional allocation
+
+This source information should remain private unless the administrator deliberately chooses to disclose it.
+
+Do not automatically publish testimonials submitted by customers with administrator-assigned access. Every testimonial must still pass moderation and receive manual approval before appearing publicly.
+
+The administrator must also be able to create a testimonial manually after receiving the customer’s permission.
+
+## Reviews for Admin-Assigned Tools
+
+A registered customer should be allowed to review a tool when either:
+
+* The tool appears in a successfully paid and completed order belonging to that customer; or
+* The tool has been directly assigned to the customer through the Admin Dashboard and the assignment is active and valid.
+
+The system must prevent customers from reviewing tools they have neither purchased nor received through a valid administrator assignment.
+
+For administrator-assigned tools:
+
+* Link the review to the specific assignment record.
+* Confirm that the assignment belongs to the customer submitting the review.
+* Confirm that the assigned tool matches the tool being reviewed.
+* Prevent multiple reviews for the same assignment unless the administrator permits an updated review after a new assignment or renewal.
+* Stop review eligibility if the assignment is revoked before the customer receives or uses the service.
+* Keep an audit trail of assignment-based review eligibility.
+
+## Review Badge Accuracy
+
+Do not label an administrator-assigned review as “Verified Purchase” unless the customer also has a qualifying completed purchase for that product.
+
+Use separate, accurate statuses:
+
+* **Verified Purchase:** The customer purchased the reviewed product through a successfully paid and completed order.
+* **Verified Access:** The administrator genuinely assigned the tool or service to the customer from the backend.
+* **No Public Badge:** The administrator may choose not to display an access badge publicly.
+
+The administrator must not be able to manually apply either badge without a qualifying purchase or valid assignment record.
+
+Publicly displaying a “Verified Access” badge should be controlled through an Admin Dashboard setting.
+
+## Review Prompt for Admin-Assigned Tools
+
+When the administrator assigns a tool to a customer and enables the review request:
+
+* Ask the customer to review the tool when they next log in or return while authenticated.
+* Show the request no more than once during the same login session.
+* Apply the existing maximum of three separate login-session reminders.
+* Allow the customer to submit the review, close the request, or select “Review later.”
+* Stop displaying the request after the third ignored or dismissed prompt.
+* Stop displaying it immediately after the customer submits a review.
+* Reset the prompt only if the tool is reassigned, renewed, or a new eligible access period is created.
+* Do not count page refreshes as separate login sessions.
+
+The administrator should also be able to disable a review request for an individual assignment.
+
+## Testimonial Display Controls
+
+Add a master Testimonial Display setting to the Admin Dashboard.
+
+At any time, the administrator must be able to:
+
+* Turn the entire public testimonial section on or off
+* Hide the section without deleting existing testimonials
+* Restore the section later with its existing content and ordering
+* Choose which pages display the testimonial section
+* Publish or unpublish individual testimonials
+* Preview the testimonial section before enabling it
+* Set a maximum number of testimonials displayed on each page
+* Reorder published testimonials
+
+When the master testimonial setting is turned off:
+
+* No testimonial section should appear publicly.
+* No testimonial content should be returned through publicly accessible frontend endpoints.
+* Existing testimonials, permissions, moderation statuses, and ordering must remain safely stored in the database.
+* Administrators must still be able to manage testimonials from the backend.
+* The setting must take effect without requiring testimonials to be deleted.
+* The hidden section must not leave empty spaces, broken layouts, headings, or loading placeholders on the page.
+
+The testimonial display status must be controlled from:
+
+**Trust, Reviews & Support → Testimonials**
+
+Include a clear toggle labelled:
+
+**Display Testimonial Section on Website**
+
+The setting should default to off until at least one genuine, approved, and published testimonial is available.
+
+## Additional Admin Dashboard Requirements
+
+Within the **Trust, Reviews & Support** area, add controls for:
+
+### Tool Assignments
+
+* Assign a tool to a registered customer
+* Edit or revoke an assignment
+* Search assignments by customer, tool, status, source, and date
+* View testimonial and review eligibility
+* Enable or disable review invitations
+* Enable or disable testimonial invitations
+* View reviews linked to assignments
+* View testimonials linked to assignments
+* View assignment audit history
+
+### Testimonials
+
+* Master public-display toggle
+* Page-level display controls
+* Individual publish and unpublish controls
+* Assignment-linked testimonial management
+* Preview before publication
+* Permission-to-publish confirmation
+
+### Purchase and Access Reviews
+
+* Reviews linked to completed purchases
+* Reviews linked to administrator assignments
+* Correct automatic badge assignment
+* Filtering by Verified Purchase, Verified Access, or no badge
+* Private access to the related purchase or assignment record
+* Prevention of false badge application
+
+## Additional Testing Requirements
+
+Test all the following:
+
+* Assigning a tool to a registered customer from the backend
+* Customer access to an administrator-assigned tool
+* Review eligibility after an administrator assignment
+* Testimonial eligibility after an administrator assignment
+* Prevention of reviews for tools not purchased or assigned
+* Correct linking of reviews to assignment records
+* Correct linking of testimonials to assignment records
+* Verified Purchase badge appearing only for qualifying purchases
+* Verified Access badge appearing only for valid backend assignments
+* Revoked assignments no longer creating new review eligibility
+* Three-login reminder limit for assigned tools
+* Review-prompt reset after a genuine reassignment or renewal
+* Disabling review and testimonial invitations for individual assignments
+* Turning off the entire public testimonial section
+* Confirming that testimonials remain stored while publicly hidden
+* Restoring the testimonial section without losing content or ordering
+* Ensuring no empty space remains when the section is disabled
+* Ensuring hidden testimonials are not exposed through public APIs
+* Page-specific testimonial display settings
+* Administrator authorisation and assignment audit history
+
+Include the tool-assignment database tables or fields, access-source logic, badge logic, and testimonial master-toggle implementation in the final completion report.

@@ -119,6 +119,9 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
       paymentIconsEnabled,
       supportPageMessage,
       testimonialsEnabled,
+      maxTestimonialsPerPage,
+      testimonialDisplayPages,
+      verifiedAccessBadgeEnabled,
       customersServedBaseline,
       customersServedCountingMethod,
       customersServedManualCorrection,
@@ -138,6 +141,9 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
       paymentIconsEnabled?: boolean;
       supportPageMessage?: string | null;
       testimonialsEnabled?: boolean;
+      maxTestimonialsPerPage?: number;
+      testimonialDisplayPages?: string[];
+      verifiedAccessBadgeEnabled?: boolean;
       customersServedBaseline?: number;
       customersServedCountingMethod?: string;
       customersServedManualCorrection?: number;
@@ -171,6 +177,14 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
       res.status(400).json({ error: "Counting method must be 'unique_customers' or 'orders'." });
       return;
     }
+    if (maxTestimonialsPerPage !== undefined && (!Number.isInteger(maxTestimonialsPerPage) || maxTestimonialsPerPage < 1)) {
+      res.status(400).json({ error: "Max testimonials per page must be a positive whole number." });
+      return;
+    }
+    if (testimonialDisplayPages !== undefined && !Array.isArray(testimonialDisplayPages)) {
+      res.status(400).json({ error: "testimonialDisplayPages must be an array of page identifiers." });
+      return;
+    }
 
     await ensureSettings();
 
@@ -193,6 +207,9 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
     if (paymentIconsEnabled !== undefined) updates.paymentIconsEnabled = paymentIconsEnabled;
     if (supportPageMessage !== undefined) updates.supportPageMessage = supportPageMessage ? supportPageMessage.trim() : null;
     if (testimonialsEnabled !== undefined) updates.testimonialsEnabled = testimonialsEnabled;
+    if (maxTestimonialsPerPage !== undefined) updates.maxTestimonialsPerPage = maxTestimonialsPerPage;
+    if (testimonialDisplayPages !== undefined) updates.testimonialDisplayPages = testimonialDisplayPages.map((p) => p.trim()).filter(Boolean);
+    if (verifiedAccessBadgeEnabled !== undefined) updates.verifiedAccessBadgeEnabled = verifiedAccessBadgeEnabled;
     if (customersServedBaseline !== undefined) updates.customersServedBaseline = customersServedBaseline;
     if (customersServedCountingMethod !== undefined) updates.customersServedCountingMethod = customersServedCountingMethod;
     if (customersServedManualCorrection !== undefined) updates.customersServedManualCorrection = customersServedManualCorrection;

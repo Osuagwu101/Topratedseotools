@@ -23,6 +23,10 @@ export interface SiteSettings {
   supportPageMessage: string | null;
   // Testimonials
   testimonialsEnabled: boolean;
+  maxTestimonialsPerPage: number;
+  testimonialDisplayPages: string[];
+  // Review badges
+  verifiedAccessBadgeEnabled: boolean;
   // Customers served counter
   customersServedBaseline: number;
   customersServedCountingMethod: string;
@@ -49,7 +53,10 @@ const DEFAULTS: SiteSettings = {
   whatsappEnabled: false,
   paymentIconsEnabled: true,
   supportPageMessage: "For the fastest response, please reach out to us on WhatsApp. We typically reply within minutes.",
-  testimonialsEnabled: true,
+  testimonialsEnabled: false,
+  maxTestimonialsPerPage: 9,
+  testimonialDisplayPages: ["home"],
+  verifiedAccessBadgeEnabled: true,
   customersServedBaseline: 100,
   customersServedCountingMethod: "unique_customers",
   customersServedManualCorrection: 0,

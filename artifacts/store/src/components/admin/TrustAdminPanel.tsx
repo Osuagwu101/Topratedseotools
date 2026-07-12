@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Star, Save, Loader2, Plus, Trash2, GripVertical, Eye, EyeOff, MessageSquareReply, ShieldCheck, AlertTriangle, RefreshCw, Upload, X } from "lucide-react";
 
-type Tab = "contact" | "support" | "whatsapp" | "testimonials" | "reviews" | "counter" | "payments";
+type Tab = "contact" | "support" | "whatsapp" | "testimonials" | "assignments" | "reviews" | "counter" | "payments";
 
 interface Testimonial {
   id: number;
@@ -21,6 +21,13 @@ interface Testimonial {
   sortOrder: number;
   isSample: boolean;
   permissionObtained: boolean;
+  clerkUserId: string | null;
+  orderId: number | null;
+  assignmentId: number | null;
+  source: string | null;
+  approvalStatus: "pending" | "approved" | "rejected";
+  adminCreated: boolean;
+  requestSent: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,7 +35,9 @@ interface Testimonial {
 interface Review {
   id: number;
   clerkUserId: string;
-  orderId: number;
+  orderId: number | null;
+  assignmentId: number | null;
+  source: "purchase" | "assignment";
   productId: number;
   productName?: string;
   rating: number;
@@ -36,6 +45,7 @@ interface Review {
   text: string;
   status: "pending" | "approved" | "rejected" | "hidden";
   verified: boolean;
+  badge: "verified_purchase" | "verified_access" | "none";
   adminReply: string | null;
   adminReplyAt: string | null;
   createdAt: string;
@@ -51,6 +61,27 @@ interface PaymentMethod {
   sortOrder: number;
   isAutoDetected: boolean;
   provider: string;
+}
+
+interface ToolAssignment {
+  id: number;
+  clerkUserId: string;
+  productId: number;
+  productName: string;
+  serverId: number | null;
+  adminUsername: string;
+  source: string;
+  reason: string | null;
+  status: "active" | "revoked" | "expired";
+  reviewInvitationEnabled: boolean;
+  testimonialInvitationEnabled: boolean;
+  startsAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  revokedAt: string | null;
+  revokedBy: string | null;
+  isActive: boolean;
 }
 
 interface CounterData {
@@ -73,6 +104,9 @@ interface SiteSettings {
   paymentIconsEnabled: boolean;
   supportPageMessage: string | null;
   testimonialsEnabled: boolean;
+  maxTestimonialsPerPage: number;
+  testimonialDisplayPages: string[];
+  verifiedAccessBadgeEnabled: boolean;
   customersServedBaseline: number;
   customersServedCountingMethod: string;
   customersServedManualCorrection: number;
@@ -98,7 +132,7 @@ export default function TrustAdminPanel({ token }: { token: string }) {
 
   // Reviews
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [reviewFilter, setReviewFilter] = useState({ status: "", productId: "", rating: "" });
+  const [reviewFilter, setReviewFilter] = useState({ status: "", productId: "", rating: "", badge: "", source: "" });
   const [replyReview, setReplyReview] = useState<Review | null>(null);
   const [replyText, setReplyText] = useState("");
   const [deleteReviewId, setDeleteReviewId] = useState<number | null>(null);
@@ -114,6 +148,15 @@ export default function TrustAdminPanel({ token }: { token: string }) {
   const [deletePaymentId, setDeletePaymentId] = useState<number | null>(null);
   const paymentIconRef = useRef<HTMLInputElement>(null);
   const [uploadingIconFor, setUploadingIconFor] = useState<number | null>(null);
+
+  // Tool assignments
+  const [assignments, setAssignments] = useState<ToolAssignment[]>([]);
+  const [assignmentForm, setAssignmentForm] = useState<Partial<ToolAssignment & { serverId: number | null }>>({ clerkUserId: "", productId: undefined, serverId: null, source: "manual_assignment", reason: "", reviewInvitationEnabled: true, testimonialInvitationEnabled: false, expiresAt: null });
+  const [editingAssignment, setEditingAssignment] = useState<ToolAssignment | null>(null);
+  const [deleteAssignmentId, setDeleteAssignmentId] = useState<number | null>(null);
+  const [assignmentFilter, setAssignmentFilter] = useState({ userId: "", productId: "", status: "" });
+  const [products, setProducts] = useState<{ id: number; name: string }[]>([]);
+  const [servers, setServers] = useState<{ id: number; productId: number; label: string }[]>([]);
 
   const API = `${basePath}/api`;
 
@@ -159,10 +202,28 @@ export default function TrustAdminPanel({ token }: { token: string }) {
     setPaymentMethods(await res.json());
   };
 
+  const loadProducts = async () => {
+    const res = await fetch(`${API}/admin/products`, { headers: authHeaders });
+    if (!res.ok) throw new Error("Failed to load products");
+    const data = await res.json() as { id: number; name: string; servers: { id: number; productId: number; label?: string | null; isAutoLogin?: boolean }[] }[];
+    setProducts(data.map((p) => ({ id: p.id, name: p.name })));
+    setServers(data.flatMap((p) => p.servers.map((s) => ({ id: s.id, productId: p.id, label: s.label || `Server ${s.id}${s.isAutoLogin ? " (auto-login)" : ""}` }))));
+  };
+
+  const loadAssignments = async () => {
+    const params = new URLSearchParams();
+    if (assignmentFilter.userId) params.set("userId", assignmentFilter.userId);
+    if (assignmentFilter.productId) params.set("productId", assignmentFilter.productId);
+    if (assignmentFilter.status) params.set("status", assignmentFilter.status);
+    const res = await fetch(`${API}/admin/tool-assignments?${params.toString()}`, { headers: authHeaders });
+    if (!res.ok) throw new Error("Failed to load tool assignments");
+    setAssignments(await res.json());
+  };
+
   const loadAll = async () => {
     setLoading(true);
     try {
-      await Promise.all([loadSettings(), loadTestimonials(), loadReviews(), loadCounter(), loadPaymentMethods()]);
+      await Promise.all([loadSettings(), loadTestimonials(), loadReviews(), loadCounter(), loadPaymentMethods(), loadProducts(), loadAssignments()]);
     } catch (e) {
       toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to load trust data", variant: "destructive" });
     } finally {
@@ -176,7 +237,11 @@ export default function TrustAdminPanel({ token }: { token: string }) {
 
   useEffect(() => {
     loadReviews();
-  }, [reviewFilter.status, reviewFilter.productId, reviewFilter.rating]);
+  }, [reviewFilter.status, reviewFilter.productId, reviewFilter.rating, reviewFilter.badge, reviewFilter.source]);
+
+  useEffect(() => {
+    loadAssignments();
+  }, [assignmentFilter.userId, assignmentFilter.productId, assignmentFilter.status]);
 
   const saveSettings = async (patch: Partial<SiteSettings>) => {
     const res = await fetch(`${API}/admin/site-settings`, {
@@ -200,6 +265,16 @@ export default function TrustAdminPanel({ token }: { token: string }) {
       hidden: "bg-gray-100 text-gray-600",
     };
     return <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${map[status] ?? "bg-gray-100 text-gray-600"}`}>{status}</span>;
+  };
+
+  const badgeBadge = (badge: Review["badge"]) => {
+    if (badge === "verified_purchase") {
+      return <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-700 bg-green-100 px-2 py-0.5 rounded-full"><ShieldCheck className="w-3 h-3" /> Verified Purchase</span>;
+    }
+    if (badge === "verified_access") {
+      return <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full"><ShieldCheck className="w-3 h-3" /> Verified Access</span>;
+    }
+    return <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">None</span>;
   };
 
   // ── Contact tab ────────────────────────────────────────────────────────────
@@ -343,6 +418,10 @@ export default function TrustAdminPanel({ token }: { token: string }) {
 
   // ── Testimonials tab ───────────────────────────────────────────────────────
   const TestimonialsTab = () => {
+    const filteredTestimonials = testimonials.filter((t) => {
+      const approvalMatches = (testimonialForm as any);
+      return true;
+    });
     const submitTestimonial = async () => {
       const body = {
         displayName: testimonialForm.displayName?.trim(),
@@ -352,6 +431,13 @@ export default function TrustAdminPanel({ token }: { token: string }) {
         published: testimonialForm.published,
         permissionObtained: testimonialForm.permissionObtained,
         isSample: false,
+        source: testimonialForm.source ?? "manual",
+        approvalStatus: testimonialForm.approvalStatus ?? "pending",
+        clerkUserId: testimonialForm.clerkUserId || null,
+        orderId: testimonialForm.orderId ?? null,
+        assignmentId: testimonialForm.assignmentId ?? null,
+        adminCreated: testimonialForm.adminCreated ?? false,
+        requestSent: testimonialForm.requestSent ?? false,
       };
       if (!body.displayName || !body.text) {
         toast({ title: "Missing fields", description: "Display name and testimonial text are required.", variant: "destructive" });
@@ -368,7 +454,7 @@ export default function TrustAdminPanel({ token }: { token: string }) {
         toast({ title: "Error", description: data.error || "Failed to save", variant: "destructive" });
         return;
       }
-      setTestimonialForm({ displayName: "", jobTitle: "", text: "", rating: 5, published: false, permissionObtained: false });
+      setTestimonialForm({ displayName: "", jobTitle: "", text: "", rating: 5, published: false, permissionObtained: false, source: "manual", approvalStatus: "pending", clerkUserId: null, orderId: null, assignmentId: null, adminCreated: false, requestSent: false });
       setEditingTestimonial(null);
       await loadTestimonials();
       toast({ title: "Saved" });
@@ -379,10 +465,14 @@ export default function TrustAdminPanel({ token }: { token: string }) {
         toast({ title: "Cannot publish sample", description: "Sample testimonials must be edited and have permission obtained before publishing.", variant: "destructive" });
         return;
       }
+      if (!t.published && (t.approvalStatus !== "approved" || !t.permissionObtained)) {
+        const proceed = window.confirm("This testimonial is not approved or permission is not obtained. Publish anyway?");
+        if (!proceed) return;
+      }
       const res = await fetch(`${API}/admin/testimonials/${t.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({ published: !t.published }),
+        body: JSON.stringify({ published: !t.published, forcePublish: true }),
       });
       if (res.ok) await loadTestimonials();
     };
@@ -467,6 +557,29 @@ export default function TrustAdminPanel({ token }: { token: string }) {
             rows={3}
             className="mb-4"
           />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={testimonialForm.source ?? "manual"} onChange={(e) => setTestimonialForm((f) => ({ ...f, source: e.target.value }))}>
+              <option value="manual">Manual</option>
+              <option value="assignment">Assignment</option>
+              <option value="purchase">Purchase</option>
+            </select>
+            <Input placeholder="Clerk user ID" value={testimonialForm.clerkUserId ?? ""} onChange={(e) => setTestimonialForm((f) => ({ ...f, clerkUserId: e.target.value }))} />
+            <Input placeholder="Order ID" value={testimonialForm.orderId ?? ""} onChange={(e) => setTestimonialForm((f) => ({ ...f, orderId: e.target.value ? Number(e.target.value) : null }))} />
+            <Input placeholder="Assignment ID" value={testimonialForm.assignmentId ?? ""} onChange={(e) => setTestimonialForm((f) => ({ ...f, assignmentId: e.target.value ? Number(e.target.value) : null }))} />
+            <select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={testimonialForm.approvalStatus ?? "pending"} onChange={(e) => setTestimonialForm((f) => ({ ...f, approvalStatus: e.target.value as Testimonial["approvalStatus"] }))}>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={testimonialForm.adminCreated ?? false} onChange={(e) => setTestimonialForm((f) => ({ ...f, adminCreated: e.target.checked }))} className="w-4 h-4 rounded accent-primary" />
+              <label className="text-sm font-medium">Admin created</label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={testimonialForm.requestSent ?? false} onChange={(e) => setTestimonialForm((f) => ({ ...f, requestSent: e.target.checked }))} className="w-4 h-4 rounded accent-primary" />
+              <label className="text-sm font-medium">Request sent</label>
+            </div>
+          </div>
           <div className="flex items-center gap-4 mb-4">
             <label className="text-sm font-medium">Rating</label>
             <div className="flex items-center gap-1">
@@ -541,6 +654,14 @@ export default function TrustAdminPanel({ token }: { token: string }) {
                       {t.jobTitle && <div className="text-xs text-muted-foreground font-semibold">{t.jobTitle}</div>}
                       <div className="flex items-center gap-1 mt-1">
                         {t.rating && Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`w-3.5 h-3.5 ${i < t.rating! ? "text-yellow-500 fill-yellow-500" : "text-gray-300"}`} />)}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {statusBadge(t.approvalStatus)}
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{t.source || "manual"}</span>
+                        {t.orderId != null && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Order #{t.orderId}</span>}
+                        {t.assignmentId != null && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">Assignment #{t.assignmentId}</span>}
+                        {t.adminCreated && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Admin created</span>}
+                        {t.requestSent && <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">Request sent</span>}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -639,6 +760,11 @@ export default function TrustAdminPanel({ token }: { token: string }) {
 
   // ── Reviews tab ────────────────────────────────────────────────────────────
   const ReviewsTab = () => {
+    const filteredReviews = reviews.filter((r) => {
+      if (reviewFilter.badge && r.badge !== reviewFilter.badge) return false;
+      if (reviewFilter.source && r.source !== reviewFilter.source) return false;
+      return true;
+    });
     const updateStatus = async (id: number, status: Review["status"]) => {
       const res = await fetch(`${API}/admin/reviews/${id}/status`, {
         method: "PUT",
@@ -707,11 +833,22 @@ export default function TrustAdminPanel({ token }: { token: string }) {
               <option value="2">2 stars</option>
               <option value="1">1 star</option>
             </select>
+            <select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={reviewFilter.badge} onChange={(e) => setReviewFilter((f) => ({ ...f, badge: e.target.value }))}>
+              <option value="">All badges</option>
+              <option value="verified_purchase">Verified purchase</option>
+              <option value="verified_access">Verified access</option>
+              <option value="none">None</option>
+            </select>
+            <select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={reviewFilter.source} onChange={(e) => setReviewFilter((f) => ({ ...f, source: e.target.value }))}>
+              <option value="">All sources</option>
+              <option value="purchase">Purchase</option>
+              <option value="assignment">Assignment</option>
+            </select>
           </div>
         </Card>
 
         <div className="space-y-4">
-          {reviews.map((r) => (
+          {filteredReviews.map((r) => (
             <Card key={r.id} className="p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
@@ -720,17 +857,14 @@ export default function TrustAdminPanel({ token }: { token: string }) {
                       {Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`w-4 h-4 ${i < r.rating ? "text-yellow-500 fill-yellow-500" : "text-gray-300"}`} />)}
                     </div>
                     {statusBadge(r.status)}
-                    {r.verified && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-                        <ShieldCheck className="w-3 h-3" /> Verified Purchase
-                      </span>
-                    )}
+                    {r.verified && <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-700 bg-green-100 px-2 py-0.5 rounded-full"><ShieldCheck className="w-3 h-3" /> Verified Purchase</span>}
+                    {badgeBadge(r.badge)}
                     <span className="text-xs text-muted-foreground font-semibold">{new Date(r.createdAt).toLocaleString()}</span>
                   </div>
                   {r.title && <h4 className="font-bold mb-1">{r.title}</h4>}
                   <p className="text-foreground font-medium leading-relaxed mb-3">{r.text}</p>
                   <div className="text-xs text-muted-foreground mb-3">
-                    Product ID: {r.productId}{r.productName ? ` — ${r.productName}` : ""} | Order ID: {r.orderId} | Customer: {r.clerkUserId}
+                    Product ID: {r.productId}{r.productName ? ` — ${r.productName}` : ""} | Order ID: {r.orderId ?? "—"} | Assignment ID: {r.assignmentId ?? "—"} | Source: {r.source} | Customer: {r.clerkUserId}
                   </div>
                   {r.adminReply && (
                     <div className="bg-[#F7F8F9] rounded-xl p-4 border border-border mb-3">
@@ -791,6 +925,31 @@ export default function TrustAdminPanel({ token }: { token: string }) {
         </Dialog>
       </div>
     );
+  };
+
+  const AssignmentsTab = () => {
+    const submitAssignment = async () => {
+      const body = {
+        clerkUserId: assignmentForm.clerkUserId?.trim(),
+        productId: assignmentForm.productId,
+        serverId: assignmentForm.serverId ?? null,
+        source: assignmentForm.source?.trim(),
+        reason: assignmentForm.reason?.trim() || null,
+        expiresAt: assignmentForm.expiresAt || null,
+        reviewInvitationEnabled: assignmentForm.reviewInvitationEnabled ?? false,
+        testimonialInvitationEnabled: assignmentForm.testimonialInvitationEnabled ?? false,
+      };
+      if (!body.clerkUserId || !body.productId || !body.source) return;
+      const url = editingAssignment ? `${API}/admin/tool-assignments/${editingAssignment.id}` : `${API}/admin/tool-assignments`;
+      const res = await fetch(url, { method: editingAssignment ? "PUT" : "POST", headers: { "Content-Type": "application/json", ...authHeaders }, body: JSON.stringify(body) });
+      if (res.ok) {
+        setEditingAssignment(null);
+        await loadAssignments();
+        toast({ title: "Saved" });
+      }
+    };
+    const filteredAssignments = assignments.filter((a) => (!assignmentFilter.userId || a.clerkUserId.includes(assignmentFilter.userId)) && (!assignmentFilter.productId || String(a.productId) === assignmentFilter.productId) && (!assignmentFilter.status || a.status === assignmentFilter.status));
+    return <div className="space-y-6"><Card className="p-4"><div className="flex flex-wrap gap-3"><Input placeholder="User ID" value={assignmentFilter.userId} onChange={(e) => setAssignmentFilter((f) => ({ ...f, userId: e.target.value }))} /><Input placeholder="Product ID" className="w-32" value={assignmentFilter.productId} onChange={(e) => setAssignmentFilter((f) => ({ ...f, productId: e.target.value }))} /><select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={assignmentFilter.status} onChange={(e) => setAssignmentFilter((f) => ({ ...f, status: e.target.value }))}><option value="">All statuses</option><option value="active">Active</option><option value="revoked">Revoked</option><option value="expired">Expired</option></select></div></Card><Card className="p-6"><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4"><Input placeholder="Clerk user ID" value={assignmentForm.clerkUserId ?? ""} onChange={(e) => setAssignmentForm((f) => ({ ...f, clerkUserId: e.target.value }))} /><select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={assignmentForm.productId ?? ""} onChange={(e) => { const v = e.target.value ? Number(e.target.value) : undefined; setAssignmentForm((f) => ({ ...f, productId: v, serverId: null })); }}><option value="">Select product</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select><select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={assignmentForm.serverId ?? ""} onChange={(e) => setAssignmentForm((f) => ({ ...f, serverId: e.target.value ? Number(e.target.value) : null }))}><option value="">Optional server</option>{servers.filter((s) => !assignmentForm.productId || s.productId === assignmentForm.productId).map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select><select className="h-10 px-3 rounded-md border border-input bg-background text-sm" value={assignmentForm.source ?? "manual"} onChange={(e) => setAssignmentForm((f) => ({ ...f, source: e.target.value }))}><option value="manual">Manual</option><option value="purchase">Purchase</option><option value="assignment">Assignment</option></select><Textarea placeholder="Reason" value={assignmentForm.reason ?? ""} onChange={(e) => setAssignmentForm((f) => ({ ...f, reason: e.target.value }))} rows={3} /><Input type="datetime-local" value={assignmentForm.expiresAt ?? ""} onChange={(e) => setAssignmentForm((f) => ({ ...f, expiresAt: e.target.value }))} /><div className="flex items-center gap-3"><input type="checkbox" checked={assignmentForm.reviewInvitationEnabled ?? false} onChange={(e) => setAssignmentForm((f) => ({ ...f, reviewInvitationEnabled: e.target.checked }))} /><span>Review invitation</span></div><div className="flex items-center gap-3"><input type="checkbox" checked={assignmentForm.testimonialInvitationEnabled ?? false} onChange={(e) => setAssignmentForm((f) => ({ ...f, testimonialInvitationEnabled: e.target.checked }))} /><span>Testimonial invitation</span></div></div><Button onClick={submitAssignment}><Plus className="w-4 h-4 mr-2" />{editingAssignment ? "Update" : "Add"}</Button></Card><div className="space-y-3">{filteredAssignments.map((a) => <Card key={a.id} className="p-4"><div className="flex items-start justify-between gap-4"><div><div className="font-bold">{a.productName}</div><div className="text-xs text-muted-foreground">User {a.clerkUserId} · {a.source} · {a.status} · Expires {a.expiresAt ?? "—"}</div><div className="text-xs text-muted-foreground">Review invite: {String(a.reviewInvitationEnabled)} · Testimonial invite: {String(a.testimonialInvitationEnabled)} · Active: {String(a.isActive)}</div></div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => { setActiveTab("reviews"); setReviewFilter((f) => ({ ...f, source: "assignment" })); }}>Reviews</Button><Button variant="outline" size="sm" onClick={() => { setActiveTab("testimonials"); setTestimonialForm((f) => ({ ...f, source: "assignment" })); }}>Testimonials</Button><Button variant="outline" size="sm" onClick={() => { setEditingAssignment(a); setAssignmentForm({ ...a, productId: a.productId, serverId: a.serverId, source: a.source, reason: a.reason ?? "", reviewInvitationEnabled: a.reviewInvitationEnabled, testimonialInvitationEnabled: a.testimonialInvitationEnabled, expiresAt: a.expiresAt }); }}>Edit</Button><Button variant="destructive" size="sm" onClick={async () => { if (!window.confirm("Revoke this assignment?")) return; await fetch(`${API}/admin/tool-assignments/${a.id}`, { method: "DELETE", headers: authHeaders }); await loadAssignments(); toast({ title: "Revoked" }); }}>Revoke</Button></div></div></Card>)}</div></div>;
   };
 
   // ── Counter tab ────────────────────────────────────────────────────────────
@@ -1099,6 +1258,7 @@ export default function TrustAdminPanel({ token }: { token: string }) {
           <TabsTrigger value="support">Support Page</TabsTrigger>
           <TabsTrigger value="whatsapp">WhatsApp Support</TabsTrigger>
           <TabsTrigger value="testimonials">Testimonials</TabsTrigger>
+          <TabsTrigger value="assignments">Assignments</TabsTrigger>
           <TabsTrigger value="reviews">Purchase Reviews</TabsTrigger>
           <TabsTrigger value="counter">Customer Counter</TabsTrigger>
           <TabsTrigger value="payments">Payment Methods</TabsTrigger>
@@ -1108,6 +1268,7 @@ export default function TrustAdminPanel({ token }: { token: string }) {
         <TabsContent value="support"><SupportPageTab /></TabsContent>
         <TabsContent value="whatsapp"><WhatsAppTab /></TabsContent>
         <TabsContent value="testimonials"><TestimonialsTab /></TabsContent>
+        <TabsContent value="assignments"><AssignmentsTab /></TabsContent>
         <TabsContent value="reviews"><ReviewsTab /></TabsContent>
         <TabsContent value="counter"><CounterTab /></TabsContent>
         <TabsContent value="payments"><PaymentsTab /></TabsContent>

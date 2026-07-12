@@ -3,6 +3,7 @@ export * from "./orders";
 export * from "./toolServers";
 export * from "./userDeviceSessions";
 export * from "./toolEntitlements";
+export * from "./toolAssignments";
 export * from "./userDailyUsage";
 export * from "./siteSettings";
 export * from "./conversionEvents";

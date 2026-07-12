@@ -5,7 +5,8 @@ import { z } from "zod/v4";
 export const reviewsTable = pgTable("reviews", {
   id: serial("id").primaryKey(),
   clerkUserId: text("clerk_user_id").notNull(),
-  orderId: integer("order_id").notNull(),
+  orderId: integer("order_id"),
+  assignmentId: integer("assignment_id"),
   productId: integer("product_id").notNull(),
   rating: integer("rating").notNull(),
   title: text("title"),
@@ -13,6 +14,8 @@ export const reviewsTable = pgTable("reviews", {
   // pending, approved, rejected, hidden
   status: text("status").notNull().default("pending"),
   verified: boolean("verified").notNull().default(false),
+  // verified_purchase, verified_access, none
+  badge: text("badge").notNull().default("none"),
   adminReply: text("admin_reply"),
   adminReplyAt: timestamp("admin_reply_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -24,15 +27,18 @@ export const reviewPromptsTable = pgTable(
   {
     id: serial("id").primaryKey(),
     clerkUserId: text("clerk_user_id").notNull(),
-    orderId: integer("order_id").notNull(),
+    orderId: integer("order_id"),
+    assignmentId: integer("assignment_id"),
     productId: integer("product_id").notNull(),
     promptCount: integer("prompt_count").notNull().default(0),
     lastPromptedAt: timestamp("last_prompted_at"),
     reviewedAt: timestamp("reviewed_at"),
     dismissedAt: timestamp("dismissed_at"),
+    // purchase, assignment
+    source: text("source").notNull().default("purchase"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [uniqueIndex("review_prompts_user_order_product_idx").on(table.clerkUserId, table.orderId, table.productId)],
+  (table) => [uniqueIndex("review_prompts_user_order_assignment_product_idx").on(table.clerkUserId, table.orderId, table.assignmentId, table.productId)],
 );
 
 export const insertReviewSchema = createInsertSchema(reviewsTable).omit({ id: true, createdAt: true, updatedAt: true, verified: true, status: true, adminReply: true, adminReplyAt: true });

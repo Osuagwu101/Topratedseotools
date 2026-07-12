@@ -12,17 +12,17 @@ interface Testimonial {
   sortOrder: number;
 }
 
-export function Testimonials() {
+export function Testimonials({ page = "home" }: { page?: string }) {
   const [items, setItems] = useState<Testimonial[]>([]);
   const { settings } = useSiteSettings();
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
   useEffect(() => {
-    fetch(`${basePath}/api/testimonials`)
+    fetch(`${basePath}/api/testimonials?page=${encodeURIComponent(page)}`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setItems(Array.isArray(data) ? data : []))
       .catch(() => setItems([]));
-  }, [basePath]);
+  }, [basePath, page]);
 
   if (!settings.testimonialsEnabled) return null;
   if (items.length === 0) return null;

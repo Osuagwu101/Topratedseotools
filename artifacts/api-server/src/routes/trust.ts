@@ -11,8 +11,10 @@ import {
   customerCounterAuditTable,
   ordersTable,
   productsTable,
+  toolAssignmentsTable,
+  toolEntitlementsTable,
 } from "@workspace/db";
-import { eq, and, desc, asc, ne, sql, count, isNull, gte, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, ne, sql, count, isNull, isNotNull, gte, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import sharp from "sharp";
 import { randomUUID } from "crypto";
@@ -162,6 +164,13 @@ router.post("/admin/testimonials", requireAdmin, async (req, res): Promise<void>
     published?: unknown;
     isSample?: unknown;
     permissionObtained?: unknown;
+    clerkUserId?: unknown;
+    orderId?: unknown;
+    assignmentId?: unknown;
+    source?: unknown;
+    approvalStatus?: unknown;
+    adminCreated?: unknown;
+    requestSent?: unknown;
   };
   const displayName = typeof body.displayName === "string" ? body.displayName.trim() : "";
   const text = typeof body.text === "string" ? body.text.trim() : "";
@@ -170,6 +179,10 @@ router.post("/admin/testimonials", requireAdmin, async (req, res): Promise<void>
     return;
   }
   const rating = typeof body.rating === "number" ? Math.min(5, Math.max(1, Math.round(body.rating))) : null;
+  const source = typeof body.source === "string" && body.source ? body.source : "manual";
+  const approvalStatus = typeof body.approvalStatus === "string" && ["pending", "approved", "rejected"].includes(body.approvalStatus)
+    ? body.approvalStatus
+    : "pending";
   const [max] = await db.select({ max: sql<number>`coalesce(max(sort_order), 0)` }).from(testimonialsTable);
   const [created] = await db
     .insert(testimonialsTable)
@@ -178,9 +191,16 @@ router.post("/admin/testimonials", requireAdmin, async (req, res): Promise<void>
       jobTitle: typeof body.jobTitle === "string" ? body.jobTitle.trim() || null : null,
       text,
       rating,
-      published: body.published === true,
+      published: body.published === true && approvalStatus === "approved",
       isSample: body.isSample === true,
       permissionObtained: body.permissionObtained === true,
+      clerkUserId: typeof body.clerkUserId === "string" ? body.clerkUserId || null : null,
+      orderId: typeof body.orderId === "number" ? body.orderId : null,
+      assignmentId: typeof body.assignmentId === "number" ? body.assignmentId : null,
+      source,
+      approvalStatus,
+      adminCreated: body.adminCreated === true,
+      requestSent: body.requestSent === true,
       sortOrder: (max?.max ?? 0) + 1,
     })
     .returning();
@@ -193,6 +213,11 @@ router.put("/admin/testimonials/:id", requireAdmin, async (req, res): Promise<vo
     res.status(400).json({ error: "Invalid id" });
     return;
   }
+  const [existing] = await db.select().from(testimonialsTable).where(eq(testimonialsTable.id, id));
+  if (!existing) {
+    res.status(404).json({ error: "Testimonial not found" });
+    return;
+  }
   const body = req.body as Record<string, unknown>;
   const updates: Partial<Record<string, unknown>> = { updatedAt: new Date() };
   if (typeof body.displayName === "string") updates.displayName = body.displayName.trim();
@@ -203,16 +228,34 @@ router.put("/admin/testimonials/:id", requireAdmin, async (req, res): Promise<vo
   if (typeof body.published === "boolean") updates.published = body.published;
   if (typeof body.isSample === "boolean") updates.isSample = body.isSample;
   if (typeof body.permissionObtained === "boolean") updates.permissionObtained = body.permissionObtained;
+  if (typeof body.clerkUserId === "string") updates.clerkUserId = body.clerkUserId || null;
+  if (typeof body.orderId === "number") updates.orderId = body.orderId;
+  if (body.orderId === null) updates.orderId = null;
+  if (typeof body.assignmentId === "number") updates.assignmentId = body.assignmentId;
+  if (body.assignmentId === null) updates.assignmentId = null;
+  if (typeof body.source === "string") updates.source = body.source;
+  if (typeof body.approvalStatus === "string" && ["pending", "approved", "rejected"].includes(body.approvalStatus)) {
+    updates.approvalStatus = body.approvalStatus;
+  }
+  if (typeof body.adminCreated === "boolean") updates.adminCreated = body.adminCreated;
+  if (typeof body.requestSent === "boolean") updates.requestSent = body.requestSent;
   if (typeof body.sortOrder === "number") updates.sortOrder = Math.round(body.sortOrder);
+
+  // Only allow published=true when the testimonial has been approved and permission obtained.
+  if (updates.published === true && !body.forcePublish) {
+    const approvalStatus = (updates.approvalStatus as string | undefined) ?? existing.approvalStatus;
+    const permissionObtained = (updates.permissionObtained as boolean | undefined) ?? existing.permissionObtained;
+    if (approvalStatus !== "approved" || !permissionObtained) {
+      res.status(400).json({ error: "Testimonial must be approved and have permission obtained before publishing." });
+      return;
+    }
+  }
+
   if (Object.keys(updates).length === 1) {
     res.status(400).json({ error: "No valid fields" });
     return;
   }
   const [updated] = await db.update(testimonialsTable).set(updates).where(eq(testimonialsTable.id, id)).returning();
-  if (!updated) {
-    res.status(404).json({ error: "Testimonial not found" });
-    return;
-  }
   res.json(updated);
 });
 
@@ -270,17 +313,25 @@ router.delete("/admin/testimonials/:id/avatar", requireAdmin, async (req, res): 
 
 // ── Testimonials (public) ────────────────────────────────────────────────────
 
-router.get("/testimonials", async (_req, res): Promise<void> => {
+router.get("/testimonials", async (req, res): Promise<void> => {
   const settings = await ensureSettings();
   if (!settings.testimonialsEnabled) {
     res.json([]);
     return;
   }
+  const page = typeof req.query.page === "string" ? req.query.page : "home";
+  const displayPages = settings.testimonialDisplayPages ?? ["home"];
+  if (!displayPages.includes(page)) {
+    res.json([]);
+    return;
+  }
+  const limit = settings.maxTestimonialsPerPage ?? 9;
   const rows = await db
     .select()
     .from(testimonialsTable)
-    .where(eq(testimonialsTable.published, true))
-    .orderBy(asc(testimonialsTable.sortOrder), desc(testimonialsTable.createdAt));
+    .where(and(eq(testimonialsTable.published, true), eq(testimonialsTable.approvalStatus, "approved")))
+    .orderBy(asc(testimonialsTable.sortOrder), desc(testimonialsTable.createdAt))
+    .limit(limit);
   res.json(rows);
 });
 
@@ -290,10 +341,15 @@ router.get("/admin/reviews", requireAdmin, async (req, res): Promise<void> => {
   const statusFilter = typeof req.query.status === "string" ? req.query.status : undefined;
   const productId = typeof req.query.productId === "string" ? parseInt(req.query.productId, 10) : undefined;
   const rating = typeof req.query.rating === "string" ? parseInt(req.query.rating, 10) : undefined;
+  const badgeFilter = typeof req.query.badge === "string" ? req.query.badge : undefined;
+  const source = typeof req.query.source === "string" ? req.query.source : undefined;
   const where = [
     statusFilter ? eq(reviewsTable.status, statusFilter) : undefined,
     productId && !isNaN(productId) ? eq(reviewsTable.productId, productId) : undefined,
     rating && !isNaN(rating) ? eq(reviewsTable.rating, rating) : undefined,
+    badgeFilter ? eq(reviewsTable.badge, badgeFilter) : undefined,
+    source === "purchase" ? and(isNotNull(reviewsTable.orderId), isNull(reviewsTable.assignmentId)) : undefined,
+    source === "assignment" ? isNotNull(reviewsTable.assignmentId) : undefined,
   ].filter(Boolean);
 
   const rows = await db
@@ -308,7 +364,20 @@ router.get("/admin/reviews", requireAdmin, async (req, res): Promise<void> => {
     : [];
   const productNameById = Object.fromEntries(products.map((p) => [p.id, p.name]));
 
-  res.json(rows.map((r) => ({ ...r, productName: productNameById[r.productId] ?? "Unknown" })));
+  const assignmentIds = Array.from(new Set(rows.filter((r) => r.assignmentId).map((r) => r.assignmentId!)));
+  const assignments = assignmentIds.length
+    ? await db.select().from(toolAssignmentsTable).where(inArray(toolAssignmentsTable.id, assignmentIds))
+    : [];
+  const assignmentById = Object.fromEntries(assignments.map((a) => [a.id, a]));
+
+  res.json(
+    rows.map((r) => ({
+      ...r,
+      productName: productNameById[r.productId] ?? "Unknown",
+      source: r.assignmentId ? "assignment" : "purchase",
+      assignment: r.assignmentId ? assignmentById[r.assignmentId] ?? null : null,
+    })),
+  );
 });
 
 router.put("/admin/reviews/:id/status", requireAdmin, async (req, res): Promise<void> => {
@@ -400,6 +469,8 @@ router.get("/users/me/review-prompts", requireAuth, async (req, res): Promise<vo
     return;
   }
 
+  const now = new Date();
+
   // Ensure prompt records exist for every eligible success order product
   const eligibleOrders = await db
     .select({
@@ -436,11 +507,51 @@ router.get("/users/me/review-prompts", requireAuth, async (req, res): Promise<vo
     }
   }
 
+  // Ensure prompt records exist for every eligible active assignment
+  const eligibleAssignments = await db
+    .select({
+      id: toolAssignmentsTable.id,
+      productId: toolAssignmentsTable.productId,
+      expiresAt: toolAssignmentsTable.expiresAt,
+    })
+    .from(toolAssignmentsTable)
+    .where(
+      and(
+        eq(toolAssignmentsTable.clerkUserId, userId),
+        eq(toolAssignmentsTable.status, "active"),
+        eq(toolAssignmentsTable.reviewInvitationEnabled, true),
+      ),
+    );
+
+  for (const assignment of eligibleAssignments) {
+    if (assignment.expiresAt && new Date(assignment.expiresAt) < now) continue;
+    const existing = await db
+      .select()
+      .from(reviewPromptsTable)
+      .where(
+        and(
+          eq(reviewPromptsTable.clerkUserId, userId),
+          eq(reviewPromptsTable.assignmentId, assignment.id),
+          eq(reviewPromptsTable.productId, assignment.productId),
+        ),
+      );
+    if (existing.length === 0) {
+      await db.insert(reviewPromptsTable).values({
+        clerkUserId: userId,
+        assignmentId: assignment.id,
+        productId: assignment.productId,
+        source: "assignment",
+      });
+    }
+  }
+
   // Return prompts that still need a review and have been shown fewer than 3 times
   const prompts = await db
     .select({
       id: reviewPromptsTable.id,
       orderId: reviewPromptsTable.orderId,
+      assignmentId: reviewPromptsTable.assignmentId,
+      source: reviewPromptsTable.source,
       productId: reviewPromptsTable.productId,
       promptCount: reviewPromptsTable.promptCount,
       reviewedAt: reviewPromptsTable.reviewedAt,
@@ -454,16 +565,58 @@ router.get("/users/me/review-prompts", requireAuth, async (req, res): Promise<vo
       ),
     );
 
-  const productIds = Array.from(new Set(prompts.map((p) => p.productId)));
+  // Filter out prompts for revoked/expired assignments or invalid orders
+  const orderIds = prompts.map((p) => p.orderId).filter((id): id is number => id !== null);
+  const assignmentIds = prompts.map((p) => p.assignmentId).filter((id): id is number => id !== null);
+
+  const [validOrders, validAssignments] = await Promise.all([
+    orderIds.length
+      ? db
+          .select({ id: ordersTable.id })
+          .from(ordersTable)
+          .where(
+            and(
+              inArray(ordersTable.id, orderIds),
+              eq(ordersTable.status, "success"),
+              eq(ordersTable.settlementStatus, "valid"),
+            ),
+          )
+      : Promise.resolve([]),
+    assignmentIds.length
+      ? db
+          .select({ id: toolAssignmentsTable.id })
+          .from(toolAssignmentsTable)
+          .where(
+            and(
+              inArray(toolAssignmentsTable.id, assignmentIds),
+              eq(toolAssignmentsTable.status, "active"),
+            ),
+          )
+      : Promise.resolve([]),
+  ]);
+
+  const validOrderIds = new Set(validOrders.map((o) => o.id));
+  const validAssignmentIds = new Set(validAssignments.map((a) => a.id));
+
+  const activePrompts = prompts.filter((p) => {
+    if (p.source === "assignment" || p.assignmentId) {
+      return validAssignmentIds.has(p.assignmentId!);
+    }
+    return validOrderIds.has(p.orderId!);
+  });
+
+  const productIds = Array.from(new Set(activePrompts.map((p) => p.productId)));
   const products = productIds.length
     ? await db.select().from(productsTable).where(inArray(productsTable.id, productIds))
     : [];
   const productNameById = Object.fromEntries(products.map((p) => [p.id, p.name]));
 
   res.json(
-    prompts.map((p) => ({
+    activePrompts.map((p) => ({
       id: p.id,
       orderId: p.orderId,
+      assignmentId: p.assignmentId,
+      source: p.source,
       productId: p.productId,
       productName: productNameById[p.productId] ?? "Unknown",
       promptCount: p.promptCount,
@@ -506,32 +659,69 @@ router.post("/reviews", requireAuth, async (req, res): Promise<void> => {
   }
   const body = req.body as {
     orderId?: unknown;
+    assignmentId?: unknown;
     productId?: unknown;
     rating?: unknown;
     title?: unknown;
     text?: unknown;
   };
-  const orderId = typeof body.orderId === "number" ? body.orderId : parseInt(String(body.orderId), 10);
+  const orderId = body.orderId !== undefined ? (typeof body.orderId === "number" ? body.orderId : parseInt(String(body.orderId), 10)) : null;
+  const assignmentId = body.assignmentId !== undefined ? (typeof body.assignmentId === "number" ? body.assignmentId : parseInt(String(body.assignmentId), 10)) : null;
   const productId = typeof body.productId === "number" ? body.productId : parseInt(String(body.productId), 10);
   const rating = typeof body.rating === "number" ? Math.min(5, Math.max(1, Math.round(body.rating))) : NaN;
   const text = typeof body.text === "string" ? body.text.trim() : "";
-  if (!Number.isInteger(orderId) || !Number.isInteger(productId) || !Number.isInteger(rating) || !text) {
-    res.status(400).json({ error: "orderId, productId, rating (1-5), and text are required" });
+
+  if (!Number.isInteger(productId) || !Number.isInteger(rating) || !text) {
+    res.status(400).json({ error: "productId, rating (1-5), and text are required" });
+    return;
+  }
+  if (!Number.isInteger(orderId) && !Number.isInteger(assignmentId)) {
+    res.status(400).json({ error: "orderId or assignmentId is required" });
+    return;
+  }
+  if (Number.isInteger(orderId) && Number.isInteger(assignmentId)) {
+    res.status(400).json({ error: "Provide either orderId or assignmentId, not both" });
     return;
   }
 
-  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
-  if (!order || order.clerkUserId !== userId || order.productId !== productId || order.status !== "success" || order.settlementStatus !== "valid") {
-    res.status(403).json({ error: "You can only review products from completed, valid purchases." });
-    return;
+  let badge: "verified_purchase" | "verified_access" | "none" = "none";
+  let sourceOrderId: number | null = null;
+  let sourceAssignmentId: number | null = null;
+
+  if (Number.isInteger(orderId)) {
+    const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId!));
+    if (!order || order.clerkUserId !== userId || order.productId !== productId || order.status !== "success" || order.settlementStatus !== "valid") {
+      res.status(403).json({ error: "You can only review products from completed, valid purchases." });
+      return;
+    }
+    sourceOrderId = order.id;
+    badge = "verified_purchase";
   }
 
-  const existing = await db
-    .select()
-    .from(reviewsTable)
-    .where(and(eq(reviewsTable.clerkUserId, userId), eq(reviewsTable.orderId, orderId), eq(reviewsTable.productId, productId)));
+  if (Number.isInteger(assignmentId)) {
+    const [assignment] = await db.select().from(toolAssignmentsTable).where(eq(toolAssignmentsTable.id, assignmentId!));
+    if (!assignment || assignment.clerkUserId !== userId || assignment.productId !== productId || assignment.status !== "active") {
+      res.status(403).json({ error: "You can only review tools from an active, valid assignment." });
+      return;
+    }
+    if (assignment.expiresAt && new Date(assignment.expiresAt) < new Date()) {
+      res.status(403).json({ error: "This assignment has expired." });
+      return;
+    }
+    const settings = await ensureSettings();
+    sourceAssignmentId = assignment.id;
+    badge = settings.verifiedAccessBadgeEnabled ? "verified_access" : "none";
+  }
+
+  const existingWhere = [
+    eq(reviewsTable.clerkUserId, userId),
+    eq(reviewsTable.productId, productId),
+    sourceOrderId ? eq(reviewsTable.orderId, sourceOrderId) : undefined,
+    sourceAssignmentId ? eq(reviewsTable.assignmentId, sourceAssignmentId) : undefined,
+  ].filter(Boolean);
+  const existing = await db.select().from(reviewsTable).where(and(...existingWhere));
   if (existing.length > 0) {
-    res.status(409).json({ error: "You have already reviewed this purchase." });
+    res.status(409).json({ error: "You have already reviewed this product through this access path." });
     return;
   }
 
@@ -539,20 +729,28 @@ router.post("/reviews", requireAuth, async (req, res): Promise<void> => {
     .insert(reviewsTable)
     .values({
       clerkUserId: userId,
-      orderId,
+      orderId: sourceOrderId,
+      assignmentId: sourceAssignmentId,
       productId,
       rating,
       title: typeof body.title === "string" ? body.title.trim() || null : null,
       text,
       status: "pending",
-      verified: true,
+      verified: badge !== "none",
+      badge,
     })
     .returning();
 
   await db
     .update(reviewPromptsTable)
     .set({ reviewedAt: new Date() })
-    .where(and(eq(reviewPromptsTable.clerkUserId, userId), eq(reviewPromptsTable.orderId, orderId), eq(reviewPromptsTable.productId, productId)));
+    .where(
+      and(
+        eq(reviewPromptsTable.clerkUserId, userId),
+        eq(reviewPromptsTable.productId, productId),
+        sourceOrderId ? eq(reviewPromptsTable.orderId, sourceOrderId) : eq(reviewPromptsTable.assignmentId, sourceAssignmentId!),
+      ),
+    );
 
   res.status(201).json(review);
 });

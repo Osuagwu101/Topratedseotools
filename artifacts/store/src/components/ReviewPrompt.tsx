@@ -9,7 +9,9 @@ import { Star, X } from "lucide-react";
 
 interface Prompt {
   id: number;
-  orderId: number;
+  orderId: number | null;
+  assignmentId: number | null;
+  source: "purchase" | "assignment";
   productId: number;
   productName: string;
   promptCount: number;
@@ -70,17 +72,22 @@ export function ReviewPrompt() {
     if (!active || !text.trim()) return;
     setSubmitting(true);
     try {
+      const body: Record<string, unknown> = {
+        productId: active.productId,
+        rating,
+        title: title.trim() || null,
+        text: text.trim(),
+      };
+      if (active.source === "assignment" || active.assignmentId) {
+        body.assignmentId = active.assignmentId;
+      } else {
+        body.orderId = active.orderId;
+      }
       const res = await fetch(`${basePath}/api/reviews`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: active.orderId,
-          productId: active.productId,
-          rating,
-          title: title.trim() || null,
-          text: text.trim(),
-        }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         toast({ title: "Review submitted", description: "Thank you for your feedback!" });
@@ -108,7 +115,9 @@ export function ReviewPrompt() {
         <DialogHeader>
           <DialogTitle className="text-xl font-heading uppercase">How was {active.productName}?</DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            You recently purchased {active.productName}. Share your experience to help others.
+            {active.source === "assignment" || active.assignmentId
+              ? `You have access to ${active.productName}. Share your experience to help others.`
+              : `You recently purchased ${active.productName}. Share your experience to help others.`}
           </DialogDescription>
         </DialogHeader>
 

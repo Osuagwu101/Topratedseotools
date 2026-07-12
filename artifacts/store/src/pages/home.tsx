@@ -84,7 +84,7 @@ export default function Home() {
           </div>
         )}
       </section>
-      <Testimonials />
+      <Testimonials page="home" />
     </Layout>
   );
 }
