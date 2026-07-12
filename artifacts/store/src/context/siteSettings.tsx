@@ -19,6 +19,10 @@ export interface SiteSettings {
   whatsappMessage: string | null;
   whatsappEnabled: boolean;
   paymentIconsEnabled: boolean;
+  // Support page
+  supportPageMessage: string | null;
+  // Testimonials
+  testimonialsEnabled: boolean;
   // Customers served counter
   customersServedBaseline: number;
   customersServedCountingMethod: string;
@@ -44,6 +48,8 @@ const DEFAULTS: SiteSettings = {
   whatsappMessage: "Hello, I need assistance with a product or subscription on Top Rated SEO Tools.",
   whatsappEnabled: false,
   paymentIconsEnabled: true,
+  supportPageMessage: "For the fastest response, please reach out to us on WhatsApp. We typically reply within minutes.",
+  testimonialsEnabled: true,
   customersServedBaseline: 100,
   customersServedCountingMethod: "unique_customers",
   customersServedManualCorrection: 0,

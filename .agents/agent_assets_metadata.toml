@@ -35,3 +35,21 @@ id = "IVRrHbhHyFUWdrH2araCe"
 uri = "file://.agents/screenshots/home-final-icons.jpg"
 type = "image"
 title = "Home page — payment icons, email, WhatsApp, counter, and testimonials"
+
+[[outputs]]
+id = "wi4M-_R5FWDxGVA4u5tEE"
+uri = "file://.agents/screenshots/support-page-fixed.jpg"
+type = "image"
+title = "Support page — shows email and WhatsApp call-to-action"
+
+[[outputs]]
+id = "P7jDmwHsLErJnmn-Canco"
+uri = "file://.agents/screenshots/home-no-email-fixed.jpg"
+type = "image"
+title = "Home page — footer no longer shows the business email"
+
+[[outputs]]
+id = "O-BTOs2pYqxJQ-G_nzS-9"
+uri = "file://.agents/screenshots/home-testimonials-off.jpg"
+type = "image"
+title = "Home page — testimonials section hidden when admin toggle is off"

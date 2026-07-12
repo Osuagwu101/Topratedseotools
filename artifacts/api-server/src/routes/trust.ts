@@ -271,6 +271,11 @@ router.delete("/admin/testimonials/:id/avatar", requireAdmin, async (req, res): 
 // ── Testimonials (public) ────────────────────────────────────────────────────
 
 router.get("/testimonials", async (_req, res): Promise<void> => {
+  const settings = await ensureSettings();
+  if (!settings.testimonialsEnabled) {
+    res.json([]);
+    return;
+  }
   const rows = await db
     .select()
     .from(testimonialsTable)

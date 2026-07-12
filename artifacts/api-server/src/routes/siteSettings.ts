@@ -117,6 +117,8 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
       whatsappMessage,
       whatsappEnabled,
       paymentIconsEnabled,
+      supportPageMessage,
+      testimonialsEnabled,
       customersServedBaseline,
       customersServedCountingMethod,
       customersServedManualCorrection,
@@ -134,6 +136,8 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
       whatsappMessage?: string | null;
       whatsappEnabled?: boolean;
       paymentIconsEnabled?: boolean;
+      supportPageMessage?: string | null;
+      testimonialsEnabled?: boolean;
       customersServedBaseline?: number;
       customersServedCountingMethod?: string;
       customersServedManualCorrection?: number;
@@ -187,6 +191,8 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
     if (whatsappMessage !== undefined) updates.whatsappMessage = whatsappMessage ? whatsappMessage.trim() : null;
     if (whatsappEnabled !== undefined) updates.whatsappEnabled = whatsappEnabled;
     if (paymentIconsEnabled !== undefined) updates.paymentIconsEnabled = paymentIconsEnabled;
+    if (supportPageMessage !== undefined) updates.supportPageMessage = supportPageMessage ? supportPageMessage.trim() : null;
+    if (testimonialsEnabled !== undefined) updates.testimonialsEnabled = testimonialsEnabled;
     if (customersServedBaseline !== undefined) updates.customersServedBaseline = customersServedBaseline;
     if (customersServedCountingMethod !== undefined) updates.customersServedCountingMethod = customersServedCountingMethod;
     if (customersServedManualCorrection !== undefined) updates.customersServedManualCorrection = customersServedManualCorrection;

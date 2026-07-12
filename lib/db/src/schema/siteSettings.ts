@@ -17,6 +17,10 @@ export const siteSettingsTable = pgTable("site_settings", {
   whatsappMessage: text("whatsapp_message").default("Hello, I need assistance with a product or subscription on Top Rated SEO Tools."),
   whatsappEnabled: boolean("whatsapp_enabled").notNull().default(false),
   paymentIconsEnabled: boolean("payment_icons_enabled").notNull().default(true),
+  // Support page
+  supportPageMessage: text("support_page_message").default("For the fastest response, please reach out to us on WhatsApp. We typically reply within minutes."),
+  // Testimonials
+  testimonialsEnabled: boolean("testimonials_enabled").notNull().default(true),
   // Customers served counter
   customersServedBaseline: integer("customers_served_baseline").notNull().default(100),
   customersServedCountingMethod: text("customers_served_counting_method").notNull().default("unique_customers"),

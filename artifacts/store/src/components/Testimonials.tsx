@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Star, Quote } from "lucide-react";
+import { useSiteSettings } from "@/context/siteSettings";
 
 interface Testimonial {
   id: number;
@@ -13,6 +14,7 @@ interface Testimonial {
 
 export function Testimonials() {
   const [items, setItems] = useState<Testimonial[]>([]);
+  const { settings } = useSiteSettings();
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
   useEffect(() => {
@@ -22,6 +24,7 @@ export function Testimonials() {
       .catch(() => setItems([]));
   }, [basePath]);
 
+  if (!settings.testimonialsEnabled) return null;
   if (items.length === 0) return null;
 
   return (

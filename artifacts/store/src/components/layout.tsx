@@ -145,9 +145,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Link href="/" className="hidden sm:block hover:text-primary transition-colors" data-testid="link-nav-catalog">
               Catalog
             </Link>
-            <a href="#" className="hidden sm:block hover:text-primary transition-colors" data-testid="link-nav-support">
+            <Link href="/support" className="hidden sm:block hover:text-primary transition-colors" data-testid="link-nav-support">
               Support
-            </a>
+            </Link>
             <CurrencySwitcher />
             <NavAuth />
           </nav>
@@ -183,18 +183,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <span className="font-semibold text-muted-foreground ml-2 text-sm">&copy; {copyrightYear}</span>
           </div>
           <div className="flex flex-col items-center md:items-end gap-4">
-            {settings.businessEmailPublic && settings.businessEmail && (
-              <div className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">Contact: </span>
-                {settings.businessEmailClickable ? (
-                  <a href={`mailto:${settings.businessEmail}`} className="text-primary hover:underline font-semibold">
-                    {settings.businessEmail}
-                  </a>
-                ) : (
-                  <span className="font-semibold">{settings.businessEmail}</span>
-                )}
-              </div>
-            )}
             <PaymentIcons />
             <p className="text-xs text-muted-foreground max-w-xs md:max-w-sm text-center md:text-right leading-relaxed">
               {settings.paymentFooterText}

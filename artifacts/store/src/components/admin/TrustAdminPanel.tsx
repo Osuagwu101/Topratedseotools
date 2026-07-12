@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Star, Save, Loader2, Plus, Trash2, GripVertical, Eye, EyeOff, MessageSquareReply, ShieldCheck, AlertTriangle, RefreshCw, Upload, X } from "lucide-react";
 
-type Tab = "contact" | "whatsapp" | "testimonials" | "reviews" | "counter" | "payments";
+type Tab = "contact" | "support" | "whatsapp" | "testimonials" | "reviews" | "counter" | "payments";
 
 interface Testimonial {
   id: number;
@@ -71,6 +71,8 @@ interface SiteSettings {
   whatsappMessage: string | null;
   whatsappEnabled: boolean;
   paymentIconsEnabled: boolean;
+  supportPageMessage: string | null;
+  testimonialsEnabled: boolean;
   customersServedBaseline: number;
   customersServedCountingMethod: string;
   customersServedManualCorrection: number;
@@ -254,6 +256,41 @@ export default function TrustAdminPanel({ token }: { token: string }) {
     </div>
   );
 
+  // ── Support Page tab ─────────────────────────────────────────────────────
+  const SupportPageTab = () => (
+    <div className="space-y-6">
+      <Card className="p-6">
+        <h3 className="text-lg font-bold mb-4">Support Page Message</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          This message is shown on the public <strong>/support</strong> page. It should encourage visitors to use WhatsApp for a quick response.
+        </p>
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">Message</label>
+            <Textarea
+              value={settings?.supportPageMessage ?? ""}
+              onChange={(e) => setSettings((s) => ({ ...s!, supportPageMessage: e.target.value }))}
+              rows={4}
+              placeholder="For the fastest response, please reach out to us on WhatsApp. We typically reply within minutes."
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button
+              onClick={() =>
+                saveSettings({
+                  supportPageMessage: settings?.supportPageMessage ?? null,
+                })
+              }
+              className="bg-primary hover:bg-primary/90 text-white"
+            >
+              <Save className="w-4 h-4 mr-2" /> Save Support Message
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+
   // ── WhatsApp tab ───────────────────────────────────────────────────────────
   const WhatsAppTab = () => (
     <Card className="p-6">
@@ -381,6 +418,34 @@ export default function TrustAdminPanel({ token }: { token: string }) {
 
     return (
       <div className="space-y-6">
+        <Card className="p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-bold">Show Testimonials</h3>
+              <p className="text-sm text-muted-foreground">Toggle the public testimonials section on or off.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                id="testimonials-enabled"
+                type="checkbox"
+                checked={settings?.testimonialsEnabled ?? true}
+                onChange={(e) => setSettings((s) => ({ ...s!, testimonialsEnabled: e.target.checked }))}
+                className="w-5 h-5 rounded accent-primary"
+              />
+              <label htmlFor="testimonials-enabled" className="text-sm font-medium">
+                {settings?.testimonialsEnabled ?? true ? "On" : "Off"}
+              </label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => saveSettings({ testimonialsEnabled: settings?.testimonialsEnabled ?? true })}
+              >
+                Save Toggle
+              </Button>
+            </div>
+          </div>
+        </Card>
+
         <Card className="p-6">
           <h3 className="text-lg font-bold mb-4">{editingTestimonial ? "Edit Testimonial" : "Add Testimonial"}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -1031,6 +1096,7 @@ export default function TrustAdminPanel({ token }: { token: string }) {
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)}>
         <TabsList className="mb-6 flex flex-wrap h-auto">
           <TabsTrigger value="contact">Contact Information</TabsTrigger>
+          <TabsTrigger value="support">Support Page</TabsTrigger>
           <TabsTrigger value="whatsapp">WhatsApp Support</TabsTrigger>
           <TabsTrigger value="testimonials">Testimonials</TabsTrigger>
           <TabsTrigger value="reviews">Purchase Reviews</TabsTrigger>
@@ -1039,6 +1105,7 @@ export default function TrustAdminPanel({ token }: { token: string }) {
         </TabsList>
 
         <TabsContent value="contact"><ContactTab /></TabsContent>
+        <TabsContent value="support"><SupportPageTab /></TabsContent>
         <TabsContent value="whatsapp"><WhatsAppTab /></TabsContent>
         <TabsContent value="testimonials"><TestimonialsTab /></TabsContent>
         <TabsContent value="reviews"><ReviewsTab /></TabsContent>

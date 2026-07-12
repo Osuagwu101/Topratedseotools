@@ -14,6 +14,7 @@ import Checkout from "@/pages/checkout";
 import Success from "@/pages/success";
 import Dashboard from "@/pages/dashboard";
 import AdminPanel from "@/pages/admin";
+import Support from "@/pages/support";
 import NotFound from "@/pages/not-found";
 import { setDeviceId, ApiError } from "@workspace/api-client-react";
 import { PhoneOff } from "lucide-react";
@@ -261,6 +262,7 @@ function Router() {
         <Route path="/sign-in/*?" component={SignInPage} />
         <Route path="/sign-up/*?" component={SignUpPage} />
         <Route path="/admin" component={AdminPanel} />
+        <Route path="/support" component={Support} />
         <Route component={NotFound} />
       </Switch>
     </>
