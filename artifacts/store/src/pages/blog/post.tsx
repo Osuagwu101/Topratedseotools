@@ -164,7 +164,7 @@ export default function BlogPost() {
               description: post.seoDescription || post.excerpt,
               image: post.featuredImageUrl ? [post.featuredImageUrl] : [],
               datePublished: post.publishedAt,
-              dateModified: post.publishedAt,
+              dateModified: post.updatedAt || post.publishedAt,
               author: post.author ? [{
                 "@type": "Person",
                 name: post.author.name,

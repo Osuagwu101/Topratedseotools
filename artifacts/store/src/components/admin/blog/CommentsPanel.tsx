@@ -14,6 +14,8 @@ interface BlogComment {
   status: "pending" | "approved" | "spam" | "rejected";
   parentId: number | null;
   createdAt: string;
+  postSlug: string | null;
+  postTitle: string | null;
 }
 
 export default function CommentsPanel({ staff }: { staff: StaffUser }) {
@@ -137,9 +139,11 @@ export default function CommentsPanel({ staff }: { staff: StaffUser }) {
                   
                   <div className="flex items-center gap-4 text-xs text-muted-foreground font-medium">
                     <span>{new Date(comment.createdAt).toLocaleString()}</span>
-                    <Link href={`/blog/post/${comment.postId}`} target="_blank" className="flex items-center gap-1 hover:text-primary transition-colors">
-                      <ExternalLink className="w-3.5 h-3.5" /> View Post
-                    </Link>
+                    {comment.postSlug && (
+                      <Link href={`/blog/${comment.postSlug}`} target="_blank" className="flex items-center gap-1 hover:text-primary transition-colors">
+                        <ExternalLink className="w-3.5 h-3.5" /> {comment.postTitle || "View Post"}
+                      </Link>
+                    )}
                   </div>
                 </div>
 

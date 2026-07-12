@@ -36,6 +36,7 @@ export interface Post {
   readingTimeMinutes: number;
   viewCount: number;
   publishedAt: string;
+  updatedAt: string;
   seoTitle: string;
   seoDescription: string;
   canonicalUrl: string;
@@ -60,7 +61,7 @@ export interface CTA {
   name: string;
   description: string;
   priceKobo?: number;
-  productId?: string;
+  productId?: number;
   ctaCustomLabel?: string;
   ctaCustomUrl?: string;
 }

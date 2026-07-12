@@ -68,8 +68,20 @@ router.post("/blog/posts/:slug/comments", async (req, res): Promise<void> => {
 router.get("/admin/blog/comments", requireStaffRole("administrator", "editor"), async (req, res): Promise<void> => {
   const status = req.query.status ? String(req.query.status) : undefined;
   const rows = await db
-    .select()
+    .select({
+      id: blogCommentsTable.id,
+      postId: blogCommentsTable.postId,
+      authorName: blogCommentsTable.authorName,
+      authorEmail: blogCommentsTable.authorEmail,
+      content: blogCommentsTable.content,
+      status: blogCommentsTable.status,
+      parentId: blogCommentsTable.parentId,
+      createdAt: blogCommentsTable.createdAt,
+      postSlug: blogPostsTable.slug,
+      postTitle: blogPostsTable.title,
+    })
     .from(blogCommentsTable)
+    .leftJoin(blogPostsTable, eq(blogCommentsTable.postId, blogPostsTable.id))
     .where(status ? eq(blogCommentsTable.status, status) : undefined)
     .orderBy(desc(blogCommentsTable.createdAt));
   res.json(rows);

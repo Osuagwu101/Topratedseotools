@@ -210,9 +210,11 @@ export default function MediaLibrary({ staff, onSelect, mode = "manage" }: { sta
                     <button onClick={() => copyToClipboard(item.url)} className="text-gray-500 hover:text-primary transition-colors" title="Copy URL">
                       <Copy className="w-4 h-4" />
                     </button>
-                    <button onClick={() => handleDelete(item.id)} disabled={deletingId === item.id} className="text-gray-500 hover:text-red-600 transition-colors" title="Delete">
-                      {deletingId === item.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                    </button>
+                    {staff.role !== "author" && (
+                      <button onClick={() => handleDelete(item.id)} disabled={deletingId === item.id} className="text-gray-500 hover:text-red-600 transition-colors" title="Delete">
+                        {deletingId === item.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

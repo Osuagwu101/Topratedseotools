@@ -39,6 +39,8 @@ export function useSeoMeta({
     }
     if (ogImage) {
       setMeta("property", "og:image", ogImage);
+    } else {
+      document.querySelector('meta[property="og:image"]')?.remove();
     }
     setMeta("name", "twitter:card", "summary_large_image");
 
@@ -59,6 +61,8 @@ export function useSeoMeta({
         document.head.appendChild(link);
       }
       link.setAttribute("href", canonical);
+    } else {
+      document.querySelector('link[rel="canonical"]')?.remove();
     }
   }, [title, description, canonical, ogImage, noIndex, noFollow]);
 }

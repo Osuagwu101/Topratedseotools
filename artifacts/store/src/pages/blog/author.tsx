@@ -5,13 +5,21 @@ import { PostCard } from "@/components/blog/PostCard";
 import NewsletterSignup from "@/components/blog/NewsletterSignup";
 import { Post, Author } from "@/components/blog/types";
 import { useSeoMeta } from "@/components/blog/useSeoMeta";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+
+const LIMIT = 9;
 
 export default function BlogAuthor() {
   const { slug } = useParams<{ slug: string }>();
   const [posts, setPosts] = useState<Post[]>([]);
   const [author, setAuthor] = useState<Author | null>(null);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    setPage(1);
+  }, [slug]);
 
   useEffect(() => {
     if (!slug) return;
@@ -19,12 +27,15 @@ export default function BlogAuthor() {
     
     Promise.all([
       fetch(`/api/blog/authors/${slug}`).then(r => r.ok ? r.json() : null),
-      fetch(`/api/blog/posts?author=${slug}`).then(r => r.ok ? r.json() : { posts: [] })
+      fetch(`/api/blog/posts?author=${slug}&page=${page}&limit=${LIMIT}`).then(r => r.ok ? r.json() : { posts: [], total: 0 })
     ]).then(([authorData, postData]) => {
       if (authorData) setAuthor(authorData);
       setPosts(postData.posts || []);
+      setTotal(postData.total || 0);
     }).finally(() => setLoading(false));
-  }, [slug]);
+  }, [slug, page]);
+
+  const totalPages = Math.ceil(total / LIMIT);
 
   useSeoMeta({
     title: author ? `Articles by ${author.name} | Blog` : "Author | Blog",
@@ -73,7 +84,7 @@ export default function BlogAuthor() {
               <h3 className="text-2xl font-heading font-bold text-foreground">
                 Articles by {author?.name.split(' ')[0]}
               </h3>
-              <span className="text-muted-foreground font-bold">{posts.length} published</span>
+              <span className="text-muted-foreground font-bold">{total} published</span>
             </div>
             
             {posts.length > 0 ? (
@@ -85,6 +96,28 @@ export default function BlogAuthor() {
             ) : (
               <div className="text-center py-24 bg-white rounded-3xl border border-border shadow-sm">
                 <p className="text-muted-foreground text-lg font-bold">No posts published yet.</p>
+              </div>
+            )}
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-3 mt-16 pt-8 border-t border-border">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="w-12 h-12 rounded-full border border-border bg-white flex items-center justify-center text-foreground hover:border-primary hover:text-primary disabled:opacity-50 disabled:pointer-events-none transition-colors shadow-sm"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <span className="text-sm font-bold tracking-wider text-muted-foreground uppercase px-4">
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="w-12 h-12 rounded-full border border-border bg-white flex items-center justify-center text-foreground hover:border-primary hover:text-primary disabled:opacity-50 disabled:pointer-events-none transition-colors shadow-sm"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
               </div>
             )}
           </div>

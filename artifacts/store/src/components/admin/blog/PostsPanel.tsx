@@ -195,15 +195,19 @@ export default function PostsPanel({ staff, products }: { staff: StaffUser; prod
                             <Globe className="w-4 h-4" />
                           </Link>
                         )}
-                        <button onClick={() => handleDuplicate(post.id)} className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/10 rounded" title="Duplicate">
-                          <Copy className="w-4 h-4" />
-                        </button>
+                        {staff.role !== "author" && (
+                          <button onClick={() => handleDuplicate(post.id)} className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/10 rounded" title="Duplicate">
+                            <Copy className="w-4 h-4" />
+                          </button>
+                        )}
                         <button onClick={() => setEditingPostId(post.id)} className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/10 rounded" title="Edit">
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(post.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Delete">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {staff.role !== "author" && (
+                          <button onClick={() => handleDelete(post.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Delete">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
