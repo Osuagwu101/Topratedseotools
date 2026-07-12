@@ -1,0 +1,390 @@
+
+Upgrade the existing website by adding the trust, customer support, review, social proof, and payment-display features described below.
+
+Maintain the website’s existing:
+
+* Design language
+* Branding
+* Colours and typography
+* Responsiveness
+* Security
+* Performance
+* Database structure, where practical
+* Existing features and functionality
+
+Do not remove, weaken, or break any existing website feature.
+
+## 1. Visible Business Email
+
+Add a clearly visible business email address in appropriate locations, including:
+
+* Website footer
+* Contact or Support section
+* Checkout support area, where appropriate
+
+Create settings in the Admin Dashboard that allow the administrator to:
+
+* Add or change the business email address
+* Enable or disable its public display
+* Choose whether clicking the email opens the visitor’s default email application
+
+Do not hard-code the email address. Retrieve it from the website settings stored in the database.
+
+## 2. WhatsApp Support Button
+
+Add a floating WhatsApp support button across the website.
+
+Requirements:
+
+* Position it at the bottom-right corner.
+* Ensure it does not cover navigation, checkout buttons, chat tools, or other important content.
+* Make it accessible and mobile-friendly.
+* When clicked, open WhatsApp with a pre-filled support message.
+* Allow the WhatsApp number and default support message to be managed from the Admin Dashboard.
+* Allow the administrator to enable or disable the button.
+* Validate and store the number using the correct international WhatsApp number format.
+* Do not expose unnecessary administrative or configuration information in frontend code.
+
+Suggested default message:
+
+“Hello, I need assistance with a product or subscription on Top Rated SEO Tools.”
+
+## 3. Customer Testimonials
+
+Create a professional customer-testimonial section.
+
+Because the website is new, do not create or publish invented testimonials as genuine customer experiences.
+
+Instead:
+
+* Add sample testimonial templates inside the admin dashboard only.
+* Clearly label each template: “Sample Content – Edit Before Publishing".
+* Keep all sample testimonials unpublished by default.
+* Do not display them publicly until the administrator edits and manually approves them.
+* Do not describe sample content as verified.
+* Allow the administrator to create real testimonials after receiving permission from customers.
+
+The Admin Dashboard must allow the administrator to:
+
+* Add a testimonial
+* Edit a testimonial
+* Preview it
+* Publish or unpublish it
+* Delete it
+* Reorder testimonials
+* Add the customer’s display name
+* Add an optional photograph or avatar
+* Add an optional job title or business name
+* Add the testimonial text
+* Add an optional rating
+* Record whether permission to publish has been obtained
+* Mark a testimonial as verified only when it is connected to a genuine completed purchase
+
+Add safe sample templates, such as the following:
+
+* “The ordering process was straightforward, and I received clear information about accessing the service.”
+* “The support team responded clearly and helped me understand the subscription process.”
+* “The website made it easy to compare the available options before placing my order.”
+
+These templates must remain private and unpublished until edited and approved.
+
+Do not add any screenshot request, screenshot upload, access-delivery screenshot, or screenshot placeholder feature to the testimonial section.
+
+## 4. Verified Purchase Reviews
+
+Build a genuine verified-purchase review system connected to completed orders.
+
+A customer should only receive a “Verified Purchase” badge when all the following conditions are met:
+
+* The review belongs to a registered customer account.
+* The customer has a successfully paid and completed order.
+* The reviewed product is included in that completed order.
+* The order has not been refunded, cancelled, reversed, disputed, marked as fraudulent, or invalidated.
+
+### Review Prompt Behaviour
+
+After an eligible completed purchase:
+
+* Ask the customer to review the purchased product the next time they log in or return while authenticated.
+* Show the review request no more than once per login session.
+* Show the reminder during a maximum of three separate login sessions.
+* Do not count page refreshes or navigation between pages as new login sessions.
+* Allow the customer to submit the review, dismiss the current reminder, or choose “Review later.”
+* After the third ignored or dismissed login prompt, stop displaying the reminder for that purchase.
+* Reset the review-prompt process only when the customer renews the product or completes another eligible purchase.
+* Never show another review prompt for an order or product that has already been reviewed.
+* Where several products are purchased in one order, provide a simple interface where each eligible product can be reviewed separately.
+
+The review prompt should be presented as a clean modal or dashboard notification. It must have a visible close or postpone option and must not repeatedly interrupt the customer during the same session.
+
+### Review Fields
+
+Include:
+
+* Star rating from 1 to 5
+* Written review
+* Optional review title
+* Date submitted
+* Customer display name or anonymised display format
+* Product reviewed
+* Verified-purchase status
+
+### Admin Review Moderation
+
+Add review moderation tools to the Admin Dashboard that allow administrators to:
+
+* View pending, approved, rejected, hidden, and reported reviews
+* Approve or reject reviews
+* Hide or restore reviews
+* Reply publicly to reviews
+* Remove abusive, irrelevant, fraudulent, misleading, or privacy-violating content
+* Search and filter by product, rating, status, customer, and date
+* Privately view the related order for verification
+
+The administrator must not be able to falsely apply the Verified Purchase badge.
+
+Do not allow administrators to change the meaning of a customer’s review. Where moderation is required, allow the review to be hidden or rejected instead of silently rewriting the customer’s words.
+
+### Public Review Display
+
+Display only approved reviews.
+
+Show:
+
+* Average product rating
+* Total number of approved reviews
+* Rating breakdown
+* Verified Purchase badge where applicable
+* Review date
+* Product reviewed
+* Administrative response, where one exists
+
+## 5. Customers Served Counter
+
+Add a “Customers Served” counter in a suitable trust section of the website.
+
+### Initial Configuration
+
+* Set the starting baseline to 100.
+* The next valid qualifying purchase should display 101.
+* Increase the counter only after a genuinely successful and confirmed payment.
+* Do not increase it for failed, pending, abandoned, test, cancelled, refunded, reversed, disputed, duplicated, or fraudulent transactions.
+
+Store the baseline and live qualifying count separately.
+
+Use the following calculation:
+
+Displayed customers served = administrator-approved baseline + qualifying completed customers or orders after launch.
+
+### Counting Options
+
+Add an Admin Dashboard setting that allows the administrator to choose between:
+
+1. **Unique Customers Served:** Each eligible customer is counted only once.
+2. **Successful Orders Completed:** Every valid completed order increases the count by one.
+
+Use **Unique Customers Served** as the default.
+
+A customer purchasing several products in one transaction should increase the counter by one under the Unique Customers Served setting.
+
+The Admin Dashboard should show:
+
+* Starting baseline
+* New verified customers or orders counted
+* Current displayed total
+* Counting method
+* Last updated date
+* Protected manual correction option
+* Audit history of manual corrections
+
+Do not display phrases such as “over,” “more than,” “thousands,” or similar wording unless the verified number genuinely supports the statement.
+
+## 6. Accepted Payment Method Icons
+
+Add a clean payment-method area showing only the icons of payment methods genuinely accepted through the website’s active Paystack checkout.
+
+Do not display payment-method names, descriptions, explanatory sentences, cards, labels, headings beneath individual icons, or promotional text beside the icons.
+
+The frontend payment display should contain icons only.
+
+Examples may include:
+
+* Visa
+* Mastercard
+* Verve
+* Bank transfer
+* OPay
+* Other payment methods genuinely supported and enabled through Paystack
+
+Only display an icon when that payment method is genuinely available and functional at checkout.
+
+Do not display OPay or any other payment method merely because an icon exists. Confirm that it is supported by the website’s active Paystack configuration before making it visible.
+
+### Display Requirements
+
+* Use clean, recognisable, official-looking payment icons.
+* Keep all icons visually consistent.
+* Use consistent sizing, spacing, alignment, and background treatment.
+* Make the icon row responsive on desktop, tablet, and mobile.
+* Allow icons to wrap cleanly on smaller screens.
+* Add accessible alt text or screen-reader labels even though visible text should not appear beside the icons.
+* Optimise the icons so that they do not slow down the website.
+* Avoid oversized icons or a large payment section that overcrowds the homepage.
+* Do not display payment methods that are unavailable for the customer’s country, currency, account, or checkout configuration where this can be determined.
+
+### Admin Controls
+
+Create controls in the Admin Dashboard that allow the administrator to:
+
+* Enable or disable the entire payment-icon section
+* Add a supported payment method
+* Remove a payment method
+* Enable or disable individual icons
+* Reorder the icons
+* Preview the icon row before publishing
+* Upload or select an appropriate icon
+* Add accessible alt text
+* Mark the active payment provider
+* View whether a method is manually configured or automatically detected
+
+Where technically possible, automatically synchronise the displayed payment methods with the methods enabled through Paystack.
+
+Do not let frontend icon settings override the actual Paystack checkout configuration. The checkout provider remains the source of truth.
+
+## 7. Trust, Reviews & Support Admin Area
+
+Create a dedicated Admin Dashboard area called:
+
+**Trust, Reviews & Support**
+
+Organise it into the following tabs:
+
+* Contact Information
+* WhatsApp Support
+* Testimonials
+* Purchase Reviews
+* Customer Counter
+* Payment Methods
+
+Do not add an Access Screenshots tab.
+
+Store all settings in the database rather than hard-coding them.
+
+Include:
+
+* Form validation
+* Confirmation before deletion
+* Clear success and error notifications
+* Image-size and file-type validation for testimonial avatars and payment icons
+* Role-based administrator access
+* Change history for sensitive settings
+* Secure server-side authorisation
+* Protection against unauthorised API requests
+* Protection against cross-site scripting and malicious review content
+* Rate limiting where appropriate
+* Audit logs for sensitive changes
+
+## 8. Design and User-Experience Requirements
+
+The new sections must:
+
+* Match the website’s existing colours, typography, spacing, and components
+* Look professional and trustworthy
+* Work correctly on desktop, tablet, and mobile
+* Avoid overcrowding the homepage
+* Load efficiently
+* Support keyboard navigation
+* Include meaningful accessible labels and alt text
+* Avoid obstructive pop-ups
+* Preserve the existing website layout and user journey
+
+Use icons and interface elements that are visually consistent with the current website.
+
+## 9. Accuracy and Ethical Requirements
+
+Strictly follow these rules:
+
+* Do not invent customer reviews.
+* Do not present sample testimonials as genuine.
+* Do not automatically publish sample content.
+* Do not apply a Verified Purchase badge without a qualifying completed purchase.
+* Do not exaggerate customer numbers.
+* Do not count unsuccessful, reversed, disputed, test, or refunded transactions.
+* Do not create false scarcity.
+* Do not add fake countdown timers.
+* Do not claim that a payment method is accepted unless it works through the active Paystack checkout.
+* Do not create, request, upload, or display fake access-delivery screenshots.
+* Do not expose private customer, order, payment, or administrative information.
+* Do not delete or weaken any existing website feature.
+* Do not modify the original repository.
+
+## 10. Testing Requirements
+
+Before considering the work complete, test:
+
+* Business email updates from the Admin Dashboard
+* Public email display enable and disable controls
+* Email link behaviour
+* WhatsApp links on desktop and mobile
+* WhatsApp number and message updates
+* Testimonial creation
+* Testimonial editing
+* Testimonial preview
+* Testimonial publishing and unpublishing
+* Testimonial reordering
+* Testimonial deletion
+* Verified-review eligibility
+* Prevention of false Verified Purchase badges
+* Three-login review-reminder limit
+* Reset after a new eligible purchase or renewal
+* Prevention of repeated prompts within the same session
+* Separate reviews for multiple products in one order
+* Review moderation and public replies
+* Successful-payment customer counting
+* Unique-customer counting
+* Successful-order counting
+* Exclusion of failed, refunded, cancelled, reversed, test, disputed, fraudulent, and duplicate transactions
+* Customer-counter manual correction and audit logs
+* Payment-icon administration
+* Payment-icon reordering
+* Payment-icon responsiveness
+* Prevention of unsupported payment methods being displayed
+* Synchronisation with Paystack, where technically possible
+* Mobile responsiveness
+* Keyboard accessibility
+* Admin authorisation
+* Database persistence
+* API security
+* Error handling
+
+Use Paystack test-mode transactions where necessary.
+
+Do not alter live customer counts, publish test reviews, or publish sample testimonials during testing.
+
+## 11. Completion Report
+
+After implementation, provide:
+
+1. A summary of everything added
+2. The database tables, collections, migrations, or fields created
+3. The files, pages, routes, services, and components changed
+4. A clear explanation of the review-prompt logic
+5. A clear explanation of the customer-counting logic
+6. Instructions for managing each feature from the Admin Dashboard
+7. Any database migration instructions
+8. Any environment variables or Paystack configuration required
+9. A list of tests completed and their outcomes
+10. Any remaining items requiring my real information, including:
+
+* Business email
+* WhatsApp number
+* WhatsApp support message
+* Real testimonials
+* Payment methods currently enabled through Paystack
+* Payment icons that could not be automatically retrieved
+
+Before making changes, inspect the duplicate repository and identify its current framework, database, authentication system, payment flow, order-status logic, Admin Dashboard structure, and Paystack integration.
+
+Implement the features using the project’s existing architecture and coding conventions rather than unnecessarily rebuilding the website.
+
+Again, work only on the duplicate repository. Do not touch the original repository.

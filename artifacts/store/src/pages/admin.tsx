@@ -22,6 +22,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import TrustAdminPanel from "@/components/admin/TrustAdminPanel";
 import {
   Eye,
   EyeOff,
@@ -2739,7 +2740,7 @@ export default function AdminPanel() {
   const [products, setProducts] = useState<ProductWithServers[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"tools" | "devices" | "users" | "branding" | "analytics">("tools");
+  const [tab, setTab] = useState<"tools" | "devices" | "users" | "branding" | "analytics" | "trust">("tools");
   const [addToolOpen, setAddToolOpen] = useState(false);
   const { toast } = useToast();
 
@@ -2906,6 +2907,12 @@ export default function AdminPanel() {
           >
             Analytics
           </button>
+          <button
+            onClick={() => setTab("trust")}
+            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "trust" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            Trust &amp; Support
+          </button>
         </div>
       </div>
 
@@ -2971,6 +2978,8 @@ export default function AdminPanel() {
         {tab === "branding" && <BrandingPanel token={token} />}
 
         {tab === "analytics" && <AnalyticsPanel token={token} />}
+
+        {tab === "trust" && <TrustAdminPanel token={token} />}
       </main>
 
       <AddToolDialog

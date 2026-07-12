@@ -11,6 +11,18 @@ export interface SiteSettings {
   copyrightText: string;
   copyrightYear: string;
   useDynamicCopyrightYear: boolean;
+  // Trust & support
+  businessEmail: string | null;
+  businessEmailPublic: boolean;
+  businessEmailClickable: boolean;
+  whatsappNumber: string | null;
+  whatsappMessage: string | null;
+  whatsappEnabled: boolean;
+  paymentIconsEnabled: boolean;
+  // Customers served counter
+  customersServedBaseline: number;
+  customersServedCountingMethod: string;
+  customersServedManualCorrection: number;
   updatedAt: string | null;
   updatedBy: string | null;
 }
@@ -25,6 +37,16 @@ const DEFAULTS: SiteSettings = {
   copyrightText: "Top Rated SEO Tools",
   copyrightYear: String(new Date().getFullYear()),
   useDynamicCopyrightYear: true,
+  businessEmail: null,
+  businessEmailPublic: false,
+  businessEmailClickable: true,
+  whatsappNumber: null,
+  whatsappMessage: "Hello, I need assistance with a product or subscription on Top Rated SEO Tools.",
+  whatsappEnabled: false,
+  paymentIconsEnabled: true,
+  customersServedBaseline: 100,
+  customersServedCountingMethod: "unique_customers",
+  customersServedManualCorrection: 0,
   updatedAt: null,
   updatedBy: null,
 };

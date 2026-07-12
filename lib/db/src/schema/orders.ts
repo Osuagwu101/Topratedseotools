@@ -9,6 +9,8 @@ export const ordersTable = pgTable("orders", {
   customerName: text("customer_name").notNull(),
   amountKobo: integer("amount_kobo").notNull(),
   status: text("status").notNull().default("pending"),
+  // settlement_status tracks post-payment reversals: valid (default), refunded, disputed, reversed, fraudulent
+  settlementStatus: text("settlement_status").notNull().default("valid"),
   reference: text("reference").notNull().unique(),
   clerkUserId: text("clerk_user_id"),
   durationMonths: integer("duration_months").notNull().default(1),

@@ -5,6 +5,8 @@ import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToolCard } from "@/components/tool-card";
+import { Testimonials } from "@/components/Testimonials";
+import { CustomerCounter } from "@/components/CustomerCounter";
 import { useSiteSettings } from "@/context/siteSettings";
 
 export default function Home() {
@@ -40,6 +42,9 @@ export default function Home() {
             <span className="text-primary">Choose Your</span> Tool
           </h2>
           <div className="w-24 h-1.5 bg-accent mx-auto rounded-full"></div>
+        </div>
+        <div className="mb-12">
+          <CustomerCounter />
         </div>
 
         {isLoading ? (
@@ -79,6 +84,7 @@ export default function Home() {
           </div>
         )}
       </section>
+      <Testimonials />
     </Layout>
   );
 }

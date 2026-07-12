@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ToolCard, LOGOS, BG_COLORS, getLogoKey } from "@/components/tool-card";
+import { ReviewPrompt } from "@/components/ReviewPrompt";
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "success") {
@@ -202,6 +203,7 @@ export default function Dashboard() {
 
   return (
     <Layout>
+      <ReviewPrompt />
       <div className="container mx-auto px-4 md:px-6 py-12 max-w-5xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
           <div>

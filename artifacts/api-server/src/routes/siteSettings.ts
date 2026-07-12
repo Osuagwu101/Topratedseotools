@@ -110,6 +110,16 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
       copyrightText,
       copyrightYear,
       useDynamicCopyrightYear,
+      businessEmail,
+      businessEmailPublic,
+      businessEmailClickable,
+      whatsappNumber,
+      whatsappMessage,
+      whatsappEnabled,
+      paymentIconsEnabled,
+      customersServedBaseline,
+      customersServedCountingMethod,
+      customersServedManualCorrection,
     } = req.body as {
       siteHeadline?: string;
       siteSubheadline?: string;
@@ -117,6 +127,16 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
       copyrightText?: string;
       copyrightYear?: string;
       useDynamicCopyrightYear?: boolean;
+      businessEmail?: string | null;
+      businessEmailPublic?: boolean;
+      businessEmailClickable?: boolean;
+      whatsappNumber?: string | null;
+      whatsappMessage?: string | null;
+      whatsappEnabled?: boolean;
+      paymentIconsEnabled?: boolean;
+      customersServedBaseline?: number;
+      customersServedCountingMethod?: string;
+      customersServedManualCorrection?: number;
     };
 
     if (siteHeadline !== undefined && !siteHeadline.trim()) {
@@ -129,6 +149,22 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
     }
     if (copyrightText !== undefined && !copyrightText.trim()) {
       res.status(400).json({ error: "Copyright text cannot be empty." });
+      return;
+    }
+    if (businessEmail !== undefined && businessEmail !== null && businessEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(businessEmail.trim())) {
+      res.status(400).json({ error: "Invalid business email address." });
+      return;
+    }
+    if (customersServedBaseline !== undefined && (!Number.isInteger(customersServedBaseline) || customersServedBaseline < 0)) {
+      res.status(400).json({ error: "Baseline must be a positive whole number." });
+      return;
+    }
+    if (customersServedManualCorrection !== undefined && !Number.isInteger(customersServedManualCorrection)) {
+      res.status(400).json({ error: "Manual correction must be a whole number." });
+      return;
+    }
+    if (customersServedCountingMethod !== undefined && !["unique_customers", "orders"].includes(customersServedCountingMethod)) {
+      res.status(400).json({ error: "Counting method must be 'unique_customers' or 'orders'." });
       return;
     }
 
@@ -144,6 +180,16 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
     if (copyrightText !== undefined) updates.copyrightText = copyrightText.trim();
     if (copyrightYear !== undefined) updates.copyrightYear = copyrightYear.trim();
     if (useDynamicCopyrightYear !== undefined) updates.useDynamicCopyrightYear = useDynamicCopyrightYear;
+    if (businessEmail !== undefined) updates.businessEmail = businessEmail ? businessEmail.trim() : null;
+    if (businessEmailPublic !== undefined) updates.businessEmailPublic = businessEmailPublic;
+    if (businessEmailClickable !== undefined) updates.businessEmailClickable = businessEmailClickable;
+    if (whatsappNumber !== undefined) updates.whatsappNumber = whatsappNumber ? whatsappNumber.trim() : null;
+    if (whatsappMessage !== undefined) updates.whatsappMessage = whatsappMessage ? whatsappMessage.trim() : null;
+    if (whatsappEnabled !== undefined) updates.whatsappEnabled = whatsappEnabled;
+    if (paymentIconsEnabled !== undefined) updates.paymentIconsEnabled = paymentIconsEnabled;
+    if (customersServedBaseline !== undefined) updates.customersServedBaseline = customersServedBaseline;
+    if (customersServedCountingMethod !== undefined) updates.customersServedCountingMethod = customersServedCountingMethod;
+    if (customersServedManualCorrection !== undefined) updates.customersServedManualCorrection = customersServedManualCorrection;
 
     await db.update(siteSettingsTable).set(updates).where(eq(siteSettingsTable.id, 1));
     const updated = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.id, 1));

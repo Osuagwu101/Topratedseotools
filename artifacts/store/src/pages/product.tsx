@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SiGrammarly, SiNordvpn, SiSemrush } from "react-icons/si";
 import { Check, Video, Bot, Shield, Pencil } from "lucide-react";
 import { ToolCard } from "@/components/tool-card";
+import { ReviewsSection } from "@/components/ReviewsSection";
 import { trackViewContent } from "@/lib/analytics";
 
 function RecommendationRow({
@@ -247,6 +248,7 @@ export default function ProductDetail() {
           ids={product.downSellProductIds ?? undefined}
           allProducts={allProducts}
         />
+        <ReviewsSection productId={product.id} />
       </div>
     </Layout>
   );

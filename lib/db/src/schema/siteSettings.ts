@@ -1,4 +1,4 @@
-import { pgTable, serial, text, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, boolean, integer, timestamp } from "drizzle-orm/pg-core";
 
 export const siteSettingsTable = pgTable("site_settings", {
   id: serial("id").primaryKey(),
@@ -9,6 +9,18 @@ export const siteSettingsTable = pgTable("site_settings", {
   copyrightText: text("copyright_text").notNull().default("Top Rated SEO Tools"),
   copyrightYear: text("copyright_year").notNull().default("2025"),
   useDynamicCopyrightYear: boolean("use_dynamic_copyright_year").notNull().default(true),
+  // Trust & support
+  businessEmail: text("business_email"),
+  businessEmailPublic: boolean("business_email_public").notNull().default(false),
+  businessEmailClickable: boolean("business_email_clickable").notNull().default(true),
+  whatsappNumber: text("whatsapp_number"),
+  whatsappMessage: text("whatsapp_message").default("Hello, I need assistance with a product or subscription on Top Rated SEO Tools."),
+  whatsappEnabled: boolean("whatsapp_enabled").notNull().default(false),
+  paymentIconsEnabled: boolean("payment_icons_enabled").notNull().default(true),
+  // Customers served counter
+  customersServedBaseline: integer("customers_served_baseline").notNull().default(100),
+  customersServedCountingMethod: text("customers_served_counting_method").notNull().default("unique_customers"),
+  customersServedManualCorrection: integer("customers_served_manual_correction").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }),
   updatedBy: text("updated_by"),
 });

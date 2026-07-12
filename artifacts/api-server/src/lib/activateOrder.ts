@@ -1,5 +1,5 @@
-import { db, ordersTable, toolEntitlementsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, ordersTable, toolEntitlementsTable, reviewPromptsTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 import { logger } from "./logger";
 import { pickDefaultServerForProduct } from "./toolAccess";
 
@@ -82,6 +82,20 @@ export async function activateOrderByReference(
         .onConflictDoNothing({ target: toolEntitlementsTable.orderId });
     }
   });
+
+  // Create a review prompt record for this purchase so the customer can be asked
+  // to review it on future login sessions. Ignore collisions (already exists).
+  if (order.clerkUserId) {
+    try {
+      await db.insert(reviewPromptsTable).values({
+        clerkUserId: order.clerkUserId,
+        orderId: order.id,
+        productId: order.productId,
+      }).onConflictDoNothing();
+    } catch (err) {
+      logger.warn({ err, orderId: order.id }, "Failed to create review prompt record");
+    }
+  }
 
   return { outcome: "activated", orderId: order.id, expiresAt };
 }

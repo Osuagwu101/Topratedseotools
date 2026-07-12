@@ -8,3 +8,7 @@ export * from "./siteSettings";
 export * from "./conversionEvents";
 export * from "./orderAttributions";
 export * from "./analyticsSettings";
+export * from "./testimonials";
+export * from "./reviews";
+export * from "./paymentMethods";
+export * from "./customerCounter";

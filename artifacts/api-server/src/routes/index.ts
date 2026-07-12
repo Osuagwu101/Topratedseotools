@@ -11,6 +11,7 @@ import storageRouter from "./storage";
 import fxRouter from "./fx";
 import siteSettingsRouter from "./siteSettings";
 import trackingRouter from "./tracking";
+import trustRouter from "./trust";
 import { deviceTrackingMiddleware } from "../middlewares/deviceTracking";
 
 const router: IRouter = Router();
@@ -20,6 +21,7 @@ router.use(storageRouter);
 router.use(fxRouter);
 router.use(siteSettingsRouter);
 router.use(trackingRouter);
+router.use(trustRouter);
 router.use(productsRouter);
 router.use(ordersRouter);
 router.use(paystackRouter);

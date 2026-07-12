@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { User, LogOut, LayoutDashboard, ChevronDown } from "lucide-react";
 import { useCurrency, CURRENCIES } from "@/context/currency";
 import { useSiteSettings } from "@/context/siteSettings";
+import { PaymentIcons } from "./PaymentIcons";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -181,9 +182,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
             )}
             <span className="font-semibold text-muted-foreground ml-2 text-sm">&copy; {copyrightYear}</span>
           </div>
-          <p className="text-xs text-muted-foreground max-w-xs md:max-w-sm text-center md:text-right leading-relaxed">
-            {settings.paymentFooterText}
-          </p>
+          <div className="flex flex-col items-center md:items-end gap-4">
+            {settings.businessEmailPublic && settings.businessEmail && (
+              <div className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">Contact: </span>
+                {settings.businessEmailClickable ? (
+                  <a href={`mailto:${settings.businessEmail}`} className="text-primary hover:underline font-semibold">
+                    {settings.businessEmail}
+                  </a>
+                ) : (
+                  <span className="font-semibold">{settings.businessEmail}</span>
+                )}
+              </div>
+            )}
+            <PaymentIcons />
+            <p className="text-xs text-muted-foreground max-w-xs md:max-w-sm text-center md:text-right leading-relaxed">
+              {settings.paymentFooterText}
+            </p>
+          </div>
         </div>
       </footer>
     </div>

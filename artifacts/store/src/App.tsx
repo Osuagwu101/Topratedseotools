@@ -20,6 +20,7 @@ import { PhoneOff } from "lucide-react";
 import { initGtm, initPixel, trackPageView, getConsent, setTrackingConfig, type TrackingConfig } from "@/lib/analytics";
 import { captureAttribution } from "@/lib/attribution";
 import { CookieConsent } from "@/components/CookieConsent";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
 
 // ── Device ID ────────────────────────────────────────────────────────────────
 function getOrCreateDeviceId(): string {
@@ -304,6 +305,7 @@ function ClerkProviderWithRoutes() {
           {isSuspended ? <SuspendedScreen /> : <Router />}
           <Toaster />
           <CookieConsent />
+          <WhatsAppButton />
         </TooltipProvider>
       </QueryClientProvider>
     </ClerkProvider>
