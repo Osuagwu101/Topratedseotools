@@ -644,6 +644,7 @@ router.post("/admin/payment-methods", requireAdmin, async (req, res): Promise<vo
     name?: unknown;
     code?: unknown;
     altText?: unknown;
+    iconUrl?: unknown;
     enabled?: unknown;
     provider?: unknown;
   };
@@ -660,6 +661,7 @@ router.post("/admin/payment-methods", requireAdmin, async (req, res): Promise<vo
       name,
       code,
       altText: typeof body.altText === "string" ? body.altText.trim() || null : null,
+      iconUrl: typeof body.iconUrl === "string" ? body.iconUrl.trim() || null : null,
       enabled: body.enabled !== false,
       provider: typeof body.provider === "string" ? body.provider.trim() : "paystack",
       sortOrder: (max?.max ?? 0) + 1,

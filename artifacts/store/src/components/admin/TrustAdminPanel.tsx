@@ -107,7 +107,7 @@ export default function TrustAdminPanel({ token }: { token: string }) {
 
   // Payment methods
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [paymentForm, setPaymentForm] = useState<Partial<PaymentMethod>>({ name: "", code: "", altText: "", enabled: true, provider: "paystack" });
+  const [paymentForm, setPaymentForm] = useState<Partial<PaymentMethod>>({ name: "", code: "", altText: "", iconUrl: "", enabled: true, provider: "paystack" });
   const [editingPayment, setEditingPayment] = useState<PaymentMethod | null>(null);
   const [deletePaymentId, setDeletePaymentId] = useState<number | null>(null);
   const paymentIconRef = useRef<HTMLInputElement>(null);
@@ -850,6 +850,7 @@ export default function TrustAdminPanel({ token }: { token: string }) {
         name: paymentForm.name?.trim(),
         code: paymentForm.code?.trim().toLowerCase(),
         altText: paymentForm.altText?.trim(),
+        iconUrl: paymentForm.iconUrl?.trim() || null,
         enabled: paymentForm.enabled,
         provider: paymentForm.provider?.trim() || "paystack",
       };
@@ -868,7 +869,7 @@ export default function TrustAdminPanel({ token }: { token: string }) {
         toast({ title: "Error", description: data.error || "Failed to save", variant: "destructive" });
         return;
       }
-      setPaymentForm({ name: "", code: "", altText: "", enabled: true, provider: "paystack" });
+      setPaymentForm({ name: "", code: "", altText: "", iconUrl: "", enabled: true, provider: "paystack" });
       setEditingPayment(null);
       await loadPaymentMethods();
       toast({ title: "Saved" });
@@ -927,10 +928,13 @@ export default function TrustAdminPanel({ token }: { token: string }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
             <Input placeholder="Name e.g. Visa" value={paymentForm.name ?? ""} onChange={(e) => setPaymentForm((f) => ({ ...f, name: e.target.value }))} />
             <Input placeholder="Code e.g. visa" value={paymentForm.code ?? ""} onChange={(e) => setPaymentForm((f) => ({ ...f, code: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
             <Input placeholder="Alt text" value={paymentForm.altText ?? ""} onChange={(e) => setPaymentForm((f) => ({ ...f, altText: e.target.value }))} />
+            <Input placeholder="Icon URL (external image link)" value={paymentForm.iconUrl ?? ""} onChange={(e) => setPaymentForm((f) => ({ ...f, iconUrl: e.target.value }))} />
           </div>
           <div className="flex items-center gap-3 mb-4">
             <input
@@ -947,7 +951,7 @@ export default function TrustAdminPanel({ token }: { token: string }) {
               <Plus className="w-4 h-4 mr-2" /> {editingPayment ? "Update" : "Add"}
             </Button>
             {editingPayment && (
-              <Button variant="outline" onClick={() => { setEditingPayment(null); setPaymentForm({ name: "", code: "", altText: "", enabled: true, provider: "paystack" }); }}>
+              <Button variant="outline" onClick={() => { setEditingPayment(null); setPaymentForm({ name: "", code: "", altText: "", iconUrl: "", enabled: true, provider: "paystack" }); }}>
                 Cancel
               </Button>
             )}

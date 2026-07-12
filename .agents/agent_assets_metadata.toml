@@ -29,3 +29,9 @@ id = "XhLZ-HFDpJFK_-D4jj9H0"
 uri = "file://screenshots/admin-login.jpg"
 type = "image"
 title = "Admin login — Trust & Support tab is behind this login"
+
+[[outputs]]
+id = "IVRrHbhHyFUWdrH2araCe"
+uri = "file://.agents/screenshots/home-final-icons.jpg"
+type = "image"
+title = "Home page — payment icons, email, WhatsApp, counter, and testimonials"
