@@ -85,7 +85,15 @@ function registerContentResource<
       for (const field of allowedFields) {
         if (typeof body[field] === "string") values[field] = body[field].trim();
       }
-      if (typeof body.sortOrder === "number") values.sortOrder = Math.round(body.sortOrder);
+      if (typeof body.sortOrder === "number") {
+        values.sortOrder = Math.round(body.sortOrder);
+      } else {
+        // New items append to the end by default instead of all tying at 0,
+        // which would make ordering among newly-added items unpredictable.
+        const existing = await db.select({ sortOrder: table.sortOrder }).from(table);
+        const maxSortOrder = existing.reduce((max, row) => Math.max(max, row.sortOrder), -1);
+        values.sortOrder = maxSortOrder + 1;
+      }
       if (typeof body.published === "boolean") values.published = body.published;
 
       const [created] = await db.insert(table).values(values as never).returning();
