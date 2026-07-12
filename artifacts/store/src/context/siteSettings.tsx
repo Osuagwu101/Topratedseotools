@@ -31,6 +31,21 @@ export interface SiteSettings {
   customersServedBaseline: number;
   customersServedCountingMethod: string;
   customersServedManualCorrection: number;
+  // Hero section
+  heroImageUrl: string | null;
+  heroPrimaryButtonText: string;
+  heroSecondaryButtonText: string | null;
+  heroTrustLine: string | null;
+  // Final CTA section
+  finalCtaHeadline: string | null;
+  finalCtaSubtext: string | null;
+  finalCtaButtonText: string;
+  // SEO
+  seoTitle: string | null;
+  seoDescription: string | null;
+  seoCanonicalUrl: string | null;
+  seoOgImageUrl: string | null;
+  homepageSectionsConfig: string | null;
   updatedAt: string | null;
   updatedBy: string | null;
 }
@@ -60,6 +75,18 @@ const DEFAULTS: SiteSettings = {
   customersServedBaseline: 100,
   customersServedCountingMethod: "unique_customers",
   customersServedManualCorrection: 0,
+  heroImageUrl: null,
+  heroPrimaryButtonText: "Browse Tools",
+  heroSecondaryButtonText: null,
+  heroTrustLine: "Trusted by professionals across Africa for affordable, verified tool access.",
+  finalCtaHeadline: "Ready to get started?",
+  finalCtaSubtext: "Join hundreds of professionals who already saved on their favorite tools.",
+  finalCtaButtonText: "Browse Tools",
+  seoTitle: null,
+  seoDescription: null,
+  seoCanonicalUrl: null,
+  seoOgImageUrl: null,
+  homepageSectionsConfig: null,
   updatedAt: null,
   updatedBy: null,
 };

@@ -40,6 +40,12 @@ export const productsTable = pgTable("products", {
   crossSellProductIds: integer("cross_sell_product_ids").array().notNull().default([]),
   upSellProductIds: integer("up_sell_product_ids").array().notNull().default([]),
   downSellProductIds: integer("down_sell_product_ids").array().notNull().default([]),
+  // Homepage "Popular Tools" curation: nullable order (lower = shown first).
+  // Null means "not featured on the homepage" regardless of the `popular` flag.
+  featuredOrder: integer("featured_order"),
+  // Optional short blurb shown only on the homepage's Popular Tools card
+  // (falls back to `description` when empty).
+  homepageBlurb: text("homepage_blurb"),
 });
 
 export const insertProductSchema = createInsertSchema(productsTable).omit({ id: true });

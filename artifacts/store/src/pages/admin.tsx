@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import TrustAdminPanel from "@/components/admin/TrustAdminPanel";
+import HomepageAdminPanel from "@/components/admin/HomepageAdminPanel";
 import {
   Eye,
   EyeOff,
@@ -79,6 +80,8 @@ interface ProductWithServers {
   crossSellProductIds?: number[];
   upSellProductIds?: number[];
   downSellProductIds?: number[];
+  featuredOrder?: number | null;
+  homepageBlurb?: string | null;
   servers: ToolServer[];
 }
 
@@ -2740,7 +2743,7 @@ export default function AdminPanel() {
   const [products, setProducts] = useState<ProductWithServers[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"tools" | "devices" | "users" | "branding" | "analytics" | "trust">("tools");
+  const [tab, setTab] = useState<"tools" | "devices" | "users" | "branding" | "analytics" | "trust" | "homepage">("tools");
   const [addToolOpen, setAddToolOpen] = useState(false);
   const { toast } = useToast();
 
@@ -2913,6 +2916,12 @@ export default function AdminPanel() {
           >
             Trust &amp; Support
           </button>
+          <button
+            onClick={() => setTab("homepage")}
+            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "homepage" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            Homepage
+          </button>
         </div>
       </div>
 
@@ -2980,6 +2989,8 @@ export default function AdminPanel() {
         {tab === "analytics" && <AnalyticsPanel token={token} />}
 
         {tab === "trust" && <TrustAdminPanel token={token} />}
+
+        {tab === "homepage" && <HomepageAdminPanel token={token} products={products} />}
       </main>
 
       <AddToolDialog

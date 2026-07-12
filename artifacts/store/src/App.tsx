@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CurrencyProvider } from "@/context/currency";
 import { SiteSettingsProvider } from "@/context/siteSettings";
 import Home from "@/pages/home";
+import Catalog from "@/pages/catalog";
 import ProductDetail from "@/pages/product";
 import Checkout from "@/pages/checkout";
 import Success from "@/pages/success";
@@ -255,6 +256,7 @@ function Router() {
       <RouteTracker />
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/catalog" component={Catalog} />
         <Route path="/dashboard" component={ProtectedDashboard} />
         <Route path="/products/:id" component={ProductDetail} />
         <Route path="/checkout" component={ProtectedCheckout} />

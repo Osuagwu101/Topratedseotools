@@ -256,4 +256,36 @@ export function trackPurchase(params: {
   }
 }
 
+// ── Homepage-specific named events ────────────────────────────────────────────
+// Simple custom dataLayer events for on-page engagement tracking (separate from
+// the GA4-shaped ecommerce events above, which cover checkout/purchase).
+
+export function trackHomepageViewed(): void {
+  pushDataLayer({ event: "homepage_viewed" });
+}
+
+export function trackBrowseToolsClicked(source: string): void {
+  pushDataLayer({ event: "browse_tools_clicked", source });
+}
+
+export function trackToolCardViewed(toolId: string | number, toolName: string): void {
+  pushDataLayer({ event: "tool_card_viewed", tool_id: String(toolId), tool_name: toolName });
+}
+
+export function trackToolSelected(toolId: string | number, toolName: string): void {
+  pushDataLayer({ event: "tool_selected", tool_id: String(toolId), tool_name: toolName });
+}
+
+export function trackBuyNowClicked(toolId: string | number, toolName: string): void {
+  pushDataLayer({ event: "buy_now_clicked", tool_id: String(toolId), tool_name: toolName });
+}
+
+export function trackWhatsappSupportClicked(): void {
+  pushDataLayer({ event: "whatsapp_support_clicked" });
+}
+
+export function trackFaqOpened(question: string): void {
+  pushDataLayer({ event: "faq_opened", question });
+}
+
 export { runtimePixelId as PIXEL_ID, runtimeGtmId as GTM_ID };

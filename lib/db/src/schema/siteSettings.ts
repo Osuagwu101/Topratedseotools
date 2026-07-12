@@ -29,6 +29,23 @@ export const siteSettingsTable = pgTable("site_settings", {
   customersServedBaseline: integer("customers_served_baseline").notNull().default(100),
   customersServedCountingMethod: text("customers_served_counting_method").notNull().default("unique_customers"),
   customersServedManualCorrection: integer("customers_served_manual_correction").notNull().default(0),
+  // Hero section (headline/subheadline already above are reused)
+  heroImageUrl: text("hero_image_url"),
+  heroPrimaryButtonText: text("hero_primary_button_text").notNull().default("Browse Tools"),
+  heroSecondaryButtonText: text("hero_secondary_button_text"),
+  heroTrustLine: text("hero_trust_line").default("Trusted by professionals across Africa for affordable, verified tool access."),
+  // Final call-to-action section
+  finalCtaHeadline: text("final_cta_headline").default("Ready to get started?"),
+  finalCtaSubtext: text("final_cta_subtext").default("Join hundreds of professionals who already saved on their favorite tools."),
+  finalCtaButtonText: text("final_cta_button_text").notNull().default("Browse Tools"),
+  // Homepage SEO metadata
+  seoTitle: text("seo_title"),
+  seoDescription: text("seo_description"),
+  seoCanonicalUrl: text("seo_canonical_url"),
+  seoOgImageUrl: text("seo_og_image_url"),
+  // Homepage section visibility/order, e.g. [{"key":"hero","visible":true}, ...].
+  // Empty array/null means "use the default order and show everything".
+  homepageSectionsConfig: text("homepage_sections_config"),
   updatedAt: timestamp("updated_at", { withTimezone: true }),
   updatedBy: text("updated_by"),
 });

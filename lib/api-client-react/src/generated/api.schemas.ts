@@ -55,6 +55,16 @@ export interface Product {
   upSellProductIds?: number[];
   /** Ids of cheaper alternative products to recommend instead of this one. */
   downSellProductIds?: number[];
+  /**
+     * Homepage "Popular Tools" display order. Null means the tool is not featured on the homepage.
+     * @nullable
+     */
+  featuredOrder?: number | null;
+  /**
+     * Optional short blurb shown only on the homepage's Popular Tools card. Falls back to `description` when null.
+     * @nullable
+     */
+  homepageBlurb?: string | null;
 }
 
 export interface OrderInput {

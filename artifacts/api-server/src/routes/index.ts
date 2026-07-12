@@ -13,6 +13,7 @@ import siteSettingsRouter from "./siteSettings";
 import trackingRouter from "./tracking";
 import trustRouter from "./trust";
 import toolAssignmentsRouter from "./toolAssignments";
+import homepageContentRouter from "./homepageContent";
 import { deviceTrackingMiddleware } from "../middlewares/deviceTracking";
 
 const router: IRouter = Router();
@@ -24,6 +25,7 @@ router.use(siteSettingsRouter);
 router.use(trackingRouter);
 router.use(trustRouter);
 router.use(toolAssignmentsRouter);
+router.use(homepageContentRouter);
 router.use(productsRouter);
 router.use(ordersRouter);
 router.use(paystackRouter);

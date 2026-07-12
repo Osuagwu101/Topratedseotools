@@ -270,6 +270,12 @@ components:
           items:
             type: integer
           description: Ids of cheaper alternative products to recommend instead of this one.
+        featuredOrder:
+          type: ["integer", "null"]
+          description: Homepage "Popular Tools" display order. Null means the tool is not featured on the homepage.
+        homepageBlurb:
+          type: ["string", "null"]
+          description: Optional short blurb shown only on the homepage's Popular Tools card. Falls back to `description` when null.
 
     OrderInput:
       type: object

@@ -13,3 +13,4 @@ export * from "./testimonials";
 export * from "./reviews";
 export * from "./paymentMethods";
 export * from "./customerCounter";
+export * from "./homepageContent";

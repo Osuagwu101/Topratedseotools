@@ -177,6 +177,8 @@ router.put("/admin/products/:id", requireAdmin, async (req, res): Promise<void> 
     crossSellProductIds?: unknown;
     upSellProductIds?: unknown;
     downSellProductIds?: unknown;
+    featuredOrder?: unknown;
+    homepageBlurb?: unknown;
   };
 
   const toIdArray = (value: unknown): number[] | undefined => {
@@ -187,7 +189,7 @@ router.put("/admin/products/:id", requireAdmin, async (req, res): Promise<void> 
     return Array.from(new Set(ids));
   };
 
-  const updates: Record<string, string | boolean | null | number[]> = {};
+  const updates: Record<string, string | boolean | null | number | number[]> = {};
   if (typeof body.name === "string" && body.name.trim()) updates.name = body.name.trim();
   if (typeof body.description === "string" && body.description.trim()) {
     updates.description = body.description.trim();
@@ -208,6 +210,16 @@ router.put("/admin/products/:id", requireAdmin, async (req, res): Promise<void> 
   if (upSellProductIds) updates.upSellProductIds = upSellProductIds;
   const downSellProductIds = toIdArray(body.downSellProductIds);
   if (downSellProductIds) updates.downSellProductIds = downSellProductIds;
+  if (body.featuredOrder === null) {
+    updates.featuredOrder = null;
+  } else if (typeof body.featuredOrder === "number" && Number.isFinite(body.featuredOrder)) {
+    updates.featuredOrder = Math.round(body.featuredOrder);
+  }
+  if (body.homepageBlurb === null) {
+    updates.homepageBlurb = null;
+  } else if (typeof body.homepageBlurb === "string") {
+    updates.homepageBlurb = body.homepageBlurb.trim() || null;
+  }
 
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "No valid fields provided" });

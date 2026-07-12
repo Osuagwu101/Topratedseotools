@@ -22,7 +22,7 @@ function HeaderSearch() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = query.trim();
-    setLocation(trimmed ? `/?q=${encodeURIComponent(trimmed)}` : "/");
+    setLocation(trimmed ? `/catalog?q=${encodeURIComponent(trimmed)}` : "/catalog");
     setOpen(false);
   };
 
@@ -221,7 +221,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Link href="/" className="hover:text-primary transition-colors" data-testid="link-nav-home">
                 Home
               </Link>
-              <Link href="/" className="hover:text-primary transition-colors" data-testid="link-nav-catalog">
+              <Link href="/catalog" className="hover:text-primary transition-colors" data-testid="link-nav-catalog">
                 Catalog
               </Link>
               <Link href="/support" className="hover:text-primary transition-colors" data-testid="link-nav-support">
@@ -241,7 +241,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Link href="/" onClick={() => setMobileMenuOpen(false)} className="py-2.5 border-b border-gray-100 hover:text-primary transition-colors" data-testid="link-nav-home-mobile">
                 Home
               </Link>
-              <Link href="/" onClick={() => setMobileMenuOpen(false)} className="py-2.5 border-b border-gray-100 hover:text-primary transition-colors" data-testid="link-nav-catalog-mobile">
+              <Link href="/catalog" onClick={() => setMobileMenuOpen(false)} className="py-2.5 border-b border-gray-100 hover:text-primary transition-colors" data-testid="link-nav-catalog-mobile">
                 Catalog
               </Link>
               <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="py-2.5 border-b border-gray-100 hover:text-primary transition-colors" data-testid="link-nav-support-mobile">
@@ -260,37 +260,89 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1">
         {children}
       </main>
-      <footer className="border-t border-border py-12 mt-24 bg-white">
-        <div className="container mx-auto px-4 md:px-6 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
-          <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
-            {settings.siteLogoUrl ? (
-              <img
-                src={settings.siteLogoUrl}
-                alt="Top Rated SEO Tools Logo"
-                className="h-7 w-auto max-w-[140px] object-contain"
-              />
-            ) : (
-              <img
-                src={`${basePath}/logo.png`}
-                alt="Top Rated SEO Tools Logo"
-                className="h-7 w-auto max-w-[140px] object-contain"
-                onError={(e) => {
-                  const img = e.currentTarget;
-                  img.style.display = "none";
-                  const span = document.createElement("span");
-                  span.className = "font-heading text-lg text-primary uppercase tracking-wider";
-                  span.textContent = settings.copyrightText;
-                  img.parentElement?.appendChild(span);
-                }}
-              />
-            )}
-            <span className="font-semibold text-muted-foreground ml-2 text-sm">&copy; {copyrightYear}</span>
+      <footer className="border-t border-border pt-14 pb-10 mt-24 bg-white">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 pb-10 border-b border-border">
+            <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
+              {settings.siteLogoUrl ? (
+                <img
+                  src={settings.siteLogoUrl}
+                  alt="Top Rated SEO Tools Logo"
+                  className="h-8 w-auto max-w-[160px] object-contain mb-4"
+                />
+              ) : (
+                <img
+                  src={`${basePath}/logo.png`}
+                  alt="Top Rated SEO Tools Logo"
+                  className="h-8 w-auto max-w-[160px] object-contain mb-4"
+                  onError={(e) => {
+                    const img = e.currentTarget;
+                    img.style.display = "none";
+                    const span = document.createElement("span");
+                    span.className = "font-heading text-lg text-primary uppercase tracking-wider mb-4 block";
+                    span.textContent = settings.copyrightText;
+                    img.parentElement?.appendChild(span);
+                  }}
+                />
+              )}
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+                Affordable, verified access to the premium tools you already rely on.
+              </p>
+            </div>
+
+            <div className="text-center lg:text-left">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-foreground mb-4">Quick Links</h3>
+              <nav className="flex flex-col gap-2.5 text-sm text-muted-foreground">
+                <Link href="/" className="hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(false)}>Home</Link>
+                <Link href="/catalog" className="hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(false)}>Catalog</Link>
+                <Link href="/support" className="hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(false)}>Support</Link>
+                <Link href="/dashboard" className="hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(false)}>Dashboard</Link>
+              </nav>
+            </div>
+
+            <div className="text-center lg:text-left">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-foreground mb-4">Customer Care</h3>
+              <nav className="flex flex-col gap-2.5 text-sm text-muted-foreground">
+                <Link href="/support" className="hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(false)}>Get Support</Link>
+                {settings.whatsappEnabled && settings.whatsappNumber && (
+                  <a
+                    href={`https://wa.me/${settings.whatsappNumber.replace(/\D/g, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-primary transition-colors"
+                  >
+                    WhatsApp Us
+                  </a>
+                )}
+                {settings.businessEmailPublic && settings.businessEmail && (
+                  <a
+                    href={settings.businessEmailClickable ? `mailto:${settings.businessEmail}` : undefined}
+                    className="hover:text-primary transition-colors"
+                  >
+                    {settings.businessEmail}
+                  </a>
+                )}
+              </nav>
+            </div>
+
+            <div className="text-center lg:text-left">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-foreground mb-4">Legal</h3>
+              <nav className="flex flex-col gap-2.5 text-sm text-muted-foreground">
+                <Link href="/support" className="hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(false)}>Terms & Support</Link>
+              </nav>
+            </div>
           </div>
-          <div className="flex flex-col items-center md:items-end gap-4">
-            <PaymentIcons />
-            <p className="text-xs text-muted-foreground max-w-xs md:max-w-sm text-center md:text-right leading-relaxed">
-              {settings.paymentFooterText}
-            </p>
+
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left pt-8">
+            <span className="font-semibold text-muted-foreground text-sm">
+              &copy; {copyrightYear} {settings.copyrightText}. All rights reserved.
+            </span>
+            <div className="flex flex-col items-center md:items-end gap-4">
+              <PaymentIcons />
+              <p className="text-xs text-muted-foreground max-w-xs md:max-w-sm text-center md:text-right leading-relaxed">
+                {settings.paymentFooterText}
+              </p>
+            </div>
           </div>
         </div>
       </footer>

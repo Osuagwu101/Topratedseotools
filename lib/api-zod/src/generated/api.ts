@@ -38,7 +38,9 @@ export const ListProductsResponseItem = zod.object({
   "maxDailyInputs": zod.number().nullish().describe('Optional cap on tasks\/inputs a subscriber can perform per day (WAT calendar day) while using One-Click Auth. Null or 0 means unlimited.'),
   "crossSellProductIds": zod.array(zod.number()).optional().describe('Ids of complementary products to recommend alongside this one (\"You may also like\").'),
   "upSellProductIds": zod.array(zod.number()).optional().describe('Ids of higher-tier\/premium alternative products to recommend instead of this one.'),
-  "downSellProductIds": zod.array(zod.number()).optional().describe('Ids of cheaper alternative products to recommend instead of this one.')
+  "downSellProductIds": zod.array(zod.number()).optional().describe('Ids of cheaper alternative products to recommend instead of this one.'),
+  "featuredOrder": zod.number().nullish().describe('Homepage \"Popular Tools\" display order. Null means the tool is not featured on the homepage.'),
+  "homepageBlurb": zod.string().nullish().describe('Optional short blurb shown only on the homepage\'s Popular Tools card. Falls back to `description` when null.')
 })
 export const ListProductsResponse = zod.array(ListProductsResponseItem)
 
@@ -68,7 +70,9 @@ export const GetProductResponse = zod.object({
   "maxDailyInputs": zod.number().nullish().describe('Optional cap on tasks\/inputs a subscriber can perform per day (WAT calendar day) while using One-Click Auth. Null or 0 means unlimited.'),
   "crossSellProductIds": zod.array(zod.number()).optional().describe('Ids of complementary products to recommend alongside this one (\"You may also like\").'),
   "upSellProductIds": zod.array(zod.number()).optional().describe('Ids of higher-tier\/premium alternative products to recommend instead of this one.'),
-  "downSellProductIds": zod.array(zod.number()).optional().describe('Ids of cheaper alternative products to recommend instead of this one.')
+  "downSellProductIds": zod.array(zod.number()).optional().describe('Ids of cheaper alternative products to recommend instead of this one.'),
+  "featuredOrder": zod.number().nullish().describe('Homepage \"Popular Tools\" display order. Null means the tool is not featured on the homepage.'),
+  "homepageBlurb": zod.string().nullish().describe('Optional short blurb shown only on the homepage\'s Popular Tools card. Falls back to `description` when null.')
 })
 
 

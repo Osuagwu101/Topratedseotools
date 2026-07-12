@@ -125,6 +125,17 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
       customersServedBaseline,
       customersServedCountingMethod,
       customersServedManualCorrection,
+      heroPrimaryButtonText,
+      heroSecondaryButtonText,
+      heroTrustLine,
+      finalCtaHeadline,
+      finalCtaSubtext,
+      finalCtaButtonText,
+      seoTitle,
+      seoDescription,
+      seoCanonicalUrl,
+      seoOgImageUrl,
+      homepageSectionsConfig,
     } = req.body as {
       siteHeadline?: string;
       siteSubheadline?: string;
@@ -147,6 +158,17 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
       customersServedBaseline?: number;
       customersServedCountingMethod?: string;
       customersServedManualCorrection?: number;
+      heroPrimaryButtonText?: string;
+      heroSecondaryButtonText?: string | null;
+      heroTrustLine?: string | null;
+      finalCtaHeadline?: string | null;
+      finalCtaSubtext?: string | null;
+      finalCtaButtonText?: string;
+      seoTitle?: string | null;
+      seoDescription?: string | null;
+      seoCanonicalUrl?: string | null;
+      seoOgImageUrl?: string | null;
+      homepageSectionsConfig?: string | null;
     };
 
     if (siteHeadline !== undefined && !siteHeadline.trim()) {
@@ -185,6 +207,22 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
       res.status(400).json({ error: "testimonialDisplayPages must be an array of page identifiers." });
       return;
     }
+    if (heroPrimaryButtonText !== undefined && !heroPrimaryButtonText.trim()) {
+      res.status(400).json({ error: "Hero primary button text cannot be empty." });
+      return;
+    }
+    if (finalCtaButtonText !== undefined && !finalCtaButtonText.trim()) {
+      res.status(400).json({ error: "Final CTA button text cannot be empty." });
+      return;
+    }
+    if (homepageSectionsConfig !== undefined && homepageSectionsConfig !== null) {
+      try {
+        JSON.parse(homepageSectionsConfig);
+      } catch {
+        res.status(400).json({ error: "homepageSectionsConfig must be valid JSON." });
+        return;
+      }
+    }
 
     await ensureSettings();
 
@@ -213,6 +251,17 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
     if (customersServedBaseline !== undefined) updates.customersServedBaseline = customersServedBaseline;
     if (customersServedCountingMethod !== undefined) updates.customersServedCountingMethod = customersServedCountingMethod;
     if (customersServedManualCorrection !== undefined) updates.customersServedManualCorrection = customersServedManualCorrection;
+    if (heroPrimaryButtonText !== undefined) updates.heroPrimaryButtonText = heroPrimaryButtonText.trim();
+    if (heroSecondaryButtonText !== undefined) updates.heroSecondaryButtonText = heroSecondaryButtonText ? heroSecondaryButtonText.trim() : null;
+    if (heroTrustLine !== undefined) updates.heroTrustLine = heroTrustLine ? heroTrustLine.trim() : null;
+    if (finalCtaHeadline !== undefined) updates.finalCtaHeadline = finalCtaHeadline ? finalCtaHeadline.trim() : null;
+    if (finalCtaSubtext !== undefined) updates.finalCtaSubtext = finalCtaSubtext ? finalCtaSubtext.trim() : null;
+    if (finalCtaButtonText !== undefined) updates.finalCtaButtonText = finalCtaButtonText.trim();
+    if (seoTitle !== undefined) updates.seoTitle = seoTitle ? seoTitle.trim() : null;
+    if (seoDescription !== undefined) updates.seoDescription = seoDescription ? seoDescription.trim() : null;
+    if (seoCanonicalUrl !== undefined) updates.seoCanonicalUrl = seoCanonicalUrl ? seoCanonicalUrl.trim() : null;
+    if (seoOgImageUrl !== undefined) updates.seoOgImageUrl = seoOgImageUrl ? seoOgImageUrl.trim() : null;
+    if (homepageSectionsConfig !== undefined) updates.homepageSectionsConfig = homepageSectionsConfig;
 
     await db.update(siteSettingsTable).set(updates).where(eq(siteSettingsTable.id, 1));
     const updated = await db.select().from(siteSettingsTable).where(eq(siteSettingsTable.id, 1));
@@ -282,6 +331,67 @@ router.delete("/admin/site-settings/logo", requireAdmin, async (_req, res): Prom
   } catch (err) {
     logger.error({ err }, "Failed to remove site logo");
     res.status(500).json({ error: "Failed to remove logo" });
+  }
+});
+
+router.post(
+  "/admin/site-settings/hero-image",
+  requireAdmin,
+  logoUpload.single("image"),
+  async (req, res): Promise<void> => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "No file uploaded." });
+        return;
+      }
+
+      let buffer = req.file.buffer;
+      if (req.file.mimetype !== "image/svg+xml") {
+        buffer = await sharp(buffer)
+          .resize(1600, 1200, { fit: "inside", withoutEnlargement: true })
+          .webp({ quality: 85 })
+          .toBuffer();
+      }
+
+      const ext = req.file.mimetype === "image/svg+xml" ? "svg" : "webp";
+      const relativePath = `hero-images/hero-${randomUUID()}.${ext}`;
+      const fullPath = `${firstPublicSearchPath()}/${relativePath}`;
+      const { bucketName, objectName } = parseObjectPath(fullPath);
+
+      const bucket = objectStorageClient.bucket(bucketName);
+      const file = bucket.file(objectName);
+      await file.save(buffer, {
+        contentType: req.file.mimetype === "image/svg+xml" ? "image/svg+xml" : "image/webp",
+        metadata: { cacheControl: "public, max-age=86400" },
+      });
+
+      const heroImageUrl = `/api/storage/public-objects/${relativePath}`;
+
+      await ensureSettings();
+      await db
+        .update(siteSettingsTable)
+        .set({ heroImageUrl, updatedAt: new Date(), updatedBy: "admin" })
+        .where(eq(siteSettingsTable.id, 1));
+
+      res.json({ heroImageUrl });
+    } catch (err) {
+      logger.error({ err }, "Failed to upload hero image");
+      res.status(500).json({ error: "Failed to upload hero image" });
+    }
+  },
+);
+
+router.delete("/admin/site-settings/hero-image", requireAdmin, async (_req, res): Promise<void> => {
+  try {
+    await ensureSettings();
+    await db
+      .update(siteSettingsTable)
+      .set({ heroImageUrl: null, updatedAt: new Date(), updatedBy: "admin" })
+      .where(eq(siteSettingsTable.id, 1));
+    res.json({ heroImageUrl: null });
+  } catch (err) {
+    logger.error({ err }, "Failed to remove hero image");
+    res.status(500).json({ error: "Failed to remove hero image" });
   }
 });
 

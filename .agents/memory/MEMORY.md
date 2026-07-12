@@ -6,3 +6,4 @@
 - [One-click-auth admin gate + reset](one-click-auth-gating.md) — gate every entrypoint to a masked/shared session on one DB flag, and force a fresh login on re-enable, never resume a stale cached session.
 - [One-Click Auth CAPTCHA audit](one-click-auth-captcha-audit.md) — audit a tool's login page for reCAPTCHA/Cloudflare before enabling Auto-Login; never build CAPTCHA/anti-detect bypasses even if user supplies code/spec.
 - [Analytics settings DB-first pattern](analytics-settings-pattern.md) — tracking IDs (Pixel, GTM) and CAPI token live in analytics_settings table; never use VITE_ build-time vars as the only source; /api/tracking/config is the safe public endpoint.
+- [Store public API zod schemas](store-public-api-zod-schemas.md) — GET /api/products is zod-parsed from openapi.yaml and silently strips new fields; other store routes are plain JSON and don't need codegen.
