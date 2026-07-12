@@ -55,6 +55,8 @@ Public-facing brand name is "Top Rated SEO Tools" — homepage headline: "Everyt
 
 ## Product
 
+Note: product rows live only in the database, not in code — a fresh import starts with an empty `products` table. Re-seed via the admin panel or a direct insert if this ever needs to be repeated.
+
 All 11 subscription products are pre-seeded with tiered pricing (1/3/12 months, `priceKobo`/`price3MonthKobo`/`price12MonthKobo` — the latter two are nullable and checkout only shows durations that have a configured price):
 - Grammarly (₦2,500/mo), Quillbot (₦2,500/mo), Phrasly (₦8,500/mo)
 - ChatGPT (₦8,500/mo), StealthWriter (₦17,000/mo), NordVPN (₦18,000/mo)
