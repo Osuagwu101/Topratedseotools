@@ -76,6 +76,17 @@
   },
   "dependencies": {
     "@clerk/react": "^6.11.4",
-    "@clerk/themes": "^2.4.57"
+    "@clerk/themes": "^2.4.57",
+    "@tiptap/extension-image": "^3.27.3",
+    "@tiptap/extension-link": "^3.27.3",
+    "@tiptap/extension-placeholder": "^3.27.3",
+    "@tiptap/extension-table": "^3.27.3",
+    "@tiptap/extension-table-cell": "^3.27.3",
+    "@tiptap/extension-table-header": "^3.27.3",
+    "@tiptap/extension-table-row": "^3.27.3",
+    "@tiptap/extension-underline": "^3.27.3",
+    "@tiptap/pm": "^3.27.3",
+    "@tiptap/react": "^3.27.3",
+    "@tiptap/starter-kit": "^3.27.3"
   }
 }

@@ -24,6 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import TrustAdminPanel from "@/components/admin/TrustAdminPanel";
 import HomepageAdminPanel from "@/components/admin/HomepageAdminPanel";
+import BlogAdminPanel from "@/components/admin/BlogAdminPanel";
 import {
   Eye,
   EyeOff,
@@ -2743,7 +2744,7 @@ export default function AdminPanel() {
   const [products, setProducts] = useState<ProductWithServers[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"tools" | "devices" | "users" | "branding" | "analytics" | "trust" | "homepage">("tools");
+  const [tab, setTab] = useState<"tools" | "devices" | "users" | "branding" | "analytics" | "trust" | "homepage" | "blog">("tools");
   const [addToolOpen, setAddToolOpen] = useState(false);
   const { toast } = useToast();
 
@@ -2922,6 +2923,12 @@ export default function AdminPanel() {
           >
             Homepage
           </button>
+          <button
+            onClick={() => setTab("blog")}
+            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "blog" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            Blog
+          </button>
         </div>
       </div>
 
@@ -2991,6 +2998,13 @@ export default function AdminPanel() {
         {tab === "trust" && <TrustAdminPanel token={token} />}
 
         {tab === "homepage" && <HomepageAdminPanel token={token} products={products} onProductsChanged={() => load(token)} />}
+
+        {tab === "blog" && (
+          <BlogAdminPanel
+            token={token}
+            products={products.map((p) => ({ id: p.id, name: p.name, description: p.description ?? null }))}
+          />
+        )}
       </main>
 
       <AddToolDialog

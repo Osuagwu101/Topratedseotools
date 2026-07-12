@@ -17,6 +17,13 @@ import Dashboard from "@/pages/dashboard";
 import AdminPanel from "@/pages/admin";
 import Support from "@/pages/support";
 import NotFound from "@/pages/not-found";
+import BlogStaffLogin from "@/pages/blog-staff-login";
+import BlogHome from "@/pages/blog";
+import BlogPost from "@/pages/blog/post";
+import BlogCategory from "@/pages/blog/category";
+import BlogTag from "@/pages/blog/tag";
+import BlogAuthor from "@/pages/blog/author";
+import BlogSearch from "@/pages/blog/search";
 import { setDeviceId, ApiError } from "@workspace/api-client-react";
 import { PhoneOff } from "lucide-react";
 import { initGtm, initPixel, trackPageView, getConsent, setTrackingConfig, type TrackingConfig } from "@/lib/analytics";
@@ -264,6 +271,13 @@ function Router() {
         <Route path="/sign-in/*?" component={SignInPage} />
         <Route path="/sign-up/*?" component={SignUpPage} />
         <Route path="/admin" component={AdminPanel} />
+        <Route path="/admin/blog-staff-login" component={BlogStaffLogin} />
+        <Route path="/blog" component={BlogHome} />
+        <Route path="/blog/search" component={BlogSearch} />
+        <Route path="/blog/category/:slug" component={BlogCategory} />
+        <Route path="/blog/tag/:slug" component={BlogTag} />
+        <Route path="/blog/author/:slug" component={BlogAuthor} />
+        <Route path="/blog/:slug" component={BlogPost} />
         <Route path="/support" component={Support} />
         <Route component={NotFound} />
       </Switch>

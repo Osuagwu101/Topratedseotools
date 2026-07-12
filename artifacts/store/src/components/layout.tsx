@@ -224,6 +224,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Link href="/catalog" className="hover:text-primary transition-colors" data-testid="link-nav-catalog">
                 Catalog
               </Link>
+              <Link href="/blog" className="hover:text-primary transition-colors" data-testid="link-nav-blog">
+                Blog
+              </Link>
               <Link href="/support" className="hover:text-primary transition-colors" data-testid="link-nav-support">
                 Support
               </Link>
@@ -243,6 +246,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </Link>
               <Link href="/catalog" onClick={() => setMobileMenuOpen(false)} className="py-2.5 border-b border-gray-100 hover:text-primary transition-colors" data-testid="link-nav-catalog-mobile">
                 Catalog
+              </Link>
+              <Link href="/blog" onClick={() => setMobileMenuOpen(false)} className="py-2.5 border-b border-gray-100 hover:text-primary transition-colors" data-testid="link-nav-blog-mobile">
+                Blog
               </Link>
               <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="py-2.5 border-b border-gray-100 hover:text-primary transition-colors" data-testid="link-nav-support-mobile">
                 Support
@@ -295,6 +301,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <nav className="flex flex-col gap-2.5 text-sm text-muted-foreground">
                 <Link href="/" className="hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(false)}>Home</Link>
                 <Link href="/catalog" className="hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(false)}>Catalog</Link>
+                <Link href="/blog" className="hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(false)}>Blog</Link>
                 <Link href="/support" className="hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(false)}>Support</Link>
                 <Link href="/dashboard" className="hover:text-primary transition-colors" onClick={() => setMobileMenuOpen(false)}>Dashboard</Link>
               </nav>

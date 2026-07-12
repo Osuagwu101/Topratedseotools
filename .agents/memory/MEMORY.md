@@ -7,3 +7,6 @@
 - [One-Click Auth CAPTCHA audit](one-click-auth-captcha-audit.md) — audit a tool's login page for reCAPTCHA/Cloudflare before enabling Auto-Login; never build CAPTCHA/anti-detect bypasses even if user supplies code/spec.
 - [Analytics settings DB-first pattern](analytics-settings-pattern.md) — tracking IDs (Pixel, GTM) and CAPI token live in analytics_settings table; never use VITE_ build-time vars as the only source; /api/tracking/config is the safe public endpoint.
 - [Store public API zod schemas](store-public-api-zod-schemas.md) — GET /api/products is zod-parsed from openapi.yaml and silently strips new fields; other store routes are plain JSON and don't need codegen.
+- [lib/db composite declaration staleness](lib-db-composite-declarations.md) — after adding @workspace/db schema exports, rebuild its dist/*.d.ts (`tsc -b`) or consumers fail typecheck.
+- [GitHub tag push via connector](github-tag-push.md) — pushing tags/branches to GitHub needs the connectors-sdk proxy for auth, not a bare git remote.
+- [Blog CMS staff auth model](blog-cms-staff-auth.md) — two separate auth systems (legacy Basic Auth bootstrap vs staff session cookie) for the SubsHub blog; read before touching blog admin auth again.

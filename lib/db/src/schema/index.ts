@@ -14,3 +14,5 @@ export * from "./reviews";
 export * from "./paymentMethods";
 export * from "./customerCounter";
 export * from "./homepageContent";
+export * from "./staffUsers";
+export * from "./blog";
