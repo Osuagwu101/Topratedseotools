@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Show, useUser, useClerk } from "@clerk/react";
 import { Button } from "@/components/ui/button";
-import { User, LogOut, LayoutDashboard, ChevronDown, Search, X } from "lucide-react";
+import { User, LogOut, LayoutDashboard, ChevronDown, Search, X, Menu } from "lucide-react";
 import { useCurrency, CURRENCIES } from "@/context/currency";
 import { useSiteSettings } from "@/context/siteSettings";
 import { PaymentIcons } from "./PaymentIcons";
@@ -163,54 +163,68 @@ function NavAuth() {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { settings } = useSiteSettings();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const copyrightYear = settings.useDynamicCopyrightYear
     ? String(new Date().getFullYear())
     : settings.copyrightYear;
 
+  const logo = (
+    <Link href="/" className="flex items-center justify-center gap-2 group" data-testid="link-home" onClick={() => setMobileMenuOpen(false)}>
+      {settings.siteLogoUrl ? (
+        <img
+          src={settings.siteLogoUrl}
+          alt="Top Rated SEO Tools Logo"
+          className="h-9 md:h-10 w-auto max-w-[160px] md:max-w-[200px] object-contain"
+        />
+      ) : (
+        <img
+          src={`${basePath}/logo.png`}
+          alt="Top Rated SEO Tools Logo"
+          className="h-9 md:h-10 w-auto max-w-[160px] md:max-w-[200px] object-contain"
+          onError={(e) => {
+            const img = e.currentTarget;
+            img.style.display = "none";
+            const span = document.createElement("span");
+            span.className = "font-heading text-xl md:text-2xl tracking-tight text-primary uppercase";
+            span.textContent = "Top Rated SEO Tools";
+            img.parentElement?.appendChild(span);
+          }}
+        />
+      )}
+    </Link>
+  );
+
   return (
     <div className="min-h-screen bg-[#F7F8F9] flex flex-col font-sans text-foreground">
       <header className="sticky top-0 z-50 w-full border-b border-border bg-white shadow-sm">
-        <div className="container mx-auto px-4 md:px-6 h-20 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-          <div />
-          <Link href="/" className="flex items-center justify-center gap-2 group" data-testid="link-home">
-            {settings.siteLogoUrl ? (
-              <img
-                src={settings.siteLogoUrl}
-                alt="Top Rated SEO Tools Logo"
-                className="h-10 w-auto max-w-[200px] object-contain"
-              />
-            ) : (
-              <img
-                src={`${basePath}/logo.png`}
-                alt="Top Rated SEO Tools Logo"
-                className="h-10 w-auto max-w-[200px] object-contain"
-                onError={(e) => {
-                  const img = e.currentTarget;
-                  img.style.display = "none";
-                  const span = document.createElement("span");
-                  span.className = "font-heading text-2xl tracking-tight text-primary uppercase";
-                  span.textContent = "Top Rated SEO Tools";
-                  img.parentElement?.appendChild(span);
-                }}
-              />
-            )}
-          </Link>
+        <div className="container mx-auto px-4 md:px-6 h-16 md:h-20 grid grid-cols-[auto_1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center gap-2 md:gap-4">
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((o) => !o)}
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            data-testid="button-mobile-menu"
+            className="md:hidden text-foreground hover:text-primary transition-colors justify-self-start"
+          >
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+          <div className="hidden md:block" />
+          {logo}
           <div className="flex items-center justify-end">
             <HeaderSearch />
           </div>
         </div>
-        <div className="border-t border-border">
+        <div className="hidden md:block border-t border-border">
           <div className="container mx-auto px-4 md:px-6 h-14 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
             <div />
             <nav className="flex items-center justify-center gap-6 text-sm font-bold uppercase tracking-wider text-foreground">
-              <Link href="/" className="hidden sm:block hover:text-primary transition-colors" data-testid="link-nav-home">
+              <Link href="/" className="hover:text-primary transition-colors" data-testid="link-nav-home">
                 Home
               </Link>
-              <Link href="/" className="hidden sm:block hover:text-primary transition-colors" data-testid="link-nav-catalog">
+              <Link href="/" className="hover:text-primary transition-colors" data-testid="link-nav-catalog">
                 Catalog
               </Link>
-              <Link href="/support" className="hidden sm:block hover:text-primary transition-colors" data-testid="link-nav-support">
+              <Link href="/support" className="hover:text-primary transition-colors" data-testid="link-nav-support">
                 Support
               </Link>
             </nav>
@@ -220,6 +234,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </div>
+
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-border bg-white shadow-sm" data-testid="menu-mobile">
+            <nav className="flex flex-col px-4 py-3 text-sm font-bold uppercase tracking-wider text-foreground">
+              <Link href="/" onClick={() => setMobileMenuOpen(false)} className="py-2.5 border-b border-gray-100 hover:text-primary transition-colors" data-testid="link-nav-home-mobile">
+                Home
+              </Link>
+              <Link href="/" onClick={() => setMobileMenuOpen(false)} className="py-2.5 border-b border-gray-100 hover:text-primary transition-colors" data-testid="link-nav-catalog-mobile">
+                Catalog
+              </Link>
+              <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="py-2.5 border-b border-gray-100 hover:text-primary transition-colors" data-testid="link-nav-support-mobile">
+                Support
+              </Link>
+            </nav>
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-gray-100">
+              <CurrencySwitcher />
+              <div onClick={() => setMobileMenuOpen(false)}>
+                <NavAuth />
+              </div>
+            </div>
+          </div>
+        )}
       </header>
       <main className="flex-1">
         {children}
