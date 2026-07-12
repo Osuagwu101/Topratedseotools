@@ -64,7 +64,15 @@ const RESOURCE_LABELS: Record<string, string> = {
   "faq-items": "FAQ item",
 };
 
-export default function HomepageAdminPanel({ token, products }: { token: string; products: ProductLite[] }) {
+export default function HomepageAdminPanel({
+  token,
+  products,
+  onProductsChanged,
+}: {
+  token: string;
+  products: ProductLite[];
+  onProductsChanged: () => void;
+}) {
   const { toast } = useToast();
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   const authHeaders = { Authorization: token };
@@ -91,8 +99,12 @@ export default function HomepageAdminPanel({ token, products }: { token: string;
   const [editingFaq, setEditingFaq] = useState<FaqItem | null>(null);
   const [deleteFaqId, setDeleteFaqId] = useState<number | null>(null);
 
-  const [productDrafts, setProductDrafts] = useState<Record<number, { featuredOrder: string; homepageBlurb: string }>>({});
+  const [blurbDrafts, setBlurbDrafts] = useState<Record<number, string>>({});
   const [savingProductId, setSavingProductId] = useState<number | null>(null);
+  const [featuredIds, setFeaturedIds] = useState<number[]>([]);
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [dragOverId, setDragOverId] = useState<number | null>(null);
+  const [reorderingPopular, setReorderingPopular] = useState(false);
 
   const loadSettings = async () => {
     const res = await fetch(`${API}/admin/site-settings`, { headers: authHeaders });
@@ -135,14 +147,17 @@ export default function HomepageAdminPanel({ token, products }: { token: string;
   }, []);
 
   useEffect(() => {
-    const drafts: Record<number, { featuredOrder: string; homepageBlurb: string }> = {};
+    const drafts: Record<number, string> = {};
     for (const p of products) {
-      drafts[p.id] = {
-        featuredOrder: p.featuredOrder !== null && p.featuredOrder !== undefined ? String(p.featuredOrder) : "",
-        homepageBlurb: p.homepageBlurb ?? "",
-      };
+      drafts[p.id] = p.homepageBlurb ?? "";
     }
-    setProductDrafts(drafts);
+    setBlurbDrafts(drafts);
+    setFeaturedIds(
+      products
+        .filter((p) => p.featuredOrder !== null && p.featuredOrder !== undefined)
+        .sort((a, b) => (a.featuredOrder ?? 0) - (b.featuredOrder ?? 0))
+        .map((p) => p.id),
+    );
   }, [products]);
 
   const saveSettings = async (patch: Partial<SiteSettings>) => {
@@ -237,24 +252,72 @@ export default function HomepageAdminPanel({ token, products }: { token: string;
     await reload();
   };
 
-  const saveProductFeature = async (productId: number) => {
-    const draft = productDrafts[productId];
-    if (!draft) return;
+  const saveBlurb = async (productId: number) => {
+    const blurb = blurbDrafts[productId] ?? "";
     setSavingProductId(productId);
     try {
-      const featuredOrder = draft.featuredOrder.trim() === "" ? null : parseInt(draft.featuredOrder, 10);
       const res = await fetch(`${API}/admin/products/${productId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({ featuredOrder, homepageBlurb: draft.homepageBlurb.trim() === "" ? null : draft.homepageBlurb }),
+        body: JSON.stringify({ homepageBlurb: blurb.trim() === "" ? null : blurb }),
       });
       if (!res.ok) throw new Error(await res.text());
       toast({ title: "Saved" });
+      onProductsChanged();
     } catch (e) {
       toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to save", variant: "destructive" });
     } finally {
       setSavingProductId(null);
     }
+  };
+
+  // Persist the given ordered list of featured product ids: sets sequential
+  // featuredOrder for each (drag-and-drop order), and unfeatures anything left out.
+  const syncFeaturedOrder = async (orderedIds: number[]) => {
+    setReorderingPopular(true);
+    try {
+      const res = await fetch(`${API}/admin/products/reorder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ ids: orderedIds }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      onProductsChanged();
+    } catch (e) {
+      toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to reorder popular tools", variant: "destructive" });
+    } finally {
+      setReorderingPopular(false);
+    }
+  };
+
+  const addToFeatured = (productId: number) => {
+    const next = [...featuredIds, productId];
+    setFeaturedIds(next);
+    syncFeaturedOrder(next);
+  };
+
+  const removeFromFeatured = (productId: number) => {
+    const next = featuredIds.filter((id) => id !== productId);
+    setFeaturedIds(next);
+    syncFeaturedOrder(next);
+  };
+
+  const handleDrop = (targetId: number) => {
+    if (dragId === null || dragId === targetId) {
+      setDragId(null);
+      setDragOverId(null);
+      return;
+    }
+    const current = [...featuredIds];
+    const fromIdx = current.indexOf(dragId);
+    const toIdx = current.indexOf(targetId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    current.splice(fromIdx, 1);
+    current.splice(toIdx, 0, dragId);
+    setFeaturedIds(current);
+    setDragId(null);
+    setDragOverId(null);
+    syncFeaturedOrder(current);
   };
 
   // ── Hero & CTA tab ───────────────────────────────────────────────────────
@@ -391,45 +454,111 @@ export default function HomepageAdminPanel({ token, products }: { token: string;
   );
 
   // ── Popular tools curation tab ───────────────────────────────────────────
-  const PopularToolsTab = () => (
-    <Card className="p-6">
-      <h3 className="text-lg font-bold mb-2">Popular Tools</h3>
-      <p className="text-sm text-muted-foreground mb-4">
-        Set a display order number to feature a tool on the homepage. Leave blank to exclude it. Lower numbers appear first.
-      </p>
-      <div className="space-y-3">
-        {products.map((p) => {
-          const draft = productDrafts[p.id] ?? { featuredOrder: "", homepageBlurb: "" };
-          return (
-            <div key={p.id} className="flex flex-col md:flex-row md:items-center gap-3 p-3 border border-gray-100 rounded-lg">
-              <div className="font-bold text-foreground w-full md:w-48 shrink-0">{p.name}</div>
-              <Input
-                type="number"
-                className="w-full md:w-32"
-                placeholder="Order #"
-                value={draft.featuredOrder}
-                onChange={(e) => setProductDrafts((d) => ({ ...d, [p.id]: { ...d[p.id], featuredOrder: e.target.value } }))}
-              />
-              <Input
-                className="flex-1"
-                placeholder="Optional homepage blurb"
-                value={draft.homepageBlurb}
-                onChange={(e) => setProductDrafts((d) => ({ ...d, [p.id]: { ...d[p.id], homepageBlurb: e.target.value } }))}
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={savingProductId === p.id}
-                onClick={() => saveProductFeature(p.id)}
-              >
-                {savingProductId === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save"}
-              </Button>
+  const PopularToolsTab = () => {
+    const byId = new Map(products.map((p) => [p.id, p]));
+    const featuredProducts = featuredIds.map((id) => byId.get(id)).filter((p): p is ProductLite => !!p);
+    const notFeaturedProducts = products.filter((p) => !featuredIds.includes(p.id));
+
+    return (
+      <div className="space-y-6">
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-bold">Popular Tools</h3>
+            {reorderingPopular && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Drag tools to set the order they appear in on the homepage's Popular Tools section. Top of the list appears first.
+          </p>
+
+          {featuredProducts.length === 0 && (
+            <p className="text-sm text-muted-foreground italic mb-2">No tools featured yet. Add one from the list below.</p>
+          )}
+
+          <div className="space-y-2">
+            {featuredProducts.map((p) => {
+              const blurb = blurbDrafts[p.id] ?? "";
+              const isDragging = dragId === p.id;
+              const isDragOver = dragOverId === p.id && dragId !== p.id;
+              return (
+                <div
+                  key={p.id}
+                  draggable
+                  onDragStart={() => setDragId(p.id)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (dragOverId !== p.id) setDragOverId(p.id);
+                  }}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    setDragOverId(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    handleDrop(p.id);
+                  }}
+                  className={`flex flex-col md:flex-row md:items-center gap-3 p-3 border rounded-lg bg-white transition-colors ${
+                    isDragging ? "opacity-40" : ""
+                  } ${isDragOver ? "border-primary border-2" : "border-gray-100"}`}
+                >
+                  <button
+                    type="button"
+                    className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0"
+                    aria-label={`Drag to reorder ${p.name}`}
+                    title="Drag to reorder"
+                  >
+                    <GripVertical className="w-5 h-5" />
+                  </button>
+                  <div className="font-bold text-foreground w-full md:w-48 shrink-0">{p.name}</div>
+                  <Input
+                    className="flex-1"
+                    placeholder="Optional homepage blurb"
+                    value={blurb}
+                    onChange={(e) => setBlurbDrafts((d) => ({ ...d, [p.id]: e.target.value }))}
+                  />
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={savingProductId === p.id}
+                      onClick={() => saveBlurb(p.id)}
+                    >
+                      {savingProductId === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save blurb"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-red-500"
+                      title="Remove from Popular Tools"
+                      onClick={() => removeFromFeatured(p.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        {notFeaturedProducts.length > 0 && (
+          <Card className="p-6">
+            <h3 className="text-lg font-bold mb-2">All Other Tools</h3>
+            <p className="text-sm text-muted-foreground mb-4">Add a tool to feature it in the Popular Tools section above.</p>
+            <div className="space-y-2">
+              {notFeaturedProducts.map((p) => (
+                <div key={p.id} className="flex items-center gap-3 p-3 border border-gray-100 rounded-lg">
+                  <div className="font-bold text-foreground flex-1">{p.name}</div>
+                  <Button size="sm" variant="outline" onClick={() => addToFeatured(p.id)}>
+                    <Plus className="w-3 h-3 mr-1" /> Feature on homepage
+                  </Button>
+                </div>
+              ))}
             </div>
-          );
-        })}
+          </Card>
+        )}
       </div>
-    </Card>
-  );
+    );
+  };
 
   // ── Benefit cards tab ────────────────────────────────────────────────────
   const BenefitsTab = () => (

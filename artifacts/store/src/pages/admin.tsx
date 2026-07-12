@@ -77,11 +77,11 @@ interface ProductWithServers {
   isHidden?: boolean;
   oneClickAuthEnabled?: boolean;
   maxDailyInputs?: number | null;
+  featuredOrder?: number | null;
+  homepageBlurb?: string | null;
   crossSellProductIds?: number[];
   upSellProductIds?: number[];
   downSellProductIds?: number[];
-  featuredOrder?: number | null;
-  homepageBlurb?: string | null;
   servers: ToolServer[];
 }
 
@@ -2990,7 +2990,7 @@ export default function AdminPanel() {
 
         {tab === "trust" && <TrustAdminPanel token={token} />}
 
-        {tab === "homepage" && <HomepageAdminPanel token={token} products={products} />}
+        {tab === "homepage" && <HomepageAdminPanel token={token} products={products} onProductsChanged={() => load(token)} />}
       </main>
 
       <AddToolDialog

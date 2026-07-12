@@ -16,7 +16,7 @@ import {
   saveMetaCapiSettings,
   saveGtmSettings,
 } from "../lib/analyticsSettings";
-import { and, desc, eq, ne, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, ne, notInArray, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { activateOrderByReference } from "../lib/activateOrder";
 import { logger } from "../lib/logger";
@@ -98,6 +98,8 @@ router.get("/admin/products", requireAdmin, async (_req, res): Promise<void> => 
       isHidden: p.isHidden,
       oneClickAuthEnabled: p.oneClickAuthEnabled,
       maxDailyInputs: p.maxDailyInputs,
+      featuredOrder: p.featuredOrder,
+      homepageBlurb: p.homepageBlurb,
       servers: serversByProduct[p.id] ?? [],
     })),
   );
@@ -238,6 +240,36 @@ router.put("/admin/products/:id", requireAdmin, async (req, res): Promise<void> 
   }
 
   res.json(updated);
+});
+
+// Reorder the homepage "Popular Tools" selection: body.ids is the full,
+// ordered list of featured product ids (drag-and-drop order from the admin
+// UI). Sets featuredOrder = index for each id in the list, and clears
+// featuredOrder (unfeatures) for any currently-featured product left out of
+// the list, e.g. after a drag-and-drop removal.
+router.post("/admin/products/reorder", requireAdmin, async (req, res): Promise<void> => {
+  const { ids } = req.body as { ids?: unknown };
+  if (!Array.isArray(ids) || ids.some((id) => typeof id !== "number" || !Number.isInteger(id))) {
+    res.status(400).json({ error: "ids must be an array of integer product ids" });
+    return;
+  }
+
+  const featuredIds = ids as number[];
+  await db.transaction(async (tx) => {
+    await Promise.all(
+      featuredIds.map((id, index) => tx.update(productsTable).set({ featuredOrder: index }).where(eq(productsTable.id, id))),
+    );
+    // Unfeature anything left out of the list, e.g. after a drag-and-drop
+    // removal. When the list is empty this clears every currently-featured
+    // product instead of being a no-op.
+    const clearWhere =
+      featuredIds.length > 0
+        ? and(notInArray(productsTable.id, featuredIds), isNotNull(productsTable.featuredOrder))
+        : isNotNull(productsTable.featuredOrder);
+    await tx.update(productsTable).set({ featuredOrder: null }).where(clearWhere);
+  });
+
+  res.status(204).end();
 });
 
 // Hide/unhide a tool. Hiding removes it from the public storefront and blocks
