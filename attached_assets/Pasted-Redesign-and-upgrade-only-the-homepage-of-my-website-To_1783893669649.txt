@@ -1,0 +1,623 @@
+Redesign and upgrade only the homepage of my website, Top Rated SEO Tools, to make it look professional, trustworthy, modern, conversion-focused, and capable of convincing visitors to purchase.
+
+Website: https://topratedseotools.replit.app/
+
+Do not redesign the entire website or remove any existing backend functionality. Focus on the homepage while preserving the current authentication, payment, customer dashboard, product, subscription, admin, and Paystack systems.
+
+## Main objective
+
+The homepage should no longer look like a simple list of tools. It should function as a professional sales landing page that:
+
+* Clearly explains what Top Rated SEO Tools offers.
+* Shows why customers should buy from us.
+* Builds trust.
+* Explains how the purchasing process works.
+* Highlights selected popular tools.
+* Directs visitors to the full Catalogue page.
+* Encourages visitors to purchase or contact support.
+* Looks excellent on desktop, tablet, and mobile devices.
+
+Move the complete list of tools away from the homepage and place it on the Catalogue page. However, retain a “Popular Tools” section on the homepage showing only four to six selected tools.
+
+The Admin should be able to select which tools appear as popular or featured tools from the backend.
+
+## Homepage structure
+
+Build the homepage in the following order.
+
+### 1. Professional navigation header
+
+Create a clean, sticky navigation bar containing:
+
+* Logo
+* Home
+* Catalogue
+* How It Works
+* Reviews
+* Blog
+* Support
+
+On the right side, include:
+
+* Login
+* Browse Tools button
+
+On mobile, use a clean hamburger menu, but keep the Browse Tools button easy to access.
+
+The navigation should remain visible as the visitor scrolls without taking up too much screen space.
+
+### 2. Hero section
+
+Create a strong hero section that immediately explains the business.
+
+Use this headline:
+
+“Access Premium SEO and Marketing Tools at Affordable Prices”
+
+Use this supporting text:
+
+“Get the tools you need for keyword research, competitor analysis, content creation, design and online business growth—all from one convenient platform.”
+
+Add two buttons:
+
+Primary button:
+“Browse Available Tools”
+
+This should link to the Catalogue page.
+
+Secondary button:
+“How It Works”
+
+This should scroll to the How It Works section.
+
+Add a short trust line beneath the buttons:
+
+“Secure Paystack Payments • Fast Account Activation • Responsive Customer Support”
+
+Do not use false claims such as “instant access” unless the selected tool is genuinely activated instantly.
+
+Include a professional visual on the right side of the hero section, such as a clean dashboard mock-up, arranged tool logos, or a modern digital marketing interface. Avoid cartoonish graphics, unnecessary animations, or visuals that make the website look like a template.
+
+### 3. Trusted tool categories or tool-logo strip
+
+Add a clean section showing some of the major tools or categories available on the platform.
+
+Use a short heading such as:
+
+“Everything You Need to Grow Online”
+
+Add a supporting sentence:
+
+“Explore professional tools for SEO, writing, research, design, marketing and business productivity.”
+
+Show a limited number of recognisable tool logos in a clean scrolling or responsive grid.
+
+Do not overcrowd this section.
+
+Every tool logo shown must correspond to a tool genuinely available on the platform.
+
+### 4. Why Choose Top Rated SEO Tools?
+
+Create a professional benefits section with four cards.
+
+Card 1:
+
+Title:
+“Affordable Access”
+
+Description:
+“Use powerful professional tools without paying the full cost of separate individual subscriptions.”
+
+Card 2:
+
+Title:
+“Simple Purchasing”
+
+Description:
+“Choose your preferred tool, complete your payment and receive clear instructions for accessing your subscription.”
+
+Card 3:
+
+Title:
+“Responsive Support”
+
+Description:
+“Get assistance through WhatsApp or our official business support channels whenever you need help.”
+
+Card 4:
+
+Title:
+“Secure Payments”
+
+Description:
+“Complete your purchase securely through Paystack using supported payment methods.”
+
+Use professional icons and concise text.
+
+Do not use exaggerated claims such as:
+
+* Number one in Nigeria
+* Guaranteed results
+* Cheapest in the world
+* One hundred per cent risk-free
+* Trusted by thousands
+
+Only display such claims when verified data exists.
+
+### 5. How It Works section
+
+Create a simple three-step section.
+
+Heading:
+
+“How It Works”
+
+Supporting text:
+
+“Get access to the tools you need in three simple steps.”
+
+Step 1:
+
+“Choose a Tool”
+
+“Browse the Catalogue and select the tool and subscription duration that suit your needs.”
+
+Step 2:
+
+“Pay Securely”
+
+“Complete your purchase using Paystack and the available supported payment options.”
+
+Step 3:
+
+“Receive Your Access”
+
+“Follow the access instructions provided through your dashboard, email or support channel.”
+
+Use a clear horizontal layout on desktop and a vertical layout on mobile.
+
+Add a button beneath the steps:
+
+“Start Browsing Tools”
+
+Link this to the Catalogue page.
+
+### 6. Popular Tools section
+
+Add a section titled:
+
+“Popular Tools”
+
+Supporting text:
+
+“Explore some of the tools customers use for SEO, content creation, research, design and business growth.”
+
+Display only four to six tools selected by the Admin.
+
+Each tool card should contain:
+
+* Tool logo
+* Tool name
+* Short benefit-focused description
+* Starting price
+* Subscription duration
+* Availability status
+* View Details button
+* Buy Now button, where appropriate
+
+The Admin should be able to:
+
+* Mark a tool as featured.
+* Remove it from the homepage.
+* Change its display order.
+* Update its price.
+* Change its availability.
+* Edit its short homepage description.
+
+Add a button below the cards:
+
+“View Complete Catalogue”
+
+Link it to the Catalogue page.
+
+Do not display every tool on the homepage.
+
+### 7. Who the platform is for
+
+Create a section titled:
+
+“Built for People Who Want to Grow Online”
+
+Use cards or small visual blocks for:
+
+* Bloggers
+* SEO professionals
+* Digital marketers
+* Content creators
+* Freelancers
+* Small businesses
+* Students and researchers
+* Agencies
+
+Add a short explanation showing how the tools can support activities such as:
+
+* Keyword research
+* Competitor analysis
+* Content optimisation
+* Graphic design
+* Academic and market research
+* Website analysis
+* Social media planning
+* Business productivity
+
+Avoid promising guaranteed rankings, profits, traffic or business success.
+
+### 8. Customer reviews and testimonials
+
+Add a professional testimonial section titled:
+
+“What Our Customers Say”
+
+Only display approved testimonials and reviews.
+
+The testimonial and review system must work for:
+
+* Customers who purchased a tool through the website.
+* Customers who were manually assigned a tool by the Admin from the backend.
+
+The Admin must be able to:
+
+* Approve a testimonial.
+* Edit a testimonial.
+* Hide or unhide a testimonial.
+* Delete a testimonial.
+* Turn the entire testimonial section on or off.
+* Select which testimonials appear on the homepage.
+* Change the display order.
+
+Clearly label genuine purchase reviews as:
+
+“Verified Purchase”
+
+For customers manually assigned a tool by the Admin, use an appropriate label such as:
+
+“Verified User”
+
+Do not display fabricated names, invented reviews, false ratings or placeholder testimonials publicly.
+
+When no approved testimonial exists, automatically hide the section instead of displaying fake content.
+
+Do not place screenshot prompts beside testimonials.
+
+### 9. Business credibility and support section
+
+Add a section that reassures visitors that help is available.
+
+Use a heading such as:
+
+“Support Before and After Your Purchase”
+
+Include:
+
+* Visible business email
+* WhatsApp support button
+* Support operating hours
+* Link to Frequently Asked Questions
+* Link to Contact or Support page
+
+The business email must be editable from the Admin dashboard.
+
+The WhatsApp number and pre-filled support message must also be editable from the Admin dashboard.
+
+Suggested WhatsApp text:
+
+“Hello, I need help choosing or purchasing a tool from Top Rated SEO Tools.”
+
+Do not expose private administrative contact details in the page source.
+
+### 10. Secure payment section
+
+Add a simple section titled:
+
+“Secure and Convenient Payments”
+
+Display only the icons of payment methods genuinely supported through Paystack.
+
+Possible icons include:
+
+* Visa
+* Mastercard
+* Verve
+* Bank Transfer
+* Paystack
+
+Only display OPay if it is directly supported and available to customers during checkout.
+
+Do not include long payment descriptions or oversized logos.
+
+The payment section should look clean and trustworthy.
+
+### 11. Frequently Asked Questions
+
+Add an expandable FAQ section.
+
+Include questions such as:
+
+* How will I receive access to my purchased tool?
+* How long does activation take?
+* Can I use the tool on more than one device?
+* What happens when my subscription expires?
+* What happens if a tool temporarily stops working?
+* Can I change from one tool to another?
+* Do you offer refunds or replacements?
+* How can I contact customer support?
+* How can I renew my subscription?
+* Where can I view my purchased tools?
+
+The FAQ answers should be editable from the Admin dashboard.
+
+Use clear and honest language. Do not make promises that the platform cannot fulfil.
+
+### 12. Final call-to-action section
+
+Create a strong final section before the footer.
+
+Use this heading:
+
+“Ready to Access the Tools You Need?”
+
+Use this supporting text:
+
+“Browse professional SEO, content, design, research and marketing tools at affordable subscription prices.”
+
+Add two buttons:
+
+Primary:
+“Explore the Catalogue”
+
+Secondary:
+“Chat With Support”
+
+The first button should open the Catalogue page.
+
+The second button should open WhatsApp using the Admin-configured support number.
+
+### 13. Professional footer
+
+Create a clean footer containing:
+
+Company information:
+
+* Logo
+* Short business description
+* Business email
+* WhatsApp support
+* Support operating hours
+
+Quick links:
+
+* Home
+* Catalogue
+* How It Works
+* Reviews
+* Blog
+* Contact
+
+Legal links:
+
+* Terms and Conditions
+* Privacy Policy
+* Refund Policy
+* Cookie Policy
+
+Customer links:
+
+* Login
+* Dashboard
+* Purchase History
+* Support
+* Frequently Asked Questions
+
+Add the accepted payment icons in a small row.
+
+Add the copyright text:
+
+“© [Current Year] Top Rated SEO Tools. All rights reserved.”
+
+The year should update automatically.
+
+## Design requirements
+
+Use a modern SaaS and digital marketplace design style.
+
+The homepage should feel:
+
+* Professional
+* Trustworthy
+* Premium
+* Clean
+* Modern
+* Easy to understand
+* Focused on conversion
+
+Use:
+
+* One primary brand colour
+* One complementary accent colour
+* White or light neutral backgrounds
+* Clear visual hierarchy
+* Consistent card styles
+* Consistent border radius
+* Subtle shadows
+* Generous spacing
+* Clear headings
+* Readable body text
+* Professional icons
+* High-quality tool logos
+
+Avoid:
+
+* Excessive gradients
+* Flashing animations
+* Too many colours
+* Oversized text
+* Crowded tool cards
+* Auto-playing audio
+* Aggressive pop-ups
+* Fake countdown timers
+* False scarcity messages
+* Invented customer numbers
+* Fabricated reviews
+* Excessive floating elements
+
+Use subtle scrolling animations only where they improve the experience. Respect reduced-motion settings.
+
+## Mobile responsiveness
+
+Optimise the entire homepage for:
+
+* Desktop
+* Tablet
+* Low-cost Android devices
+* iPhone devices
+* Slow internet connections
+
+Ensure that:
+
+* Buttons are easy to tap.
+* Text does not overflow.
+* Cards stack properly.
+* Tool logos remain clear.
+* The navigation menu works properly.
+* The WhatsApp button does not cover important content.
+* Images are compressed.
+* The page does not shift while loading.
+* Pop-ups do not cover the entire screen.
+* The primary call-to-action remains easy to find.
+
+## Homepage SEO
+
+Add appropriate homepage SEO settings.
+
+Suggested page title:
+
+“Affordable SEO and Marketing Tools | Top Rated SEO Tools”
+
+Suggested meta description:
+
+“Access affordable SEO, content, research, design and marketing tools through Top Rated SEO Tools. Browse available subscriptions and pay securely with Paystack.”
+
+Also add:
+
+* Canonical URL
+* Open Graph title
+* Open Graph description
+* Open Graph image
+* Twitter card metadata
+* Organisation schema
+* Website schema
+* Proper heading hierarchy
+* Descriptive image alt text
+* Internal links to the Catalogue and important tool pages
+
+Only use one H1 heading on the homepage.
+
+Ensure important homepage text is rendered in a search-engine-readable format and is not dependent entirely on client-side JavaScript.
+
+## Performance requirements
+
+Optimise homepage speed by:
+
+* Compressing images.
+* Using WebP or AVIF where supported.
+* Lazy-loading below-the-fold images.
+* Preloading only essential assets.
+* Reducing unnecessary JavaScript.
+* Removing unused components.
+* Avoiding large video backgrounds.
+* Preventing layout shifts.
+* Using properly sized images.
+* Reducing unnecessary third-party scripts.
+
+Do not allow design effects to slow down the purchasing journey.
+
+## Tracking and conversion events
+
+Keep the existing analytics integrations and prepare clearly named events for:
+
+* Homepage viewed
+* Browse Tools clicked
+* Tool card viewed
+* Tool selected
+* Buy Now clicked
+* WhatsApp Support clicked
+* FAQ opened
+* Checkout started
+* Purchase completed
+
+Ensure these events can work with:
+
+* Google Tag Manager
+* Google Analytics
+* Meta Pixel
+* Meta Conversions API
+
+Do not duplicate tracking events.
+
+## Admin controls
+
+Create or update homepage settings in the Admin dashboard so the Admin can manage:
+
+* Hero headline
+* Hero supporting text
+* Hero image
+* Hero buttons
+* Trust line
+* Popular tools
+* Tool display order
+* Benefit cards
+* How It Works steps
+* Testimonials
+* Testimonial visibility
+* Business email
+* WhatsApp number
+* Support hours
+* Payment icons
+* FAQ questions and answers
+* Final CTA text
+* Footer information
+* Homepage SEO metadata
+* Section visibility
+* Section display order
+
+Do not require code changes for basic homepage content updates.
+
+## Important restrictions
+
+* Do not delete existing products, users, subscriptions, payments or dashboard data.
+* Do not break the current Paystack integration.
+* Do not expose secret keys in frontend code.
+* Do not invent reviews, ratings, customer numbers or purchase activity.
+* Do not use false urgency or countdown timers.
+* Do not claim that every tool provides instant access.
+* Do not show tools that are unavailable unless clearly marked.
+* Do not display payment methods that are not genuinely supported.
+* Do not use tool logos in a misleading way that suggests official partnership or ownership.
+* Do not replace the Catalogue page with the homepage.
+* Do not show the complete product inventory on the homepage.
+
+## Expected result
+
+The finished homepage should guide visitors through this journey:
+
+1. Immediately understand what Top Rated SEO Tools provides.
+2. See the main benefits.
+3. Understand how purchasing works.
+4. View a few popular tools.
+5. See genuine trust and support information.
+6. Get answers to common concerns.
+7. Click through to the Catalogue or begin a purchase.
+
+Before completing the redesign, test every homepage button, mobile layout, Catalogue link, Login link, WhatsApp link, tool card, FAQ item and footer link.
+
+The final homepage should look like a credible digital-tool marketplace and subscription business, not a basic product listing page.
