@@ -11,8 +11,10 @@ Public-facing brand name is "Top Rated SEO Tools" — homepage headline: "Everyt
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
-- Required env: `PAYSTACK_SECRET_KEY` — Paystack secret key (falls back to `PAYSTACK_API_KEY` if unset)
+- Required env: `DATABASE_URL` — Postgres connection string (already provisioned)
+- Required env: `PAYSTACK_SECRET_KEY` — Paystack secret key (falls back to `PAYSTACK_API_KEY` if unset) — already set
+- Auth: Replit-managed Clerk (`CLERK_SECRET_KEY`/`CLERK_PUBLISHABLE_KEY`/`VITE_CLERK_PUBLISHABLE_KEY`) — already provisioned, dev keys in use during development (expected)
+- Workflows are configured for all three artifacts (store, api-server, mockup-sandbox) and start automatically
 
 ## Stack
 
