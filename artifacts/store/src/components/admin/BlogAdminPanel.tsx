@@ -11,6 +11,7 @@ import CommentsPanel from "./blog/CommentsPanel";
 import StaffPanel from "./blog/StaffPanel";
 import SettingsPanel from "./blog/SettingsPanel";
 import SeoGeneratorSettingsPanel from "./blog/seo-generator/SeoGeneratorSettingsPanel";
+import MonthlyUsageBanner from "./blog/seo-generator/MonthlyUsageBanner";
 
 interface BlogAdminPanelProps {
   token: string;
@@ -235,7 +236,9 @@ export default function BlogAdminPanel({ token, products }: BlogAdminPanelProps)
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 bg-white border border-gray-200 rounded-xl min-h-[600px]">
+      <div className="flex-1 min-w-0">
+        {staff.role === "administrator" && <MonthlyUsageBanner onOpenSettings={() => setActiveTab("ai-generator")} />}
+        <div className="bg-white border border-gray-200 rounded-xl min-h-[600px]">
         {activeTab === "posts" && <PostsPanel staff={staff} products={products} />}
         {activeTab === "taxonomy" && staff.role !== "author" && <TaxonomyPanel staff={staff} />}
         {activeTab === "media" && <MediaLibrary staff={staff} onSelect={() => {}} mode="manage" />}
@@ -243,6 +246,7 @@ export default function BlogAdminPanel({ token, products }: BlogAdminPanelProps)
         {activeTab === "staff" && staff.role === "administrator" && <StaffPanel staff={staff} />}
         {activeTab === "settings" && staff.role === "administrator" && <SettingsPanel staff={staff} />}
         {activeTab === "ai-generator" && staff.role === "administrator" && <SeoGeneratorSettingsPanel staff={staff} />}
+        </div>
       </div>
     </div>
   );

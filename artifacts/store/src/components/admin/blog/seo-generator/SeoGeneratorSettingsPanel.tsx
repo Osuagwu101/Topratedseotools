@@ -37,7 +37,7 @@ interface UsageHistory {
   dailyCounts: DailyCount[];
   byStaff: StaffUsage[];
   recentEntries: UsageEntry[];
-  limits: { perUserDailyLimit: number; monthlyGenerationLimit: number; monthCount: number };
+  limits: { perUserDailyLimit: number; monthlyGenerationLimit: number; warningThresholdPercent: number; monthCount: number };
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -79,6 +79,7 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
     cacheDurationMinutes: 1440,
     perUserDailyLimit: 10,
     monthlyGenerationLimit: 200,
+    warningThresholdPercent: 80,
     confirmBeforeExpensiveOps: true,
   });
 
@@ -135,6 +136,7 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
         cacheDurationMinutes: form.cacheDurationMinutes,
         perUserDailyLimit: form.perUserDailyLimit,
         monthlyGenerationLimit: form.monthlyGenerationLimit,
+        warningThresholdPercent: form.warningThresholdPercent,
         confirmBeforeExpensiveOps: form.confirmBeforeExpensiveOps,
       };
       if (form.serpApiKey.trim()) payload.serpApiKey = form.serpApiKey.trim();
@@ -270,6 +272,11 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Research Cache (minutes)</label>
               <Input type="number" min={0} max={10080} value={form.cacheDurationMinutes} onChange={e => setForm(f => ({ ...f, cacheDurationMinutes: parseInt(e.target.value) || 0 }))} />
             </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Warn At (% of Monthly Cap)</label>
+              <Input type="number" min={1} max={100} value={form.warningThresholdPercent} onChange={e => setForm(f => ({ ...f, warningThresholdPercent: parseInt(e.target.value) || 1 }))} />
+              <p className="text-xs text-muted-foreground mt-1">Administrators see a banner once usage crosses this percentage of the monthly limit.</p>
+            </div>
           </div>
           <div className="mt-4 flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-100 max-w-lg">
             <div>
@@ -312,7 +319,7 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
                   {history.limits.monthCount} <span className="text-sm font-normal text-muted-foreground">/ {history.limits.monthlyGenerationLimit} generations</span>
                 </div>
               </div>
-              <div className={`text-xs font-bold px-2 py-1 rounded ${history.limits.monthCount >= history.limits.monthlyGenerationLimit ? "bg-red-100 text-red-700" : history.limits.monthCount >= history.limits.monthlyGenerationLimit * 0.8 ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"}`}>
+              <div className={`text-xs font-bold px-2 py-1 rounded ${history.limits.monthCount >= history.limits.monthlyGenerationLimit ? "bg-red-100 text-red-700" : history.limits.monthCount >= history.limits.monthlyGenerationLimit * (history.limits.warningThresholdPercent / 100) ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"}`}>
                 {Math.round((history.limits.monthCount / Math.max(1, history.limits.monthlyGenerationLimit)) * 100)}% of cap
               </div>
             </div>

@@ -25,7 +25,7 @@ import { fetchSerpData, estimateCompetitorWordCounts } from "../lib/seoGenerator
 import { buildIntentAndBriefPrompt, buildRelatedKeywordsPrompt, buildFullArticlePrompt, buildSectionRegenerationPrompt, buildClaimFlaggingPrompt } from "../lib/seoGenerator/prompts";
 import { getActiveBannedPhrases } from "../lib/seoGenerator/bannedPhrases";
 import { validateArticleStructure, checkKeywordPlacement, plainText } from "../lib/seoGenerator/validators";
-import { checkUsageLimits, logUsage } from "../lib/seoGenerator/usageLimits";
+import { checkUsageLimits, logUsage, getMonthlyUsageStatus } from "../lib/seoGenerator/usageLimits";
 import { assembleFullContent, saveSectionVersion, getActiveSectionVersions, listSectionVersions, restoreSectionVersion } from "../lib/seoGenerator/contentAssembly";
 
 const router: IRouter = Router();
@@ -124,6 +124,9 @@ router.put("/admin/blog/seo-generator/settings", requireStaffRole("administrator
     if (typeof body.cacheDurationMinutes === "number") updates.cacheDurationMinutes = body.cacheDurationMinutes;
     if (typeof body.perUserDailyLimit === "number") updates.perUserDailyLimit = body.perUserDailyLimit;
     if (typeof body.monthlyGenerationLimit === "number") updates.monthlyGenerationLimit = body.monthlyGenerationLimit;
+    if (typeof body.warningThresholdPercent === "number") {
+      updates.warningThresholdPercent = Math.min(100, Math.max(1, Math.round(body.warningThresholdPercent)));
+    }
     if (typeof body.confirmBeforeExpensiveOps === "boolean") updates.confirmBeforeExpensiveOps = body.confirmBeforeExpensiveOps;
 
     const [updated] = await db
@@ -152,6 +155,21 @@ router.get("/admin/blog/seo-generator/usage", requireStaffRole(...STAFF_ROLES), 
   const counts = await getUsageCounts(req.staffUser!.id);
   const settings = await getOrCreateSettings();
   res.json({ ...counts, perUserDailyLimit: settings.perUserDailyLimit, monthlyGenerationLimit: settings.monthlyGenerationLimit });
+});
+
+// Administrator-only alert feed: site-wide monthly usage vs. the configured
+// cap and warning threshold. Polled by a persistent banner shown on every
+// admin blog page (not just the AI Generator settings tab) so administrators
+// are warned before the monthly generation cap actually blocks staff.
+router.get("/admin/blog/seo-generator/usage-alert", requireStaffRole("administrator"), async (_req, res): Promise<void> => {
+  try {
+    const settings = await getOrCreateSettings();
+    const status = await getMonthlyUsageStatus(settings);
+    res.json(status);
+  } catch (err) {
+    logger.error({ err }, "Failed to load SEO generator usage alert status");
+    res.status(500).json({ error: "Failed to load usage alert status" });
+  }
 });
 
 // Admin-only usage/cost history report: generation counts by day and by staff
@@ -222,6 +240,7 @@ router.get("/admin/blog/seo-generator/usage-history", requireStaffRole("administ
       limits: {
         perUserDailyLimit: settings.perUserDailyLimit,
         monthlyGenerationLimit: settings.monthlyGenerationLimit,
+        warningThresholdPercent: settings.warningThresholdPercent,
         monthCount: currentCounts.monthCount,
       },
     });

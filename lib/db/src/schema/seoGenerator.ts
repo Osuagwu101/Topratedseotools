@@ -20,6 +20,9 @@ export const seoGeneratorSettingsTable = pgTable("seo_generator_settings", {
   cacheDurationMinutes: integer("cache_duration_minutes").notNull().default(1440),
   perUserDailyLimit: integer("per_user_daily_limit").notNull().default(10),
   monthlyGenerationLimit: integer("monthly_generation_limit").notNull().default(200),
+  // % of monthlyGenerationLimit at which administrators are warned that the
+  // site-wide cap is approaching (e.g. 80 = warn at 80% usage).
+  warningThresholdPercent: integer("warning_threshold_percent").notNull().default(80),
   confirmBeforeExpensiveOps: boolean("confirm_before_expensive_ops").notNull().default(true),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   updatedBy: integer("updated_by"),

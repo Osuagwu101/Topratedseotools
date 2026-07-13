@@ -13,3 +13,4 @@
 - [Gemini JSON mode quirks](gemini-json-mode-quirks.md) — dated Gemini model IDs 404 for new keys (use "-latest" aliases); JSON response mode can return truncated/malformed JSON even on finishReason STOP — always parse leniently.
 - [Multi-provider AI generation pattern](multi-provider-ai-generation.md) — when adding a 2nd LLM provider as a fallback/choice alongside an existing one, add a provider-agnostic dispatcher module rather than branching per call site.
 - [SEO generator review gating](seo-generator-review-gating.md) — quality-report reviewedAt/issuesAcknowledged gate Publish; any content-changing endpoint must reset it or stale sign-off lets unreviewed content publish.
+- [SubsHub monthly cap alerting](subshub-monthly-cap-alerting.md) — no email service configured; AI generator cap warnings use an in-app admin banner instead, computed live with no dedupe.

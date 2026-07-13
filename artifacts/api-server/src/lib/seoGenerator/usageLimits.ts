@@ -65,6 +65,45 @@ export async function checkUsageLimits(
   return { allowed: true };
 }
 
+export interface MonthlyUsageStatus {
+  monthCount: number;
+  monthlyGenerationLimit: number;
+  warningThresholdPercent: number;
+  percentUsed: number;
+  isAtOrOverThreshold: boolean;
+  isAtOrOverLimit: boolean;
+}
+
+/**
+ * Site-wide monthly usage vs. the configured cap, used to warn administrators
+ * (via an in-app banner shown on every admin blog page) before the cap
+ * actually blocks generation. Computed live so it always reflects current
+ * usage without needing a separate "notification sent" table.
+ */
+export async function getMonthlyUsageStatus(settings: SeoGeneratorSettings): Promise<MonthlyUsageStatus> {
+  const [monthRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(generationUsageLogTable)
+    .where(
+      and(
+        gte(generationUsageLogTable.createdAt, startOfMonth()),
+        sql`${generationUsageLogTable.action} IN ${LIMITED_ACTIONS}`,
+      ),
+    );
+  const monthCount = Number(monthRow?.count ?? 0);
+  const monthlyGenerationLimit = settings.monthlyGenerationLimit;
+  const warningThresholdPercent = settings.warningThresholdPercent;
+  const percentUsed = monthlyGenerationLimit > 0 ? Math.round((monthCount / monthlyGenerationLimit) * 100) : 0;
+  return {
+    monthCount,
+    monthlyGenerationLimit,
+    warningThresholdPercent,
+    percentUsed,
+    isAtOrOverThreshold: percentUsed >= warningThresholdPercent,
+    isAtOrOverLimit: monthCount >= monthlyGenerationLimit,
+  };
+}
+
 export async function logUsage(params: {
   staffUserId: number;
   postId?: number | null;
