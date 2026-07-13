@@ -62,7 +62,7 @@ const GEMINI_MODELS = [
   { value: "gemini-pro-latest", label: "Gemini Pro (higher quality, may need billing on free tier)" },
 ];
 
-export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser }) {
+export default function SeoGeneratorSettingsPanel({ staff, onStartNewArticle }: { staff: StaffUser; onStartNewArticle: () => void }) {
   const { toast } = useToast();
   const isAdmin = staff.role === "administrator";
   const [loading, setLoading] = useState(true);
@@ -205,20 +205,24 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
             </p>
           </div>
         </div>
-        {isAdmin && (
-          <Button onClick={handleSave} disabled={saving} className="font-bold gap-2">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save Changes
+        <div className="flex items-center gap-2 shrink-0">
+          <Button onClick={onStartNewArticle} className="font-bold gap-2 bg-primary text-white">
+            <Sparkles className="w-4 h-4" />
+            New AI Article
           </Button>
-        )}
+          {isAdmin && (
+            <Button onClick={handleSave} disabled={saving} variant="outline" className="font-bold gap-2">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save Changes
+            </Button>
+          )}
+        </div>
       </div>
 
-      {!isAdmin && (
-        <p className="text-xs text-muted-foreground bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 mb-8">
-          To generate an AI-assisted article, open any post in the Posts tab and use the "AI Assistant" option there.
-          Provider/model, API keys, and cost limits below are read-only for your role — ask an administrator to change them.
-        </p>
-      )}
+      <p className="text-xs text-muted-foreground bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 mb-8">
+        Click "New AI Article" above to create a draft post and jump straight into keyword research, a content brief, and full
+        article generation.{!isAdmin && " Provider/model, API keys, and cost limits below are read-only for your role — ask an administrator to change them."}
+      </p>
 
       <div className="space-y-8">
         <section>

@@ -22,7 +22,19 @@ interface BlogPostSummary {
   aiReviewNeeded: boolean;
 }
 
-export default function PostsPanel({ staff, products }: { staff: StaffUser; products: any[] }) {
+export default function PostsPanel({
+  staff,
+  products,
+  autoStartAiArticle,
+  onAutoStartHandled,
+}: {
+  staff: StaffUser;
+  products: any[];
+  // When true, immediately open a fresh "New Post" straight into the AI
+  // Assistant (the "New AI Article" shortcut on the AI Generator tab).
+  autoStartAiArticle?: boolean;
+  onAutoStartHandled?: () => void;
+}) {
   const { toast } = useToast();
   const [posts, setPosts] = useState<BlogPostSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +47,15 @@ export default function PostsPanel({ staff, products }: { staff: StaffUser; prod
   // Set when the editor should be opened straight into the AI Assistant
   // panel, e.g. via the "AI review needed" badge on the post list.
   const [openAiOnEdit, setOpenAiOnEdit] = useState(false);
+
+  useEffect(() => {
+    if (autoStartAiArticle) {
+      setEditingPostId("new");
+      setOpenAiOnEdit(true);
+      onAutoStartHandled?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStartAiArticle]);
   
   const fetchPosts = async () => {
     setLoading(true);

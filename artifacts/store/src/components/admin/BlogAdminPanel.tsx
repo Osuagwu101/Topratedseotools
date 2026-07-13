@@ -38,6 +38,11 @@ export default function BlogAdminPanel({ token, products }: BlogAdminPanelProps)
   const [authError, setAuthError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<"posts" | "taxonomy" | "media" | "comments" | "staff" | "settings" | "ai-generator">("posts");
+  // When set, PostsPanel opens a fresh "New Post" straight into the AI
+  // Assistant, so the "New AI Article" shortcut on the AI Generator tab can
+  // jump the user directly into keyword research without a detour through
+  // an empty Posts list.
+  const [startNewAiArticle, setStartNewAiArticle] = useState(false);
 
   // Two ways to reach this component:
   //  - Embedded in /admin (token set): anyone already holding a valid admin
@@ -185,13 +190,28 @@ export default function BlogAdminPanel({ token, products }: BlogAdminPanelProps)
       <div className="flex-1 min-w-0">
         {staff.role === "administrator" && <MonthlyUsageBanner onOpenSettings={() => setActiveTab("ai-generator")} />}
         <div className="bg-white border border-gray-200 rounded-xl min-h-[600px]">
-        {activeTab === "posts" && <PostsPanel staff={staff} products={products} />}
+        {activeTab === "posts" && (
+          <PostsPanel
+            staff={staff}
+            products={products}
+            autoStartAiArticle={startNewAiArticle}
+            onAutoStartHandled={() => setStartNewAiArticle(false)}
+          />
+        )}
         {activeTab === "taxonomy" && staff.role !== "author" && <TaxonomyPanel staff={staff} />}
         {activeTab === "media" && <MediaLibrary staff={staff} onSelect={() => {}} mode="manage" />}
         {activeTab === "comments" && staff.role !== "author" && <CommentsPanel staff={staff} />}
         {activeTab === "staff" && staff.role === "administrator" && <StaffPanel staff={staff} />}
         {activeTab === "settings" && staff.role === "administrator" && <SettingsPanel staff={staff} />}
-        {activeTab === "ai-generator" && staff.role !== "author" && <SeoGeneratorSettingsPanel staff={staff} />}
+        {activeTab === "ai-generator" && staff.role !== "author" && (
+          <SeoGeneratorSettingsPanel
+            staff={staff}
+            onStartNewArticle={() => {
+              setStartNewAiArticle(true);
+              setActiveTab("posts");
+            }}
+          />
+        )}
         </div>
       </div>
     </div>
