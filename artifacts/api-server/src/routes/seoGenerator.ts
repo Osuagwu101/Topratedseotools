@@ -214,6 +214,7 @@ router.get("/admin/blog/seo-generator/usage-history", requireStaffRole("administ
       db
         .select({
           id: generationUsageLogTable.id,
+          staffUserId: generationUsageLogTable.staffUserId,
           action: generationUsageLogTable.action,
           detail: generationUsageLogTable.detail,
           createdAt: generationUsageLogTable.createdAt,

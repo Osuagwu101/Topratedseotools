@@ -499,20 +499,29 @@ router.post("/admin/blog/posts/bulk", requireStaffRole("administrator", "editor"
       await db.delete(blogPostTagsTable).where(inArray(blogPostTagsTable.postId, ids));
       await db.delete(blogPostsTable).where(inArray(blogPostsTable.id, ids));
     } else if (statusMap[action]) {
+      let targetIds = ids;
+      let blockedIds: number[] = [];
       if (action === "publish") {
+        // Publish whichever selected posts pass the AI review gate rather than
+        // failing the entire batch for everyone else — a single unreviewed
+        // post shouldn't block publishing the rest of a bulk selection.
         const gateResults = await Promise.all(ids.map((id) => assertAiPublishReady(id)));
-        const blockedIds = ids.filter((_, i) => !gateResults[i].allowed);
-        if (blockedIds.length > 0) {
-          res.status(409).json({
-            error: `${blockedIds.length} post(s) have unreviewed AI-generated content and can't be published yet. Open the AI Assistant panel on those posts and mark the quality report reviewed first.`,
-            blockedIds,
-          });
-          return;
-        }
+        blockedIds = ids.filter((_, i) => !gateResults[i].allowed);
+        targetIds = ids.filter((_, i) => gateResults[i].allowed);
       }
-      const updates: Record<string, unknown> = { status: statusMap[action], updatedAt: new Date() };
-      if (action === "publish") updates.publishedAt = new Date();
-      await db.update(blogPostsTable).set(updates as never).where(inArray(blogPostsTable.id, ids));
+      if (targetIds.length > 0) {
+        const updates: Record<string, unknown> = { status: statusMap[action], updatedAt: new Date() };
+        if (action === "publish") updates.publishedAt = new Date();
+        await db.update(blogPostsTable).set(updates as never).where(inArray(blogPostsTable.id, targetIds));
+      }
+      if (blockedIds.length > 0) {
+        res.status(200).json({
+          published: targetIds.length,
+          error: `${blockedIds.length} post(s) have unreviewed AI-generated content and can't be published yet. Open the AI Assistant panel on those posts and mark the quality report reviewed first.`,
+          blockedIds,
+        });
+        return;
+      }
     } else {
       res.status(400).json({ error: "Unknown action" });
       return;

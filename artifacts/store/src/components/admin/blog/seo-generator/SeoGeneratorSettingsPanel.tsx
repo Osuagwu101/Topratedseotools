@@ -23,6 +23,7 @@ interface StaffUsage {
 
 interface UsageEntry {
   id: number;
+  staffUserId: number;
   action: string;
   detail: string | null;
   createdAt: string;
@@ -381,7 +382,7 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
                     {history.recentEntries.map((entry) => (
                       <tr key={entry.id}>
                         <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">{new Date(entry.createdAt).toLocaleString()}</td>
-                        <td className="px-4 py-2">{entry.staffName ?? `Staff #${entry.id}`}</td>
+                        <td className="px-4 py-2">{entry.staffName ?? `Staff #${entry.staffUserId}`}</td>
                         <td className="px-4 py-2">{ACTION_LABELS[entry.action] ?? entry.action}</td>
                         <td className="px-4 py-2 text-muted-foreground truncate max-w-xs">{entry.postTitle ?? (entry.detail ? entry.detail : "—")}</td>
                       </tr>
