@@ -14,17 +14,35 @@ import { logger } from "../lib/logger";
 import { uniqueSlug, estimateReadingTimeMinutes } from "../lib/slugify";
 import { attachStaffUser, requireStaffRole } from "../lib/staffAuth";
 import { sanitizeBlogContent } from "../lib/sanitizeBlogHtml";
+import { assertAiPublishReady } from "../lib/seoGenerator/publishGate";
 
 const router: IRouter = Router();
 router.use(attachStaffUser);
 
 // Flips any scheduled posts whose time has arrived to published. Cheap enough
 // to run on every public read; avoids needing a separate cron/worker.
+//
+// A post could only get scheduled while its AI quality report was clean (the
+// PUT route re-checks assertAiPublishReady on the transition into
+// "scheduled"), but a later section regeneration/version restore can still
+// invalidate that sign-off before the scheduled time arrives. Re-check here
+// too so a since-invalidated post doesn't silently go live unreviewed —
+// it's left in "scheduled" status until a human clears it.
 async function publishDueScheduledPosts(): Promise<void> {
+  const due = await db
+    .select({ id: blogPostsTable.id })
+    .from(blogPostsTable)
+    .where(and(eq(blogPostsTable.status, "scheduled"), lte(blogPostsTable.scheduledAt, new Date())));
+  if (due.length === 0) return;
+
+  const gateResults = await Promise.all(due.map((p) => assertAiPublishReady(p.id)));
+  const readyIds = due.filter((_, i) => gateResults[i].allowed).map((p) => p.id);
+  if (readyIds.length === 0) return;
+
   await db
     .update(blogPostsTable)
     .set({ status: "published", updatedAt: new Date() })
-    .where(and(eq(blogPostsTable.status, "scheduled"), lte(blogPostsTable.scheduledAt, new Date())));
+    .where(inArray(blogPostsTable.id, readyIds));
 }
 
 async function attachTagIds(postIds: number[]): Promise<Map<number, number[]>> {
@@ -410,6 +428,13 @@ router.put("/admin/blog/posts/:id", requireStaffRole("administrator", "editor", 
         res.status(403).json({ error: "Authors can only save drafts or submit for review." });
         return;
       }
+      if ((requested === "published" || requested === "scheduled") && existing.status !== requested) {
+        const gate = await assertAiPublishReady(id);
+        if (!gate.allowed) {
+          res.status(409).json({ error: gate.reason });
+          return;
+        }
+      }
       updates.status = requested;
       if (requested === "published" && existing.status !== "published") updates.publishedAt = new Date();
       if (requested === "scheduled") {
@@ -474,6 +499,17 @@ router.post("/admin/blog/posts/bulk", requireStaffRole("administrator", "editor"
       await db.delete(blogPostTagsTable).where(inArray(blogPostTagsTable.postId, ids));
       await db.delete(blogPostsTable).where(inArray(blogPostsTable.id, ids));
     } else if (statusMap[action]) {
+      if (action === "publish") {
+        const gateResults = await Promise.all(ids.map((id) => assertAiPublishReady(id)));
+        const blockedIds = ids.filter((_, i) => !gateResults[i].allowed);
+        if (blockedIds.length > 0) {
+          res.status(409).json({
+            error: `${blockedIds.length} post(s) have unreviewed AI-generated content and can't be published yet. Open the AI Assistant panel on those posts and mark the quality report reviewed first.`,
+            blockedIds,
+          });
+          return;
+        }
+      }
       const updates: Record<string, unknown> = { status: statusMap[action], updatedAt: new Date() };
       if (action === "publish") updates.publishedAt = new Date();
       await db.update(blogPostsTable).set(updates as never).where(inArray(blogPostsTable.id, ids));

@@ -671,6 +671,13 @@ router.post("/admin/blog/posts/:postId/seo-generator/regenerate-section", requir
     const bannedPhraseHits = bannedPhrases.filter((p) => result.html.toLowerCase().includes(p.toLowerCase()));
 
     await db.update(generationJobsTable).set({ status: "succeeded", resultSummary: { bannedPhraseHits }, completedAt: new Date() }).where(eq(generationJobsTable.id, job.id));
+    // Section content changed since the last quality report was reviewed —
+    // clear any prior sign-off so the "Mark reviewed & ready" checklist
+    // requires a fresh look before the post can be published again.
+    await db
+      .update(seoQualityReportsTable)
+      .set({ reviewedAt: null, reviewedBy: null, issuesAcknowledged: false })
+      .where(eq(seoQualityReportsTable.postId, postId));
     await logUsage({ staffUserId: req.staffUser!.id, postId, action: "regenerate_section", detail: `${sectionKey} (${provider})` });
 
     res.status(201).json({ job, sectionKey, html: result.html, bannedPhraseHits, fullContent });
@@ -704,6 +711,12 @@ router.post("/admin/blog/posts/:postId/seo-generator/versions/:versionId/restore
     // content — demote to draft so it gets human re-review before publishing,
     // same rule as full-article generation and section regeneration.
     await db.update(blogPostsTable).set({ content: fullContent, status: "draft", updatedAt: new Date() }).where(eq(blogPostsTable.id, postId));
+    // Restoring a section version changes live content, same as regenerating
+    // one — clear any prior quality-report sign-off so review is required again.
+    await db
+      .update(seoQualityReportsTable)
+      .set({ reviewedAt: null, reviewedBy: null, issuesAcknowledged: false })
+      .where(eq(seoQualityReportsTable.postId, postId));
     const post = await getPostOr404(postId);
     res.json({ fullContent, post });
   } catch (err) {
@@ -717,6 +730,46 @@ router.get("/admin/blog/posts/:postId/seo-generator/quality-report", requireStaf
   if (!(await assertPostAccess(req, res, postId))) return;
   const [report] = await db.select().from(seoQualityReportsTable).where(eq(seoQualityReportsTable.postId, postId)).orderBy(desc(seoQualityReportsTable.createdAt)).limit(1);
   res.json(report ?? null);
+});
+
+// Human sign-off on the latest quality report for a post. Called from the AI
+// Assistant panel's "Mark reviewed & ready to publish" checklist. When the
+// report has unresolved banned-phrase hits or flagged claims, the caller
+// must explicitly pass acknowledgeIssues: true — otherwise this is rejected,
+// so a stray click can't silently clear open issues.
+router.post("/admin/blog/posts/:postId/seo-generator/quality-report/review", requireStaffRole(...STAFF_ROLES), async (req, res): Promise<void> => {
+  try {
+    const postId = parseInt(String(req.params.postId), 10);
+    if (!(await assertPostAccess(req, res, postId))) return;
+    const { acknowledgeIssues } = req.body as { acknowledgeIssues?: boolean };
+
+    const [report] = await db
+      .select()
+      .from(seoQualityReportsTable)
+      .where(eq(seoQualityReportsTable.postId, postId))
+      .orderBy(desc(seoQualityReportsTable.createdAt))
+      .limit(1);
+    if (!report) {
+      res.status(404).json({ error: "No quality report found for this post yet." });
+      return;
+    }
+
+    const hasIssues = (report.bannedPhraseHits as unknown[]).length > 0 || (report.flaggedClaims as unknown[]).length > 0;
+    if (hasIssues && !acknowledgeIssues) {
+      res.status(400).json({ error: "This report has flagged claims or banned-phrase hits that must be explicitly acknowledged before it can be marked reviewed." });
+      return;
+    }
+
+    const [updated] = await db
+      .update(seoQualityReportsTable)
+      .set({ reviewedAt: new Date(), reviewedBy: req.staffUser!.id, issuesAcknowledged: hasIssues ? true : report.issuesAcknowledged })
+      .where(eq(seoQualityReportsTable.id, report.id))
+      .returning();
+    res.json(updated);
+  } catch (err) {
+    logger.error({ err }, "Failed to mark quality report reviewed");
+    res.status(500).json({ error: "Failed to mark quality report reviewed" });
+  }
 });
 
 export default router;

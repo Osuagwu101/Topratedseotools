@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { StaffUser } from "../../BlogAdminPanel";
 import {
   Loader2, Sparkles, Search, FileText, Wand2, History, RotateCcw,
-  CheckCircle2, XCircle, AlertTriangle, Highlighter, X
+  CheckCircle2, XCircle, AlertTriangle, Highlighter, X, ShieldCheck
 } from "lucide-react";
 
 interface ResearchItem {
@@ -78,6 +78,8 @@ export default function AiAssistantPanel({
   const [sectionInstructions, setSectionInstructions] = useState<Record<string, string>>({});
   const [provider, setProvider] = useState<"openai" | "gemini">("openai");
   const [providerAvailability, setProviderAvailability] = useState({ hasOpenAiKey: true, hasGeminiKey: true });
+  const [acknowledgeIssues, setAcknowledgeIssues] = useState(false);
+  const [markingReviewed, setMarkingReviewed] = useState(false);
 
   const base = "/api/admin/blog/posts";
 
@@ -111,6 +113,18 @@ export default function AiAssistantPanel({
   };
 
   useEffect(() => { loadExisting(); }, []);
+
+  const refreshReport = async () => {
+    try {
+      const res = await fetch(`${base}/${postId}/seo-generator/quality-report`, { credentials: "include" });
+      if (res.ok) {
+        setReport(await res.json());
+        setAcknowledgeIssues(false);
+      }
+    } catch {
+      // best-effort refresh
+    }
+  };
 
   const runResearch = async () => {
     if (!keyword.trim()) {
@@ -194,6 +208,7 @@ export default function AiAssistantPanel({
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setReport(data.report);
+      setAcknowledgeIssues(false);
       setConfirmNeeded(null);
       await onGenerated();
       toast({ title: "Article generated as draft", description: "Saved to this post. Review before publishing." });
@@ -225,7 +240,8 @@ export default function AiAssistantPanel({
       if (!res.ok) throw new Error(await res.text());
       setConfirmNeeded(null);
       await onGenerated();
-      toast({ title: `${SECTION_LABELS[sectionKey] || sectionKey} regenerated` });
+      await refreshReport();
+      toast({ title: `${SECTION_LABELS[sectionKey] || sectionKey} regenerated`, description: "Quality report sign-off was cleared — review it again before publishing." });
     } catch (err: any) {
       toast({ title: "Section regeneration failed", description: err.message, variant: "destructive" });
     } finally {
@@ -250,11 +266,35 @@ export default function AiAssistantPanel({
       if (!res.ok) throw new Error(await res.text());
       await onGenerated();
       await loadVersionHistory(versionHistory.sectionKey);
-      toast({ title: "Version restored" });
+      await refreshReport();
+      toast({ title: "Version restored", description: "Quality report sign-off was cleared — review it again before publishing." });
     } catch (err: any) {
       toast({ title: "Restore failed", description: err.message, variant: "destructive" });
     }
   };
+
+  const markReviewed = async () => {
+    if (!report) return;
+    setMarkingReviewed(true);
+    try {
+      const res = await fetch(`${base}/${postId}/seo-generator/quality-report/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ acknowledgeIssues }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setReport(await res.json());
+      toast({ title: "Marked reviewed & ready to publish" });
+    } catch (err: any) {
+      toast({ title: "Could not mark reviewed", description: err.message, variant: "destructive" });
+    } finally {
+      setMarkingReviewed(false);
+    }
+  };
+
+  const hasIssues = Boolean(report && ((report.bannedPhraseHits?.length ?? 0) > 0 || (report.flaggedClaims?.length ?? 0) > 0));
+  const isReviewed = Boolean(report?.reviewedAt);
 
   const highlightedHtml = useMemo(() => {
     if (!highlightPreview) return currentContentHtml;
@@ -434,6 +474,45 @@ export default function AiAssistantPanel({
                   <ul className="list-disc pl-5">{report.flaggedClaims.map((c: string, i: number) => <li key={i}>{c}</li>)}</ul>
                 </div>
               )}
+
+              {/* Ready-to-publish checklist */}
+              <div className="border-t border-gray-100 pt-3 space-y-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gray-500">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Ready to Publish Checklist
+                </div>
+                {isReviewed ? (
+                  <div className="flex items-center gap-1.5 text-sm text-green-700 font-semibold bg-green-50 border border-green-200 rounded-md px-3 py-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    Reviewed{report.reviewedAt ? ` on ${new Date(report.reviewedAt).toLocaleString()}` : ""} — this post is ready to publish.
+                  </div>
+                ) : (
+                  <>
+                    {hasIssues && (
+                      <label className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={acknowledgeIssues}
+                          onChange={(e) => setAcknowledgeIssues(e.target.checked)}
+                          className="mt-0.5"
+                        />
+                        <span>I have reviewed the flagged claims and/or banned-phrase hits above and confirm this content is safe to publish.</span>
+                      </label>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={markReviewed}
+                      disabled={markingReviewed || (hasIssues && !acknowledgeIssues)}
+                      className="font-bold bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      {markingReviewed ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />}
+                      Mark reviewed & ready to publish
+                    </Button>
+                    {hasIssues && !acknowledgeIssues && (
+                      <p className="text-[11px] text-gray-400">Acknowledge the flagged issues above to enable this.</p>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           )}
         </section>

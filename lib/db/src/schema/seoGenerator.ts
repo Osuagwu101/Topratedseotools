@@ -131,6 +131,14 @@ export const seoQualityReportsTable = pgTable("seo_quality_reports", {
   bannedPhraseHits: jsonb("banned_phrase_hits").notNull().default([]),
   flaggedClaims: jsonb("flagged_claims").notNull().default([]),
   reportJson: jsonb("report_json").notNull().default({}),
+  // Human review sign-off, surfaced by the "Mark reviewed & ready" checklist
+  // in the AI Assistant panel. reviewedAt is set the first time a staff
+  // member acknowledges having read this report. issuesAcknowledged must be
+  // explicitly set to true when bannedPhraseHits/flaggedClaims are non-empty
+  // before the post is allowed to be published.
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: integer("reviewed_by"),
+  issuesAcknowledged: boolean("issues_acknowledged").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

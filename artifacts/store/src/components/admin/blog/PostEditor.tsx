@@ -23,7 +23,7 @@ import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, 
   Heading2, Heading3, Heading4, List, ListOrdered, Quote, 
   Link2, Link2Off, Code, Undo, Redo, Table as TableIcon,
-  Trash2, Send, Sparkles
+  Trash2, Send, Sparkles, AlertTriangle
 } from "lucide-react";
 
 export default function PostEditor({ 
@@ -45,6 +45,7 @@ export default function PostEditor({
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [mediaTarget, setMediaTarget] = useState<"featured" | "content">("content");
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
+  const [qualityReport, setQualityReport] = useState<any>(null);
   
   // Data State
   const [form, setForm] = useState({
@@ -89,6 +90,16 @@ export default function PostEditor({
     },
   });
 
+  const loadQualityReport = async () => {
+    if (postId === "new") return;
+    try {
+      const res = await fetch(`/api/admin/blog/posts/${postId}/seo-generator/quality-report`, { credentials: "include" });
+      if (res.ok) setQualityReport(await res.json());
+    } catch {
+      // best-effort; publish gating just falls back to "no AI report on file"
+    }
+  };
+
   const loadPost = async () => {
     if (postId === "new") return;
     const res = await fetch(`/api/admin/blog/posts/${postId}`, { credentials: "include" });
@@ -119,7 +130,7 @@ export default function PostEditor({
         if (tagRes.ok) setTags(await tagRes.json());
 
         if (postId !== "new") {
-          await loadPost();
+          await Promise.all([loadPost(), loadQualityReport()]);
         }
       } catch (err: any) {
         toast({ title: "Error loading editor", description: err.message, variant: "destructive" });
@@ -205,6 +216,28 @@ export default function PostEditor({
   const wordCount = form.content ? form.content.replace(/<[^>]*>?/gm, '').split(/\s+/).filter(w => w.length > 0).length : 0;
   const readTime = Math.max(1, Math.ceil(wordCount / 200));
 
+  // AI-generated posts with an unresolved quality report (flagged claims or
+  // banned-phrase hits that haven't been explicitly acknowledged in the AI
+  // Assistant panel) cannot be published until a human closes the loop there.
+  const aiIssuesUnresolved = Boolean(
+    qualityReport &&
+    !qualityReport.reviewedAt &&
+    ((qualityReport.bannedPhraseHits?.length ?? 0) > 0 || (qualityReport.flaggedClaims?.length ?? 0) > 0)
+  );
+
+  const handlePublishClick = () => {
+    if (aiIssuesUnresolved) {
+      toast({
+        title: "AI content needs review before publishing",
+        description: "This post has flagged claims or banned-phrase hits from the AI generator. Open the AI Assistant and mark the quality report reviewed first.",
+        variant: "destructive",
+      });
+      setAiAssistantOpen(true);
+      return;
+    }
+    handleSave("published");
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -223,6 +256,11 @@ export default function PostEditor({
           }`}>
             {form.status.replace("_", " ")}
           </span>
+          {aiIssuesUnresolved && (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800">
+              <AlertTriangle className="w-3 h-3" /> AI review needed
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -249,8 +287,14 @@ export default function PostEditor({
               <Send className="w-4 h-4 mr-1.5" /> Submit for Review
             </Button>
           ) : (
-            <Button onClick={() => handleSave("published")} disabled={saving || form.status === "published"} className="bg-green-600 hover:bg-green-700 text-white font-bold">
-              <Globe className="w-4 h-4 mr-1.5" /> Publish
+            <Button
+              onClick={handlePublishClick}
+              disabled={saving || form.status === "published"}
+              title={aiIssuesUnresolved ? "This post has unresolved AI quality-report issues — review them in the AI Assistant first." : undefined}
+              className={`font-bold text-white ${aiIssuesUnresolved ? "bg-amber-500 hover:bg-amber-600" : "bg-green-600 hover:bg-green-700"}`}
+            >
+              {aiIssuesUnresolved ? <AlertTriangle className="w-4 h-4 mr-1.5" /> : <Globe className="w-4 h-4 mr-1.5" />}
+              Publish
             </Button>
           )}
         </div>
@@ -508,8 +552,8 @@ export default function PostEditor({
               focusKeyword={form.focusKeyword}
               secondaryKeywords={form.secondaryKeywords}
               currentContentHtml={form.content}
-              onGenerated={loadPost}
-              onClose={() => setAiAssistantOpen(false)}
+              onGenerated={async () => { await loadPost(); await loadQualityReport(); }}
+              onClose={() => { setAiAssistantOpen(false); loadQualityReport(); }}
             />
           </DialogContent>
         </Dialog>

@@ -12,3 +12,4 @@
 - [Blog CMS staff auth model](blog-cms-staff-auth.md) — two separate auth systems (legacy Basic Auth bootstrap vs staff session cookie) for the SubsHub blog; read before touching blog admin auth again.
 - [Gemini JSON mode quirks](gemini-json-mode-quirks.md) — dated Gemini model IDs 404 for new keys (use "-latest" aliases); JSON response mode can return truncated/malformed JSON even on finishReason STOP — always parse leniently.
 - [Multi-provider AI generation pattern](multi-provider-ai-generation.md) — when adding a 2nd LLM provider as a fallback/choice alongside an existing one, add a provider-agnostic dispatcher module rather than branching per call site.
+- [SEO generator review gating](seo-generator-review-gating.md) — quality-report reviewedAt/issuesAcknowledged gate Publish; any content-changing endpoint must reset it or stale sign-off lets unreviewed content publish.
