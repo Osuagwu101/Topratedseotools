@@ -8,7 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Star, Save, Loader2, Plus, Trash2, GripVertical, Eye, EyeOff, MessageSquareReply, ShieldCheck, AlertTriangle, RefreshCw, Upload, X } from "lucide-react";
 
-type Tab = "contact" | "support" | "whatsapp" | "testimonials" | "assignments" | "reviews" | "counter" | "payments";
+export type TrustAdminTab = "contact" | "support" | "whatsapp" | "testimonials" | "assignments" | "reviews" | "counter" | "payments";
+type Tab = TrustAdminTab;
 
 interface Testimonial {
   id: number;
@@ -112,11 +113,24 @@ interface SiteSettings {
   customersServedManualCorrection: number;
 }
 
-export default function TrustAdminPanel({ token }: { token: string }) {
+export default function TrustAdminPanel({
+  token,
+  activeTab: controlledTab,
+  onActiveTabChange,
+}: {
+  token: string;
+  activeTab?: TrustAdminTab;
+  onActiveTabChange?: (tab: TrustAdminTab) => void;
+}) {
   const { toast } = useToast();
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   const authHeaders = { Authorization: token };
-  const [activeTab, setActiveTab] = useState<Tab>("contact");
+  const [internalTab, setInternalTab] = useState<Tab>("contact");
+  const activeTab = controlledTab ?? internalTab;
+  const setActiveTab = (tab: Tab) => {
+    if (onActiveTabChange) onActiveTabChange(tab);
+    else setInternalTab(tab);
+  };
   const [loading, setLoading] = useState(false);
 
   // Contact + WhatsApp + counter settings

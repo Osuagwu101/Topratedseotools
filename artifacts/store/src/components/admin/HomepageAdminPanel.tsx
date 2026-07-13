@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Loader2, Plus, Trash2, GripVertical, Save, Upload, X } from "lucide-react";
 import { HOME_ICON_NAMES } from "@/components/home/icon-map";
 
-type HomeTab = "hero" | "seo" | "popular" | "benefits" | "steps" | "faq";
+export type HomeTab = "hero" | "seo" | "popular" | "benefits" | "steps" | "faq";
 
 interface SiteSettings {
   heroImageUrl: string | null;
@@ -68,16 +68,25 @@ export default function HomepageAdminPanel({
   token,
   products,
   onProductsChanged,
+  activeTab: controlledTab,
+  onActiveTabChange,
 }: {
   token: string;
   products: ProductLite[];
   onProductsChanged: () => void;
+  activeTab?: HomeTab;
+  onActiveTabChange?: (tab: HomeTab) => void;
 }) {
   const { toast } = useToast();
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   const authHeaders = { Authorization: token };
   const API = `${basePath}/api`;
-  const [activeTab, setActiveTab] = useState<HomeTab>("hero");
+  const [internalTab, setInternalTab] = useState<HomeTab>("hero");
+  const activeTab = controlledTab ?? internalTab;
+  const setActiveTab = (tab: HomeTab) => {
+    if (onActiveTabChange) onActiveTabChange(tab);
+    else setInternalTab(tab);
+  };
   const [loading, setLoading] = useState(false);
 
   const [settings, setSettings] = useState<SiteSettings | null>(null);

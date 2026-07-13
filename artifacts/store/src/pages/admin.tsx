@@ -22,8 +22,8 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import TrustAdminPanel from "@/components/admin/TrustAdminPanel";
-import HomepageAdminPanel from "@/components/admin/HomepageAdminPanel";
+import TrustAdminPanel, { type TrustAdminTab } from "@/components/admin/TrustAdminPanel";
+import HomepageAdminPanel, { type HomeTab } from "@/components/admin/HomepageAdminPanel";
 import BlogAdminPanel, { type BlogAdminTab } from "@/components/admin/BlogAdminPanel";
 import DashboardPanel from "@/components/admin/DashboardPanel";
 import {
@@ -2773,6 +2773,8 @@ export default function AdminPanel() {
   const [expandedNavKey, setExpandedNavKey] = useState<string | null>(null);
   const [blogSubTab, setBlogSubTab] = useState<BlogAdminTab>("posts");
   const [analyticsSubTab, setAnalyticsSubTab] = useState<AnalyticsSubPage>("all");
+  const [homeSubTab, setHomeSubTab] = useState<HomeTab>("hero");
+  const [trustSubTab, setTrustSubTab] = useState<TrustAdminTab>("contact");
   const { toast } = useToast();
 
   const authenticated = !!token;
@@ -2894,6 +2896,19 @@ export default function AdminPanel() {
     { key: "devices", label: "Device Sessions", icon: Monitor },
     { key: "branding", label: "Branding", icon: Palette },
     {
+      key: "homepage",
+      label: "Homepage",
+      icon: ImageIcon,
+      children: [
+        { key: "hero", label: "Hero" },
+        { key: "seo", label: "SEO" },
+        { key: "popular", label: "Popular Tools" },
+        { key: "benefits", label: "Benefits" },
+        { key: "steps", label: "How It Works" },
+        { key: "faq", label: "FAQ" },
+      ],
+    },
+    {
       key: "analytics",
       label: "Analytics",
       icon: BarChart3,
@@ -2903,8 +2918,21 @@ export default function AdminPanel() {
         { key: "gtm", label: "Google Tag Manager" },
       ],
     },
-    { key: "trust", label: "Trust & Support", icon: ShieldCheck },
-    { key: "homepage", label: "Homepage", icon: ImageIcon },
+    {
+      key: "trust",
+      label: "Trust & Support",
+      icon: ShieldCheck,
+      children: [
+        { key: "contact", label: "Contact Information" },
+        { key: "support", label: "Support Page" },
+        { key: "whatsapp", label: "WhatsApp Support" },
+        { key: "testimonials", label: "Testimonials" },
+        { key: "assignments", label: "Assignments" },
+        { key: "reviews", label: "Purchase Reviews" },
+        { key: "counter", label: "Customer Counter" },
+        { key: "payments", label: "Payment Methods" },
+      ],
+    },
     {
       key: "blog",
       label: "Blog",
@@ -2939,6 +2967,8 @@ export default function AdminPanel() {
     setTab(parentKey);
     if (parentKey === "blog") setBlogSubTab(childKey as BlogAdminTab);
     if (parentKey === "analytics") setAnalyticsSubTab(childKey as AnalyticsSubPage);
+    if (parentKey === "homepage") setHomeSubTab(childKey as HomeTab);
+    if (parentKey === "trust") setTrustSubTab(childKey as TrustAdminTab);
     setMenuOpen(false);
   };
 
@@ -2949,7 +2979,9 @@ export default function AdminPanel() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
-                setExpandedNavKey(tab === "blog" || tab === "analytics" ? tab : null);
+                setExpandedNavKey(
+                  tab === "blog" || tab === "analytics" || tab === "homepage" || tab === "trust" ? tab : null
+                );
                 setMenuOpen(true);
               }}
               className="p-2 -ml-2 rounded-lg text-foreground hover:bg-gray-100 transition-colors"
@@ -2994,7 +3026,16 @@ export default function AdminPanel() {
             <nav className="flex-1 py-2 overflow-y-auto">
               {navItems.map(({ key, label, icon: Icon, children }) => {
                 const isExpanded = expandedNavKey === key;
-                const activeChildKey = key === "blog" ? blogSubTab : key === "analytics" ? analyticsSubTab : null;
+                const activeChildKey =
+                  key === "blog"
+                    ? blogSubTab
+                    : key === "analytics"
+                    ? analyticsSubTab
+                    : key === "homepage"
+                    ? homeSubTab
+                    : key === "trust"
+                    ? trustSubTab
+                    : null;
                 return (
                   <div key={key}>
                     <button
@@ -3118,9 +3159,19 @@ export default function AdminPanel() {
           <AnalyticsPanel token={token} subPage={analyticsSubTab} onSubPageChange={setAnalyticsSubTab} />
         )}
 
-        {tab === "trust" && <TrustAdminPanel token={token} />}
+        {tab === "trust" && (
+          <TrustAdminPanel token={token} activeTab={trustSubTab} onActiveTabChange={setTrustSubTab} />
+        )}
 
-        {tab === "homepage" && <HomepageAdminPanel token={token} products={products} onProductsChanged={() => load(token)} />}
+        {tab === "homepage" && (
+          <HomepageAdminPanel
+            token={token}
+            products={products}
+            onProductsChanged={() => load(token)}
+            activeTab={homeSubTab}
+            onActiveTabChange={setHomeSubTab}
+          />
+        )}
 
         {tab === "blog" && (
           <BlogAdminPanel
