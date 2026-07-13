@@ -19,7 +19,7 @@ import { logger } from "../lib/logger";
 import { attachStaffUser, requireStaffRole } from "../lib/staffAuth";
 import { ALLOWED_AI_MODELS } from "../lib/openaiClient";
 import { ALLOWED_GEMINI_MODELS } from "../lib/geminiClient";
-import { AI_PROVIDERS, isValidProvider, resolveModel, generateJson, type AiProvider } from "../lib/seoGenerator/aiClient";
+import { AI_PROVIDERS, isValidProvider, resolveModel, generateJsonWithFallback, type AiProvider } from "../lib/seoGenerator/aiClient";
 import { fetchAutocompleteSuggestions } from "../lib/seoGenerator/autocomplete";
 import { fetchSerpData, estimateCompetitorWordCounts } from "../lib/seoGenerator/serpProvider";
 import { buildIntentAndBriefPrompt, buildRelatedKeywordsPrompt, buildFullArticlePrompt, buildSectionRegenerationPrompt, buildClaimFlaggingPrompt } from "../lib/seoGenerator/prompts";
@@ -347,16 +347,22 @@ router.post("/admin/blog/posts/:postId/seo-generator/research", requireStaffRole
     const settings = await getOrCreateSettings();
     const { provider, model } = resolveProviderAndModel(req.body as Record<string, unknown>, settings);
 
+    let researchProviderUsed = provider;
     const [autocomplete, relatedResult, serpData] = await Promise.all([
       fetchAutocompleteSuggestions(primaryKeyword),
-      generateJson<{ relatedKeywords: string[] }>({
+      generateJsonWithFallback<{ relatedKeywords: string[] }>({
         provider,
         model,
         ...buildRelatedKeywordsPrompt(primaryKeyword),
-      }).catch((err) => {
-        logger.warn({ err }, "Related-keyword generation failed");
-        return { relatedKeywords: [] };
-      }),
+      })
+        .then((r) => {
+          researchProviderUsed = r.provider;
+          return r.data;
+        })
+        .catch((err) => {
+          logger.warn({ err }, "Related-keyword generation failed");
+          return { relatedKeywords: [] };
+        }),
       fetchSerpData(primaryKeyword, settings),
     ]);
 
@@ -393,7 +399,7 @@ router.post("/admin/blog/posts/:postId/seo-generator/research", requireStaffRole
     ];
     const insertedItems = items.length ? await db.insert(keywordResearchItemsTable).values(items).returning() : [];
 
-    await logUsage({ staffUserId: req.staffUser!.id, postId, action: "research", detail: `${primaryKeyword} (${provider})` });
+    await logUsage({ staffUserId: req.staffUser!.id, postId, action: "research", detail: `${primaryKeyword} (${researchProviderUsed})` });
 
     res.status(201).json({ session, items: insertedItems });
   } catch (err) {
@@ -471,7 +477,7 @@ router.post("/admin/blog/posts/:postId/seo-generator/brief", requireStaffRole(..
 
     const settings = await getOrCreateSettings();
     const { provider, model } = resolveProviderAndModel(req.body as Record<string, unknown>, settings);
-    const briefResult = await generateJson<{
+    const { data: briefResult, provider: briefProviderUsed, fallbackFrom: briefFallback } = await generateJsonWithFallback<{
       searchIntent: string;
       targetWordCount: number;
       headingOutline: { level: number; text: string }[];
@@ -527,8 +533,8 @@ router.post("/admin/blog/posts/:postId/seo-generator/brief", requireStaffRole(..
         .returning();
     }
 
-    await logUsage({ staffUserId: req.staffUser!.id, postId, action: "brief", detail: provider });
-    res.status(201).json(brief);
+    await logUsage({ staffUserId: req.staffUser!.id, postId, action: "brief", detail: briefFallback ? `${briefProviderUsed} (fallback from ${briefFallback.provider})` : briefProviderUsed });
+    res.status(201).json({ ...brief, providerUsed: briefProviderUsed, fallbackNotice: briefFallback ? `${briefFallback.provider} was unavailable, used ${briefProviderUsed} instead.` : undefined });
   } catch (err) {
     logger.error({ err }, "Content brief generation failed");
     res.status(500).json({ error: err instanceof Error ? err.message : "Content brief generation failed" });
@@ -599,7 +605,7 @@ router.post("/admin/blog/posts/:postId/seo-generator/generate", requireStaffRole
       .where(and(eq(keywordResearchItemsTable.sessionId, session.id), eq(keywordResearchItemsTable.included, true)));
     const secondaryKeywords = items.filter((i) => i.kind === "related_keyword" || i.kind === "autocomplete").map((i) => i.value);
 
-    const article = await generateJson<{
+    const { data: article, provider: articleProviderUsed, model: articleModelUsed, fallbackFrom: articleFallback } = await generateJsonWithFallback<{
       title: string;
       metaDescription: string;
       featuredSnippet: string;
@@ -621,6 +627,13 @@ router.post("/admin/blog/posts/:postId/seo-generator/generate", requireStaffRole
         featuredSnippetTarget: brief.featuredSnippetTarget ?? session.primaryKeyword,
       }),
     });
+
+    if (articleFallback) {
+      // The job row was created with the originally requested provider/model
+      // before we knew a fallback would be needed — correct it now so job
+      // history and cost tracking reflect what actually ran.
+      await db.update(generationJobsTable).set({ provider: articleProviderUsed, model: articleModelUsed }).where(eq(generationJobsTable.id, job.id));
+    }
 
     const bannedPhrases = await getActiveBannedPhrases();
     const structural = await validateArticleStructure({
@@ -675,11 +688,13 @@ router.post("/admin/blog/posts/:postId/seo-generator/generate", requireStaffRole
       })
       .where(eq(blogPostsTable.id, postId));
 
-    const claimFlagResult = await generateJson<{ flaggedClaims: string[] }>({
-      provider,
-      model,
+    const claimFlagResult = await generateJsonWithFallback<{ flaggedClaims: string[] }>({
+      provider: articleProviderUsed,
+      model: articleModelUsed,
       ...buildClaimFlaggingPrompt(plainText(fullContent)),
-    }).catch(() => ({ flaggedClaims: [] }));
+    })
+      .then((r) => r.data)
+      .catch(() => ({ flaggedClaims: [] }));
 
     const resultSummary = { structural, keywordPlacement, flaggedClaims: claimFlagResult.flaggedClaims };
     await db.update(generationJobsTable).set({ status: "succeeded", resultSummary, completedAt: new Date() }).where(eq(generationJobsTable.id, job.id));
@@ -701,10 +716,22 @@ router.post("/admin/blog/posts/:postId/seo-generator/generate", requireStaffRole
       })
       .returning();
 
-    await logUsage({ staffUserId: req.staffUser!.id, postId, action: "generate_full", detail: provider });
+    await logUsage({
+      staffUserId: req.staffUser!.id,
+      postId,
+      action: "generate_full",
+      detail: articleFallback ? `${articleProviderUsed} (fallback from ${articleFallback.provider})` : articleProviderUsed,
+    });
 
     const [updatedPost] = await db.select().from(blogPostsTable).where(eq(blogPostsTable.id, postId)).limit(1);
-    res.status(201).json({ job, report, post: updatedPost, article: { title: article.title, metaDescription: article.metaDescription } });
+    res.status(201).json({
+      job,
+      report,
+      post: updatedPost,
+      article: { title: article.title, metaDescription: article.metaDescription },
+      providerUsed: articleProviderUsed,
+      fallbackNotice: articleFallback ? `${articleFallback.provider} was unavailable, used ${articleProviderUsed} instead.` : undefined,
+    });
   } catch (err) {
     logger.error({ err }, "Full article generation failed");
     res.status(500).json({ error: err instanceof Error ? err.message : "Article generation failed" });
@@ -750,7 +777,7 @@ router.post("/admin/blog/posts/:postId/seo-generator/regenerate-section", requir
       .returning();
 
     const contextSummary = plainText(post.content).slice(0, 2000) || "(no existing content yet)";
-    const result = await generateJson<{ html: string }>({
+    const { data: result, provider: sectionProviderUsed, model: sectionModelUsed, fallbackFrom: sectionFallback } = await generateJsonWithFallback<{ html: string }>({
       provider,
       model,
       ...buildSectionRegenerationPrompt({
@@ -761,6 +788,10 @@ router.post("/admin/blog/posts/:postId/seo-generator/regenerate-section", requir
         instructions,
       }),
     });
+
+    if (sectionFallback) {
+      await db.update(generationJobsTable).set({ provider: sectionProviderUsed, model: sectionModelUsed }).where(eq(generationJobsTable.id, job.id));
+    }
 
     await saveSectionVersion({ postId, sectionKey, content: result.html, jobId: job.id, createdBy: req.staffUser!.id });
 
@@ -782,9 +813,22 @@ router.post("/admin/blog/posts/:postId/seo-generator/regenerate-section", requir
       .update(seoQualityReportsTable)
       .set({ reviewedAt: null, reviewedBy: null, issuesAcknowledged: false })
       .where(eq(seoQualityReportsTable.postId, postId));
-    await logUsage({ staffUserId: req.staffUser!.id, postId, action: "regenerate_section", detail: `${sectionKey} (${provider})` });
+    await logUsage({
+      staffUserId: req.staffUser!.id,
+      postId,
+      action: "regenerate_section",
+      detail: sectionFallback ? `${sectionKey} (${sectionProviderUsed}, fallback from ${sectionFallback.provider})` : `${sectionKey} (${sectionProviderUsed})`,
+    });
 
-    res.status(201).json({ job, sectionKey, html: result.html, bannedPhraseHits, fullContent });
+    res.status(201).json({
+      job,
+      sectionKey,
+      html: result.html,
+      bannedPhraseHits,
+      fullContent,
+      providerUsed: sectionProviderUsed,
+      fallbackNotice: sectionFallback ? `${sectionFallback.provider} was unavailable, used ${sectionProviderUsed} instead.` : undefined,
+    });
   } catch (err) {
     logger.error({ err }, "Section regeneration failed");
     res.status(500).json({ error: err instanceof Error ? err.message : "Section regeneration failed" });
