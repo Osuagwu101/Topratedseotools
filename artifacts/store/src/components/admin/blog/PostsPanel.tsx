@@ -27,6 +27,8 @@ export default function PostsPanel({
   products,
   autoStartAiArticle,
   onAutoStartHandled,
+  openPostId,
+  onOpenPostHandled,
 }: {
   staff: StaffUser;
   products: any[];
@@ -34,6 +36,10 @@ export default function PostsPanel({
   // Assistant (the "New AI Article" shortcut on the AI Generator tab).
   autoStartAiArticle?: boolean;
   onAutoStartHandled?: () => void;
+  // When set, immediately open this existing post in the editor, e.g. from
+  // the "Fix in editor" / "Add in editor" links on the Link Insights panel.
+  openPostId?: number | null;
+  onOpenPostHandled?: () => void;
 }) {
   const { toast } = useToast();
   const [posts, setPosts] = useState<BlogPostSummary[]>([]);
@@ -77,6 +83,13 @@ export default function PostsPanel({
     createAndOpen();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStartAiArticle]);
+
+  useEffect(() => {
+    if (openPostId == null) return;
+    setEditingPostId(openPostId);
+    onOpenPostHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openPostId]);
   
   const fetchPosts = async () => {
     setLoading(true);

@@ -24,6 +24,11 @@ export const seoGeneratorSettingsTable = pgTable("seo_generator_settings", {
   // site-wide cap is approaching (e.g. 80 = warn at 80% usage).
   warningThresholdPercent: integer("warning_threshold_percent").notNull().default(80),
   confirmBeforeExpensiveOps: boolean("confirm_before_expensive_ops").notNull().default(true),
+  // Last time the internal-link insights scan (broken links + link
+  // opportunities across all posts) ran. Null means it has never run yet.
+  // The scan is triggered just-in-time by the next admin request once this
+  // is stale, rather than by a dedicated background worker.
+  lastLinkInsightsScanAt: timestamp("last_link_insights_scan_at"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   updatedBy: integer("updated_by"),
 });
@@ -170,6 +175,23 @@ export const generationUsageLogTable = pgTable("generation_usage_log", {
   detail: text("detail"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const linkInsightKinds = ["broken_link", "link_opportunity"] as const;
+export type LinkInsightKind = (typeof linkInsightKinds)[number];
+
+// Recomputed wholesale on each insights scan (existing rows for a post are
+// replaced, not merged) — this is a point-in-time snapshot of the current
+// state, not a persistent audit log.
+export const seoLinkInsightsTable = pgTable("seo_link_insights", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull(),
+  kind: text("kind").notNull(), // LinkInsightKind
+  // broken_link: { href: string, anchorText: string }
+  // link_opportunity: { targetType: "product" | "post", targetId?: number, targetSlug?: string, targetLabel: string, reason: string, currentLinkCount: number }
+  details: jsonb("details").notNull().default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type SeoLinkInsight = typeof seoLinkInsightsTable.$inferSelect;
 
 export type SeoGeneratorSettings = typeof seoGeneratorSettingsTable.$inferSelect;
 export type KeywordResearchSession = typeof keywordResearchSessionsTable.$inferSelect;

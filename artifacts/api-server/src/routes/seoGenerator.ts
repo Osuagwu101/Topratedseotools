@@ -4,6 +4,7 @@ import {
   blogPostsTable,
   productsTable,
   seoGeneratorSettingsTable,
+  seoLinkInsightsTable,
   keywordResearchSessionsTable,
   keywordResearchItemsTable,
   contentBriefsTable,
@@ -179,6 +180,47 @@ router.get("/admin/blog/seo-generator/usage-alert", requireStaffRole("administra
   } catch (err) {
     logger.error({ err }, "Failed to load SEO generator usage alert status");
     res.status(500).json({ error: "Failed to load usage alert status" });
+  }
+});
+
+// Link insights feed (broken internal links + link-adding opportunities,
+// capped at MAX_INTERNAL_LINKS_PER_POST per post). Triggers a just-in-time
+// rescan when the last one is stale, then returns the current snapshot —
+// available to editors/authors too since it helps them fix their own posts,
+// but only administrators can force an immediate rescan.
+router.get("/admin/blog/seo-generator/link-insights", requireStaffRole(...STAFF_ROLES), async (req, res): Promise<void> => {
+  try {
+    const { runLinkInsightsScan, isScanStale } = await import("../lib/seoGenerator/linkInsights");
+    const settings = await getOrCreateSettings();
+    const forceRescan = req.query.refresh === "true" && req.staffUser!.role === "administrator";
+    if (forceRescan || isScanStale(settings)) {
+      await runLinkInsightsScan(settings.aiProvider as AiProvider, settings.aiModel);
+      await db.update(seoGeneratorSettingsTable).set({ lastLinkInsightsScanAt: new Date() }).where(eq(seoGeneratorSettingsTable.id, settings.id));
+    }
+
+    const rows = await db
+      .select({
+        id: seoLinkInsightsTable.id,
+        postId: seoLinkInsightsTable.postId,
+        kind: seoLinkInsightsTable.kind,
+        details: seoLinkInsightsTable.details,
+        createdAt: seoLinkInsightsTable.createdAt,
+        postTitle: blogPostsTable.title,
+        postSlug: blogPostsTable.slug,
+      })
+      .from(seoLinkInsightsTable)
+      .leftJoin(blogPostsTable, eq(seoLinkInsightsTable.postId, blogPostsTable.id))
+      .orderBy(desc(seoLinkInsightsTable.createdAt));
+
+    const [freshSettings] = await db.select().from(seoGeneratorSettingsTable).where(eq(seoGeneratorSettingsTable.id, settings.id)).limit(1);
+    res.json({
+      lastScanAt: freshSettings?.lastLinkInsightsScanAt ?? null,
+      brokenLinks: rows.filter((r) => r.kind === "broken_link"),
+      linkOpportunities: rows.filter((r) => r.kind === "link_opportunity"),
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to load link insights");
+    res.status(500).json({ error: "Failed to load link insights" });
   }
 });
 

@@ -55,6 +55,10 @@ export default function BlogAdminPanel({ token, products, activeTab: controlledT
   // jump the user directly into keyword research without a detour through
   // an empty Posts list.
   const [startNewAiArticle, setStartNewAiArticle] = useState(false);
+  // When set, PostsPanel opens this existing post directly in the editor --
+  // used by the "Fix in editor" / "Add in editor" links on the AI
+  // Generator's Link Insights panel.
+  const [openPostId, setOpenPostId] = useState<number | null>(null);
 
   // Two ways to reach this component:
   //  - Embedded in /admin (token set): anyone already holding a valid admin
@@ -208,6 +212,8 @@ export default function BlogAdminPanel({ token, products, activeTab: controlledT
             products={products}
             autoStartAiArticle={startNewAiArticle}
             onAutoStartHandled={() => setStartNewAiArticle(false)}
+            openPostId={openPostId}
+            onOpenPostHandled={() => setOpenPostId(null)}
           />
         )}
         {activeTab === "taxonomy" && staff.role !== "author" && <TaxonomyPanel staff={staff} />}
@@ -220,6 +226,10 @@ export default function BlogAdminPanel({ token, products, activeTab: controlledT
             staff={staff}
             onStartNewArticle={() => {
               setStartNewAiArticle(true);
+              setActiveTab("posts");
+            }}
+            onOpenPost={(postId) => {
+              setOpenPostId(postId);
               setActiveTab("posts");
             }}
           />

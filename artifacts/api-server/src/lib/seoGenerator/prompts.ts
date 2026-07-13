@@ -132,6 +132,37 @@ ${params.instructions ? `Additional instructions from the editor: ${params.instr
   return { system, user };
 }
 
+export function buildLinkOpportunityPrompt(params: {
+  postTitle: string;
+  postExcerptOrIntro: string;
+  currentLinkCount: number;
+  candidateProducts: { id: number; name: string; description: string }[];
+  candidatePosts: { slug: string; title: string; excerpt: string }[];
+}): { system: string; user: string } {
+  const system = `You are an internal-linking editor reviewing one published blog post to see if it is missing a genuinely useful internal link. This post already has ${params.currentLinkCount} internal link(s) out of a maximum of 5. Only recommend adding a link if a candidate below is a strong, natural fit for what this specific article is about — most posts should NOT get a recommendation, and it is completely correct to say there is no opportunity. Never recommend a candidate that is only vaguely related.
+
+Respond ONLY with JSON matching this shape:
+{
+  "hasOpportunity": boolean,
+  "targetType": "product" | "post" | null,
+  "targetId": number | null,
+  "targetSlug": string | null,
+  "targetLabel": string | null,
+  "reason": string | null
+}
+If "hasOpportunity" is false, set the other fields to null. If true, "targetType"/"targetId" (for a product) or "targetSlug" (for a post) must reference one of the exact candidates given below — never invent one. "targetLabel" is the candidate's name/title. "reason" is one short sentence explaining why it fits this article.`;
+
+  const user = `Post title: "${params.postTitle}"
+Post content excerpt: ${params.postExcerptOrIntro}
+
+Candidate products (link as targetType "product"): ${JSON.stringify(params.candidateProducts)}
+Candidate other posts (link as targetType "post"): ${JSON.stringify(params.candidatePosts)}
+
+Decide now.`;
+
+  return { system, user };
+}
+
 export function buildClaimFlaggingPrompt(articleText: string): { system: string; user: string } {
   const system = `You are a fact-checking assistant. Scan the article text for any specific statistic, percentage, dollar/naira figure, study reference, or named source that reads as a concrete factual claim which would need a citation. Respond ONLY with JSON: { "flaggedClaims": string[] }. Each entry should be the exact sentence or phrase containing the claim. If there are none, return an empty array.`;
   const user = `Article text:\n${articleText.slice(0, 12000)}`;

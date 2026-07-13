@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { StaffUser } from "../../BlogAdminPanel";
 import { Loader2, Save, Sparkles, BarChart3, Download } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import LinkInsightsPanel from "./LinkInsightsPanel";
 
 interface DailyCount {
   date: string;
@@ -62,7 +63,15 @@ const GEMINI_MODELS = [
   { value: "gemini-pro-latest", label: "Gemini Pro (higher quality, may need billing on free tier)" },
 ];
 
-export default function SeoGeneratorSettingsPanel({ staff, onStartNewArticle }: { staff: StaffUser; onStartNewArticle: () => void }) {
+export default function SeoGeneratorSettingsPanel({
+  staff,
+  onStartNewArticle,
+  onOpenPost,
+}: {
+  staff: StaffUser;
+  onStartNewArticle: () => void;
+  onOpenPost: (postId: number) => void;
+}) {
   const { toast } = useToast();
   const isAdmin = staff.role === "administrator";
   const [loading, setLoading] = useState(true);
@@ -225,6 +234,10 @@ export default function SeoGeneratorSettingsPanel({ staff, onStartNewArticle }: 
       </p>
 
       <div className="space-y-8">
+        <section>
+          <LinkInsightsPanel staff={staff} onOpenPost={onOpenPost} />
+        </section>
+
         <section>
           <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-4 border-b border-gray-100 pb-2">AI Provider & Model</h3>
           <p className="text-xs text-muted-foreground mb-3">

@@ -17,3 +17,4 @@
 - [Post-merge DB schema drift](post-merge-db-schema-drift.md) — after a task-agent merge adds columns to lib/db schema source, always rebuild lib/db (`tsc -b --force`) and typecheck dependents before trusting them; stale dist/*.d.ts silently breaks consumers with confusing "property does not exist" errors that look unrelated to the real cause.
 - [Dev DB schema drift](dev-db-schema-drift.md) — a schema.ts column can typecheck fine but be missing from the actual dev table; run `pnpm run push` in lib/db, don't assume the code is wrong.
 - [AI quota fallback chain](ai-quota-fallback-chain.md) — SEO generator auto-falls back across Gemini models then OpenAI on 429/RESOURCE_EXHAUSTED; doesn't help if every provider is truly out of quota/billing.
+- [Just-in-time periodic scans](just-in-time-periodic-scans.md) — no cron/worker exists; "periodic" features throttle via a lastScanAt timestamp column, recomputed on the next GET when stale, not a scheduled job.
