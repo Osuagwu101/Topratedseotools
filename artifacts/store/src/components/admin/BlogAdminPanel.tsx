@@ -3,13 +3,14 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, LogOut, FileText, Tags, Image as ImageIcon, MessageSquare, Users, Settings as SettingsIcon } from "lucide-react";
+import { Loader2, LogOut, FileText, Tags, Image as ImageIcon, MessageSquare, Users, Settings as SettingsIcon, Sparkles } from "lucide-react";
 import PostsPanel from "./blog/PostsPanel";
 import TaxonomyPanel from "./blog/TaxonomyPanel";
 import MediaLibrary from "./blog/MediaLibrary";
 import CommentsPanel from "./blog/CommentsPanel";
 import StaffPanel from "./blog/StaffPanel";
 import SettingsPanel from "./blog/SettingsPanel";
+import SeoGeneratorSettingsPanel from "./blog/seo-generator/SeoGeneratorSettingsPanel";
 
 interface BlogAdminPanelProps {
   token: string;
@@ -36,7 +37,7 @@ export default function BlogAdminPanel({ token, products }: BlogAdminPanelProps)
   const [bootstrapForm, setBootstrapForm] = useState({ name: "", email: "", password: "", confirm: "" });
   const [bootstrapping, setBootstrapping] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<"posts" | "taxonomy" | "media" | "comments" | "staff" | "settings">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "taxonomy" | "media" | "comments" | "staff" | "settings" | "ai-generator">("posts");
 
   const checkAuth = async () => {
     try {
@@ -216,6 +217,15 @@ export default function BlogAdminPanel({ token, products }: BlogAdminPanelProps)
             <SettingsIcon className="w-4 h-4" /> Settings & Redirects
           </button>
         )}
+
+        {staff.role === "administrator" && (
+          <button
+            onClick={() => setActiveTab("ai-generator")}
+            className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${activeTab === "ai-generator" ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-100"}`}
+          >
+            <Sparkles className="w-4 h-4" /> AI Generator
+          </button>
+        )}
         
         <div className="pt-6 mt-6 border-t border-gray-200 px-3">
           <Button variant="ghost" size="sm" onClick={handleSignOut} className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50">
@@ -232,6 +242,7 @@ export default function BlogAdminPanel({ token, products }: BlogAdminPanelProps)
         {activeTab === "comments" && staff.role !== "author" && <CommentsPanel staff={staff} />}
         {activeTab === "staff" && staff.role === "administrator" && <StaffPanel staff={staff} />}
         {activeTab === "settings" && staff.role === "administrator" && <SettingsPanel staff={staff} />}
+        {activeTab === "ai-generator" && staff.role === "administrator" && <SeoGeneratorSettingsPanel staff={staff} />}
       </div>
     </div>
   );

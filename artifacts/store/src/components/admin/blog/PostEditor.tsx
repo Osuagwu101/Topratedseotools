@@ -17,12 +17,13 @@ import { useToast } from "@/hooks/use-toast";
 import { StaffUser } from "../BlogAdminPanel";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import MediaLibrary from "./MediaLibrary";
+import AiAssistantPanel from "./seo-generator/AiAssistantPanel";
 import { 
   Loader2, ArrowLeft, Save, Globe, Eye, Image as ImageIcon, 
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, 
   Heading2, Heading3, Heading4, List, ListOrdered, Quote, 
   Link2, Link2Off, Code, Undo, Redo, Table as TableIcon,
-  Trash2, Send
+  Trash2, Send, Sparkles
 } from "lucide-react";
 
 export default function PostEditor({ 
@@ -43,6 +44,7 @@ export default function PostEditor({
   const [tags, setTags] = useState<any[]>([]);
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [mediaTarget, setMediaTarget] = useState<"featured" | "content">("content");
+  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   
   // Data State
   const [form, setForm] = useState({
@@ -65,7 +67,8 @@ export default function PostEditor({
     seoDescription: "",
     focusKeyword: "",
     tagIds: [] as number[],
-    scheduledAt: ""
+    scheduledAt: "",
+    secondaryKeywords: [] as string[]
   });
 
   const editor = useEditor({
@@ -86,6 +89,25 @@ export default function PostEditor({
     },
   });
 
+  const loadPost = async () => {
+    if (postId === "new") return;
+    const res = await fetch(`/api/admin/blog/posts/${postId}`, { credentials: "include" });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+
+    setForm(f => ({
+      ...f,
+      ...data,
+      categoryId: data.categoryId || null,
+      ctaProductId: data.ctaProductId || null,
+      tagIds: data.tagIds || [],
+      secondaryKeywords: data.secondaryKeywords || [],
+      scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString().slice(0, 16) : ""
+    }));
+
+    if (editor) editor.commands.setContent(data.content || "");
+  };
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -97,19 +119,7 @@ export default function PostEditor({
         if (tagRes.ok) setTags(await tagRes.json());
 
         if (postId !== "new") {
-          const res = await fetch(`/api/admin/blog/posts/${postId}`, { credentials: "include" });
-          if (!res.ok) throw new Error(await res.text());
-          const data = await res.json();
-          
-          setForm({
-            ...data,
-            categoryId: data.categoryId || null,
-            ctaProductId: data.ctaProductId || null,
-            tagIds: data.tagIds || [],
-            scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString().slice(0, 16) : ""
-          });
-          
-          if (editor) editor.commands.setContent(data.content || "");
+          await loadPost();
         }
       } catch (err: any) {
         toast({ title: "Error loading editor", description: err.message, variant: "destructive" });
@@ -221,7 +231,13 @@ export default function PostEditor({
               <Eye className="w-4 h-4 mr-1.5" /> View
             </a>
           )}
-          
+
+          {postId !== "new" && (
+            <Button variant="outline" onClick={() => setAiAssistantOpen(true)} className="font-bold border-primary/30 text-primary hover:bg-primary/10">
+              <Sparkles className="w-4 h-4 mr-1.5" /> AI Assistant
+            </Button>
+          )}
+
           <Button variant="outline" onClick={() => handleSave()} disabled={saving} className="font-bold">
             {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Save className="w-4 h-4 mr-1.5" />}
             Save
@@ -482,6 +498,22 @@ export default function PostEditor({
           <MediaLibrary staff={staff} mode="picker" onSelect={insertMedia} />
         </DialogContent>
       </Dialog>
+
+      {postId !== "new" && (
+        <Dialog open={aiAssistantOpen} onOpenChange={setAiAssistantOpen}>
+          <DialogContent className="max-w-3xl h-[85vh] flex flex-col p-0 overflow-hidden">
+            <AiAssistantPanel
+              postId={postId}
+              staff={staff}
+              focusKeyword={form.focusKeyword}
+              secondaryKeywords={form.secondaryKeywords}
+              currentContentHtml={form.content}
+              onGenerated={loadPost}
+              onClose={() => setAiAssistantOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

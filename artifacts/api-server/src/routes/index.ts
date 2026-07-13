@@ -22,6 +22,7 @@ import blogSeoRouter from "./blogSeo";
 import blogCommentsRouter from "./blogComments";
 import blogSettingsRouter from "./blogSettings";
 import blogRedirectsRouter from "./blogRedirects";
+import seoGeneratorRouter from "./seoGenerator";
 import { deviceTrackingMiddleware } from "../middlewares/deviceTracking";
 
 const router: IRouter = Router();
@@ -42,6 +43,7 @@ router.use(blogSeoRouter);
 router.use(blogCommentsRouter);
 router.use(blogSettingsRouter);
 router.use(blogRedirectsRouter);
+router.use(seoGeneratorRouter);
 router.use(productsRouter);
 router.use(ordersRouter);
 router.use(paystackRouter);
