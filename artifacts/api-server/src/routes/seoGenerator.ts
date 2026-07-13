@@ -8,10 +8,12 @@ import {
   contentBriefsTable,
   generationJobsTable,
   seoQualityReportsTable,
+  generationUsageLogTable,
+  staffUsersTable,
   sectionKeys,
   type SectionKey,
 } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, gte, sql } from "drizzle-orm";
 import type { Response } from "express";
 import { logger } from "../lib/logger";
 import { attachStaffUser, requireStaffRole } from "../lib/staffAuth";
@@ -112,6 +114,83 @@ router.get("/admin/blog/seo-generator/usage", requireStaffRole(...STAFF_ROLES), 
   const counts = await getUsageCounts(req.staffUser!.id);
   const settings = await getOrCreateSettings();
   res.json({ ...counts, perUserDailyLimit: settings.perUserDailyLimit, monthlyGenerationLimit: settings.monthlyGenerationLimit });
+});
+
+// Admin-only usage/cost history report: generation counts by day and by staff
+// member, plus a recent activity feed, so admins can track AI generator spend
+// over time (separate from the live per-user counter surfaced in the settings
+// endpoint above). Restricted to administrators since it exposes what every
+// staff member has been doing, not just the requester's own usage.
+router.get("/admin/blog/seo-generator/usage-history", requireStaffRole("administrator"), async (req, res): Promise<void> => {
+  try {
+    const daysParam = parseInt(String(req.query.days ?? "30"), 10);
+    const days = Number.isFinite(daysParam) && daysParam > 0 ? Math.min(daysParam, 365) : 30;
+    const since = new Date();
+    since.setHours(0, 0, 0, 0);
+    since.setDate(since.getDate() - (days - 1));
+
+    const settings = await getOrCreateSettings();
+
+    const [dailyCounts, byStaff, recentEntries] = await Promise.all([
+      db
+        .select({
+          date: sql<string>`to_char(date_trunc('day', ${generationUsageLogTable.createdAt}), 'YYYY-MM-DD')`,
+          action: generationUsageLogTable.action,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(generationUsageLogTable)
+        .where(gte(generationUsageLogTable.createdAt, since))
+        .groupBy(sql`date_trunc('day', ${generationUsageLogTable.createdAt})`, generationUsageLogTable.action)
+        .orderBy(sql`date_trunc('day', ${generationUsageLogTable.createdAt})`),
+      db
+        .select({
+          staffUserId: generationUsageLogTable.staffUserId,
+          staffName: staffUsersTable.name,
+          staffEmail: staffUsersTable.email,
+          count: sql<number>`count(*)::int`,
+          lastUsedAt: sql<string>`max(${generationUsageLogTable.createdAt})`,
+        })
+        .from(generationUsageLogTable)
+        .leftJoin(staffUsersTable, eq(generationUsageLogTable.staffUserId, staffUsersTable.id))
+        .where(gte(generationUsageLogTable.createdAt, since))
+        .groupBy(generationUsageLogTable.staffUserId, staffUsersTable.name, staffUsersTable.email)
+        .orderBy(sql`count(*) desc`),
+      db
+        .select({
+          id: generationUsageLogTable.id,
+          action: generationUsageLogTable.action,
+          detail: generationUsageLogTable.detail,
+          createdAt: generationUsageLogTable.createdAt,
+          postId: generationUsageLogTable.postId,
+          postTitle: blogPostsTable.title,
+          staffName: staffUsersTable.name,
+          staffEmail: staffUsersTable.email,
+        })
+        .from(generationUsageLogTable)
+        .leftJoin(staffUsersTable, eq(generationUsageLogTable.staffUserId, staffUsersTable.id))
+        .leftJoin(blogPostsTable, eq(generationUsageLogTable.postId, blogPostsTable.id))
+        .orderBy(desc(generationUsageLogTable.createdAt))
+        .limit(100),
+    ]);
+
+    const { getUsageCounts } = await import("../lib/seoGenerator/usageLimits");
+    const currentCounts = await getUsageCounts(req.staffUser!.id);
+
+    res.json({
+      days,
+      dailyCounts,
+      byStaff,
+      recentEntries,
+      limits: {
+        perUserDailyLimit: settings.perUserDailyLimit,
+        monthlyGenerationLimit: settings.monthlyGenerationLimit,
+        monthCount: currentCounts.monthCount,
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to load SEO generator usage history");
+    res.status(500).json({ error: "Failed to load usage history" });
+  }
 });
 
 // ── Keyword research ─────────────────────────────────────────────────────────

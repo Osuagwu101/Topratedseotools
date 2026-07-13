@@ -4,7 +4,49 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { StaffUser } from "../../BlogAdminPanel";
-import { Loader2, Save, Sparkles } from "lucide-react";
+import { Loader2, Save, Sparkles, BarChart3 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+
+interface DailyCount {
+  date: string;
+  action: string;
+  count: number;
+}
+
+interface StaffUsage {
+  staffUserId: number;
+  staffName: string | null;
+  staffEmail: string | null;
+  count: number;
+  lastUsedAt: string;
+}
+
+interface UsageEntry {
+  id: number;
+  action: string;
+  detail: string | null;
+  createdAt: string;
+  postId: number | null;
+  postTitle: string | null;
+  staffName: string | null;
+  staffEmail: string | null;
+}
+
+interface UsageHistory {
+  days: number;
+  dailyCounts: DailyCount[];
+  byStaff: StaffUsage[];
+  recentEntries: UsageEntry[];
+  limits: { perUserDailyLimit: number; monthlyGenerationLimit: number; monthCount: number };
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  research: "Keyword research",
+  brief: "Content brief",
+  generate_full: "Full article",
+  generate_section: "Section generation",
+  regenerate_section: "Section regeneration",
+};
 
 const MODELS = [
   { value: "gpt-4o-mini", label: "GPT-4o mini (fastest, cheapest)" },
@@ -17,6 +59,8 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState<UsageHistory | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [form, setForm] = useState({
     aiModel: "gpt-4o-mini",
     serpProvider: "" as string,
@@ -43,6 +87,32 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
     };
     fetchSettings();
   }, []);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const res = await fetch("/api/admin/blog/seo-generator/usage-history?days=30", { credentials: "include" });
+        if (!res.ok) throw new Error(await res.text());
+        setHistory(await res.json());
+      } catch (err: any) {
+        toast({ title: "Error loading usage history", description: err.message, variant: "destructive" });
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+    fetchHistory();
+  }, []);
+
+  const chartData = (() => {
+    if (!history) return [];
+    const byDate = new Map<string, number>();
+    for (const row of history.dailyCounts) {
+      byDate.set(row.date, (byDate.get(row.date) ?? 0) + row.count);
+    }
+    return Array.from(byDate.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, count]) => ({ date: date.slice(5), count }));
+  })();
 
   const handleSave = async () => {
     setSaving(true);
@@ -171,6 +241,105 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Save Changes
         </Button>
+      </div>
+
+      <div className="mt-10 pt-8 border-t border-gray-200">
+        <div className="flex items-center gap-2 mb-2">
+          <BarChart3 className="w-5 h-5 text-primary" />
+          <h3 className="text-lg font-heading font-bold text-foreground">Usage & Cost History</h3>
+        </div>
+        <p className="text-xs text-muted-foreground mb-6">
+          Generation activity over the last {history?.days ?? 30} days, so you can spot spend trends before the monthly cap is hit.
+        </p>
+
+        {historyLoading ? (
+          <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+        ) : !history || history.recentEntries.length === 0 ? (
+          <div className="text-sm text-muted-foreground bg-gray-50 border border-gray-100 rounded-lg p-6 text-center">
+            No AI generation activity yet.
+          </div>
+        ) : (
+          <div className="space-y-8">
+            <div className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-lg p-4 max-w-lg">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wider text-gray-500">This Month</div>
+                <div className="text-2xl font-heading font-bold text-foreground">
+                  {history.limits.monthCount} <span className="text-sm font-normal text-muted-foreground">/ {history.limits.monthlyGenerationLimit} generations</span>
+                </div>
+              </div>
+              <div className={`text-xs font-bold px-2 py-1 rounded ${history.limits.monthCount >= history.limits.monthlyGenerationLimit ? "bg-red-100 text-red-700" : history.limits.monthCount >= history.limits.monthlyGenerationLimit * 0.8 ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"}`}>
+                {Math.round((history.limits.monthCount / Math.max(1, history.limits.monthlyGenerationLimit)) * 100)}% of cap
+              </div>
+            </div>
+
+            {chartData.length > 0 && (
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Daily Generation Volume</h4>
+                <div className="h-56 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={30} />
+                      <Tooltip />
+                      <Bar dataKey="count" name="Generations" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">By Staff Member</h4>
+              <div className="border border-gray-100 rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-500">
+                    <tr>
+                      <th className="text-left px-4 py-2">Staff Member</th>
+                      <th className="text-right px-4 py-2">Generations</th>
+                      <th className="text-right px-4 py-2">Last Used</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {history.byStaff.map((row) => (
+                      <tr key={row.staffUserId}>
+                        <td className="px-4 py-2 font-medium text-foreground">{row.staffName ?? `Staff #${row.staffUserId}`}</td>
+                        <td className="px-4 py-2 text-right">{row.count}</td>
+                        <td className="px-4 py-2 text-right text-muted-foreground">{new Date(row.lastUsedAt).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Recent Activity</h4>
+              <div className="border border-gray-100 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-500 sticky top-0">
+                    <tr>
+                      <th className="text-left px-4 py-2">When</th>
+                      <th className="text-left px-4 py-2">Staff Member</th>
+                      <th className="text-left px-4 py-2">Action</th>
+                      <th className="text-left px-4 py-2">Post</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {history.recentEntries.map((entry) => (
+                      <tr key={entry.id}>
+                        <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">{new Date(entry.createdAt).toLocaleString()}</td>
+                        <td className="px-4 py-2">{entry.staffName ?? `Staff #${entry.id}`}</td>
+                        <td className="px-4 py-2">{ACTION_LABELS[entry.action] ?? entry.action}</td>
+                        <td className="px-4 py-2 text-muted-foreground truncate max-w-xs">{entry.postTitle ?? (entry.detail ? entry.detail : "—")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
