@@ -1,5 +1,5 @@
 import { useSiteSettings } from "@/context/siteSettings";
-import { MessageCircle } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 
 export function WhatsAppButton() {
   const { settings } = useSiteSettings();
@@ -21,7 +21,7 @@ export function WhatsAppButton() {
       className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 rounded-full bg-[#25D366] text-white shadow-lg hover:bg-[#1DA851] hover:scale-105 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#25D366]"
       title="WhatsApp Support"
     >
-      <MessageCircle className="w-7 h-7 fill-current" />
+      <FaWhatsapp className="w-7 h-7" />
     </a>
   );
 }

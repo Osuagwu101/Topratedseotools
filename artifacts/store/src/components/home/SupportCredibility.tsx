@@ -1,5 +1,6 @@
 import { useSiteSettings } from "@/context/siteSettings";
-import { MessageCircle, Mail, ShieldCheck } from "lucide-react";
+import { Mail, ShieldCheck } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 
 export function SupportCredibility() {
   const { settings } = useSiteSettings();
@@ -35,7 +36,7 @@ export function SupportCredibility() {
               data-testid="link-support-whatsapp"
               className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#1DA851] text-white font-bold rounded-lg px-6 h-12 text-sm transition-colors"
             >
-              <MessageCircle className="w-4 h-4" />
+              <FaWhatsapp className="w-4 h-4" />
               Chat on WhatsApp
             </a>
           )}
