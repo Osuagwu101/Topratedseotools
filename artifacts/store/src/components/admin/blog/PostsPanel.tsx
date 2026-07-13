@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { StaffUser } from "../BlogAdminPanel";
-import { Loader2, Plus, Search, Edit2, Trash2, Globe, Clock, CheckCircle2, Copy } from "lucide-react";
+import { Loader2, Plus, Search, Edit2, Trash2, Globe, Clock, CheckCircle2, Copy, AlertTriangle } from "lucide-react";
 import PostEditor from "./PostEditor";
 import { Link } from "wouter";
 
@@ -17,6 +17,9 @@ interface BlogPostSummary {
   publishedAt: string | null;
   updatedAt: string;
   viewCount: number;
+  // True when the post's latest AI quality report has unresolved flagged
+  // claims / banned-phrase hits (mirrors the publish gate in PostEditor).
+  aiReviewNeeded: boolean;
 }
 
 export default function PostsPanel({ staff, products }: { staff: StaffUser; products: any[] }) {
@@ -29,6 +32,9 @@ export default function PostsPanel({ staff, products }: { staff: StaffUser; prod
   
   // Editor State
   const [editingPostId, setEditingPostId] = useState<number | "new" | null>(null);
+  // Set when the editor should be opened straight into the AI Assistant
+  // panel, e.g. via the "AI review needed" badge on the post list.
+  const [openAiOnEdit, setOpenAiOnEdit] = useState(false);
   
   const fetchPosts = async () => {
     setLoading(true);
@@ -90,7 +96,8 @@ export default function PostsPanel({ staff, products }: { staff: StaffUser; prod
         postId={editingPostId} 
         staff={staff} 
         products={products}
-        onBack={() => setEditingPostId(null)} 
+        onBack={() => { setEditingPostId(null); setOpenAiOnEdit(false); }}
+        openAiAssistant={openAiOnEdit}
       />
     );
   }
@@ -172,9 +179,20 @@ export default function PostsPanel({ staff, products }: { staff: StaffUser; prod
                 {posts.map(post => (
                   <tr key={post.id} className="bg-white hover:bg-gray-50/50 transition-colors group">
                     <td className="px-4 py-3">
-                      <button onClick={() => setEditingPostId(post.id)} className="font-bold text-foreground hover:text-primary text-left transition-colors">
-                        {post.title}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => { setEditingPostId(post.id); setOpenAiOnEdit(false); }} className="font-bold text-foreground hover:text-primary text-left transition-colors">
+                          {post.title}
+                        </button>
+                        {post.aiReviewNeeded && (
+                          <button
+                            onClick={() => { setEditingPostId(post.id); setOpenAiOnEdit(true); }}
+                            title="This post has unresolved AI quality-report issues. Click to review in the AI Assistant."
+                            className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors shrink-0"
+                          >
+                            <AlertTriangle className="w-3 h-3" /> AI review needed
+                          </button>
+                        )}
+                      </div>
                       <div className="text-xs text-muted-foreground mt-0.5 truncate max-w-[300px]">/{post.slug}</div>
                     </td>
                     <td className="px-4 py-3">

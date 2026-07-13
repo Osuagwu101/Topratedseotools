@@ -14,7 +14,7 @@ import { logger } from "../lib/logger";
 import { uniqueSlug, estimateReadingTimeMinutes } from "../lib/slugify";
 import { attachStaffUser, requireStaffRole } from "../lib/staffAuth";
 import { sanitizeBlogContent } from "../lib/sanitizeBlogHtml";
-import { assertAiPublishReady } from "../lib/seoGenerator/publishGate";
+import { assertAiPublishReady, getUnresolvedReviewPostIds } from "../lib/seoGenerator/publishGate";
 
 const router: IRouter = Router();
 router.use(attachStaffUser);
@@ -282,7 +282,12 @@ router.get("/admin/blog/posts", requireStaffRole("administrator", "editor", "aut
       .from(blogPostsTable)
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(blogPostsTable.updatedAt));
-    res.json(await enrichPosts(rows));
+    const enriched = await enrichPosts(rows);
+    // Surfaces the "AI review needed" badge on the post list so editors can
+    // triage without opening each post individually (the same signal that
+    // gates publishing in the AI Assistant panel / assertAiPublishReady).
+    const unresolvedIds = await getUnresolvedReviewPostIds(rows.map((r) => r.id));
+    res.json(enriched.map((post) => ({ ...post, aiReviewNeeded: unresolvedIds.has(post.id) })));
   } catch (err) {
     logger.error({ err }, "Failed to list posts for CMS");
     res.status(500).json({ error: "Failed to load posts" });

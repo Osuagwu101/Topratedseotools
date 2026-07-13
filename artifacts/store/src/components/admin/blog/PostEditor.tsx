@@ -30,12 +30,16 @@ export default function PostEditor({
   postId, 
   staff, 
   products,
-  onBack 
+  onBack,
+  openAiAssistant = false,
 }: { 
   postId: number | "new", 
   staff: StaffUser, 
   products: any[],
-  onBack: () => void 
+  onBack: () => void,
+  /** Auto-opens the AI Assistant panel on mount, e.g. when the editor is
+   * reached via the "AI review needed" badge on the post list. */
+  openAiAssistant?: boolean,
 }) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(postId !== "new");
@@ -44,7 +48,7 @@ export default function PostEditor({
   const [tags, setTags] = useState<any[]>([]);
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [mediaTarget, setMediaTarget] = useState<"featured" | "content">("content");
-  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
+  const [aiAssistantOpen, setAiAssistantOpen] = useState(openAiAssistant);
   const [qualityReport, setQualityReport] = useState<any>(null);
   
   // Data State
