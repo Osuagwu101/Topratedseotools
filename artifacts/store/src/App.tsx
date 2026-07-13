@@ -18,6 +18,7 @@ import AdminPanel from "@/pages/admin";
 import Support from "@/pages/support";
 import NotFound from "@/pages/not-found";
 import BlogStaffLogin from "@/pages/blog-staff-login";
+import BlogCms from "@/pages/blog-cms";
 import BlogHome from "@/pages/blog";
 import BlogPost from "@/pages/blog/post";
 import BlogCategory from "@/pages/blog/category";
@@ -272,6 +273,7 @@ function Router() {
         <Route path="/sign-up/*?" component={SignUpPage} />
         <Route path="/admin" component={AdminPanel} />
         <Route path="/admin/blog-staff-login" component={BlogStaffLogin} />
+        <Route path="/admin/blog-cms" component={BlogCms} />
         <Route path="/blog" component={BlogHome} />
         <Route path="/blog/search" component={BlogSearch} />
         <Route path="/blog/category/:slug" component={BlogCategory} />

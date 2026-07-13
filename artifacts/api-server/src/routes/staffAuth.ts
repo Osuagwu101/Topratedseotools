@@ -1,6 +1,6 @@
 import { Router, type IRouter, type RequestHandler } from "express";
-import { db, staffUsersTable, staffRoles, type StaffRole } from "@workspace/db";
-import { eq, ne, and } from "drizzle-orm";
+import { db, staffUsersTable, staffRoles, blogPostsTable, staffSessionsTable, type StaffRole } from "@workspace/db";
+import { eq, ne, and, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import {
   STAFF_SESSION_COOKIE,
@@ -235,6 +235,53 @@ router.put("/admin/blog/staff/:id", requireStaffManager, async (req, res): Promi
   } catch (err) {
     logger.error({ err }, "Failed to update staff account");
     res.status(500).json({ error: "Failed to update staff account" });
+  }
+});
+
+router.delete("/admin/blog/staff/:id", requireStaffManager, async (req, res): Promise<void> => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    if (req.staffUser?.id === id) {
+      res.status(400).json({ error: "You cannot delete your own account." });
+      return;
+    }
+    const [target] = await db.select().from(staffUsersTable).where(eq(staffUsersTable.id, id)).limit(1);
+    if (!target) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    if (target.role === "administrator") {
+      const [otherAdmin] = await db
+        .select({ id: staffUsersTable.id })
+        .from(staffUsersTable)
+        .where(and(eq(staffUsersTable.role, "administrator"), eq(staffUsersTable.active, true), ne(staffUsersTable.id, id)))
+        .limit(1);
+      if (!otherAdmin) {
+        res.status(400).json({ error: "Cannot delete the last active administrator." });
+        return;
+      }
+    }
+    const [authored] = await db
+      .select({ id: blogPostsTable.id })
+      .from(blogPostsTable)
+      .where(or(eq(blogPostsTable.authorId, id), eq(blogPostsTable.createdBy, id), eq(blogPostsTable.updatedBy, id)))
+      .limit(1);
+    if (authored) {
+      res.status(409).json({
+        error: "This user has authored or edited posts. Deactivate the account instead of deleting it to keep attribution intact.",
+      });
+      return;
+    }
+    await db.delete(staffSessionsTable).where(eq(staffSessionsTable.staffUserId, id));
+    await db.delete(staffUsersTable).where(eq(staffUsersTable.id, id));
+    res.status(204).end();
+  } catch (err) {
+    logger.error({ err }, "Failed to delete staff account");
+    res.status(500).json({ error: "Failed to delete staff account" });
   }
 });
 

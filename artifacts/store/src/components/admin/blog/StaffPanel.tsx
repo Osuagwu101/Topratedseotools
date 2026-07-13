@@ -5,8 +5,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { StaffUser } from "../BlogAdminPanel";
-import { Loader2, Plus, Edit2, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Plus, Edit2, CheckCircle2, XCircle, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function StaffPanel({ staff }: { staff: StaffUser }) {
   const { toast } = useToast();
@@ -15,6 +25,8 @@ export default function StaffPanel({ staff }: { staff: StaffUser }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<StaffUser | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<StaffUser | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -98,13 +110,32 @@ export default function StaffPanel({ staff }: { staff: StaffUser }) {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/blog/staff/${deleteTarget.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast({ title: "User deleted" });
+      setDeleteTarget(null);
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: "Could not delete user", description: err.message, variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return <div className="p-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl font-heading font-bold text-foreground">Staff Accounts</h2>
           <p className="text-sm text-muted-foreground mt-1">Manage administrators, editors, and authors.</p>
@@ -112,6 +143,12 @@ export default function StaffPanel({ staff }: { staff: StaffUser }) {
         <Button onClick={openNew} className="font-bold gap-2">
           <Plus className="w-4 h-4" /> Add User
         </Button>
+      </div>
+
+      <div className="mb-6 text-xs text-muted-foreground bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+        Editors and authors sign in on their own, separate from this dashboard, at{" "}
+        <code className="font-mono bg-white border border-gray-200 rounded px-1 py-0.5">/admin/blog-staff-login</code>{" "}
+        using the email and password you set for them below.
       </div>
 
       <div className="border border-gray-200 rounded-xl overflow-hidden">
@@ -155,6 +192,11 @@ export default function StaffPanel({ staff }: { staff: StaffUser }) {
                   <Button variant="ghost" size="sm" onClick={() => openEdit(u)}>
                     <Edit2 className="w-4 h-4 mr-1.5" /> Edit
                   </Button>
+                  {u.id !== staff.id && (
+                    <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(u)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                      <Trash2 className="w-4 h-4 mr-1.5" /> Delete
+                    </Button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -166,6 +208,25 @@ export default function StaffPanel({ staff }: { staff: StaffUser }) {
           </tbody>
         </table>
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleteTarget?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes their login and CMS access. If they've authored or edited any posts, deleting
+              will be blocked -- deactivate their account instead to preserve attribution. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-red-600 hover:bg-red-700 focus:ring-red-600">
+              {deleting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>

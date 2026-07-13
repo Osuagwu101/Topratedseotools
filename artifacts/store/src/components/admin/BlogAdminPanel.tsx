@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { Loader2, FileText, Tags, Image as ImageIcon, MessageSquare, Users, Settings as SettingsIcon, Sparkles } from "lucide-react";
+import { useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Loader2, LogOut, FileText, Tags, Image as ImageIcon, MessageSquare, Users, Settings as SettingsIcon, Sparkles } from "lucide-react";
 import PostsPanel from "./blog/PostsPanel";
 import TaxonomyPanel from "./blog/TaxonomyPanel";
 import MediaLibrary from "./blog/MediaLibrary";
@@ -10,7 +12,11 @@ import SeoGeneratorSettingsPanel from "./blog/seo-generator/SeoGeneratorSettings
 import MonthlyUsageBanner from "./blog/seo-generator/MonthlyUsageBanner";
 
 interface BlogAdminPanelProps {
-  token: string;
+  // Present when embedded in the main /admin dashboard (legacy admin
+  // basic-auth token) -- auto-signs in as the site-owner administrator.
+  // Absent when embedded in the standalone /admin/blog-cms page, where the
+  // user must already hold their own staff session cookie instead.
+  token?: string;
   products: { id: number; name: string; description: string | null }[];
 }
 
@@ -26,25 +32,32 @@ export interface StaffUser {
 }
 
 export default function BlogAdminPanel({ token, products }: BlogAdminPanelProps) {
+  const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(true);
   const [staff, setStaff] = useState<StaffUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<"posts" | "taxonomy" | "media" | "comments" | "staff" | "settings" | "ai-generator">("posts");
 
-  // Anyone who reached the admin dashboard (i.e. already holds a valid admin
-  // token) is auto-signed-in to the Blog CMS as a full administrator -- no
-  // separate Blog CMS login is required.
+  // Two ways to reach this component:
+  //  - Embedded in /admin (token set): anyone already holding a valid admin
+  //    token is auto-signed-in to the Blog CMS as a full administrator -- no
+  //    separate Blog CMS login is required.
+  //  - Standalone at /admin/blog-cms (no token): the user must already hold
+  //    their own staff session cookie from /admin/blog-staff-login; if not,
+  //    send them there instead of showing a dead end.
   const checkAuth = async () => {
     try {
       const res = await fetch("/api/blog/staff/me", {
         credentials: "include",
-        headers: { Authorization: token },
+        ...(token ? { headers: { Authorization: token } } : {}),
       });
       if (res.ok) {
         const data = await res.json();
         setStaff(data);
         setAuthError(null);
+      } else if (!token) {
+        setLocation("/admin/blog-staff-login");
       } else {
         setAuthError(
           res.status === 503
@@ -54,7 +67,11 @@ export default function BlogAdminPanel({ token, products }: BlogAdminPanelProps)
       }
     } catch (err) {
       console.error(err);
-      setAuthError("Could not load the Blog CMS. Please refresh the page.");
+      if (!token) {
+        setLocation("/admin/blog-staff-login");
+      } else {
+        setAuthError("Could not load the Blog CMS. Please refresh the page.");
+      }
     } finally {
       setLoading(false);
     }
@@ -63,6 +80,16 @@ export default function BlogAdminPanel({ token, products }: BlogAdminPanelProps)
   useEffect(() => {
     checkAuth();
   }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await fetch("/api/blog/staff/logout", { method: "POST", credentials: "include" });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLocation("/admin/blog-staff-login");
+    }
+  };
 
   if (loading) {
     return <div className="p-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
@@ -143,6 +170,14 @@ export default function BlogAdminPanel({ token, products }: BlogAdminPanelProps)
           >
             <Sparkles className="w-4 h-4" /> AI Generator
           </button>
+        )}
+
+        {!token && (
+          <div className="pt-6 mt-6 border-t border-gray-200 px-3">
+            <Button variant="ghost" size="sm" onClick={handleSignOut} className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50">
+              <LogOut className="w-4 h-4 mr-2" /> Sign out
+            </Button>
+          </div>
         )}
       </div>
 

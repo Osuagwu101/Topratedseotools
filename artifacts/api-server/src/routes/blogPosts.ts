@@ -19,6 +19,21 @@ import { assertAiPublishReady, getUnresolvedReviewPostIds } from "../lib/seoGene
 const router: IRouter = Router();
 router.use(attachStaffUser);
 
+// Staff-only lightweight product list for CTA/product-tag pickers in the
+// post editor. Deliberately separate from /api/admin/products (which is
+// gated by the legacy ADMIN_USERNAME/ADMIN_PASSWORD credential) so editors
+// and authors signed in only via their own staff account can still assign
+// posts to products. Includes hidden products (staff still need to tag
+// posts for tools that are hidden from the storefront).
+router.get("/blog/products", requireStaffRole(), async (_req, res): Promise<void> => {
+  const rows = await db
+    .select({ id: productsTable.id, name: productsTable.name, description: productsTable.description })
+    .from(productsTable)
+    .where(eq(productsTable.isDeleted, false))
+    .orderBy(productsTable.id);
+  res.json(rows);
+});
+
 // Flips any scheduled posts whose time has arrived to published. Cheap enough
 // to run on every public read; avoids needing a separate cron/worker.
 //

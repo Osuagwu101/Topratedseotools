@@ -33,7 +33,7 @@ export default function BlogStaffLogin() {
       }
       
       toast({ title: "Welcome back", description: "Successfully signed into the Blog CMS." });
-      setLocation("/admin");
+      setLocation("/admin/blog-cms");
     } catch (err: any) {
       toast({ title: "Sign in failed", description: err.message, variant: "destructive" });
     } finally {
