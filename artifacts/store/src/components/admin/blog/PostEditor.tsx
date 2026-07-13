@@ -113,6 +113,18 @@ export default function PostEditor({
     setForm(f => ({
       ...f,
       ...data,
+      // The API stores most text fields as nullable columns; coerce null to
+      // "" so controlled inputs (and .length reads like the SEO counters)
+      // never crash on a freshly created post.
+      excerpt: data.excerpt ?? "",
+      content: data.content ?? "",
+      featuredImageUrl: data.featuredImageUrl ?? "",
+      featuredImageAlt: data.featuredImageAlt ?? "",
+      seoTitle: data.seoTitle ?? "",
+      seoDescription: data.seoDescription ?? "",
+      focusKeyword: data.focusKeyword ?? "",
+      ctaCustomLabel: data.ctaCustomLabel ?? "",
+      ctaCustomUrl: data.ctaCustomUrl ?? "",
       categoryId: data.categoryId || null,
       ctaProductId: data.ctaProductId || null,
       tagIds: data.tagIds || [],

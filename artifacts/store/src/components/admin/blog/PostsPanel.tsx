@@ -47,13 +47,34 @@ export default function PostsPanel({
   // Set when the editor should be opened straight into the AI Assistant
   // panel, e.g. via the "AI review needed" badge on the post list.
   const [openAiOnEdit, setOpenAiOnEdit] = useState(false);
+  const [creatingAiArticle, setCreatingAiArticle] = useState(false);
 
   useEffect(() => {
-    if (autoStartAiArticle) {
-      setEditingPostId("new");
-      setOpenAiOnEdit(true);
-      onAutoStartHandled?.();
-    }
+    if (!autoStartAiArticle) return;
+    onAutoStartHandled?.();
+    // The AI Assistant panel only renders once a post has a real ID (see
+    // PostEditor), so create a blank draft up front instead of opening the
+    // editor in "new" mode.
+    const createAndOpen = async () => {
+      setCreatingAiArticle(true);
+      try {
+        const res = await fetch("/api/admin/blog/posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ title: "Untitled AI Article" }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const created = await res.json();
+        setEditingPostId(created.id);
+        setOpenAiOnEdit(true);
+      } catch (err: any) {
+        toast({ title: "Error starting AI article", description: err.message, variant: "destructive" });
+      } finally {
+        setCreatingAiArticle(false);
+      }
+    };
+    createAndOpen();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStartAiArticle]);
   
@@ -110,6 +131,15 @@ export default function PostsPanel({
       toast({ title: "Error duplicating post", description: err.message, variant: "destructive" });
     }
   };
+
+  if (creatingAiArticle) {
+    return (
+      <div className="p-12 flex flex-col items-center justify-center gap-3 text-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground font-semibold">Creating a new draft and opening the AI Assistant…</p>
+      </div>
+    );
+  }
 
   if (editingPostId !== null) {
     return (

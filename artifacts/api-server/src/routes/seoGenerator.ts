@@ -656,10 +656,14 @@ router.post("/admin/blog/posts/:postId/seo-generator/generate", requireStaffRole
     // live without a human re-reviewing it: even if the post was already
     // published, writing new AI content here demotes it back to draft so an
     // editor must consciously re-publish after review.
+    // Treat an empty title, or the untouched placeholder from the "New AI
+    // Article" shortcut, as "no real title yet" so the AI-generated title
+    // actually lands on the post instead of leaving the placeholder forever.
+    const hasRealTitle = Boolean(post.title) && post.title !== "Untitled AI Article";
     await db
       .update(blogPostsTable)
       .set({
-        title: post.title || article.title,
+        title: hasRealTitle ? post.title : article.title,
         content: fullContent,
         seoTitle: post.seoTitle || article.title,
         seoDescription: post.seoDescription || article.metaDescription,
