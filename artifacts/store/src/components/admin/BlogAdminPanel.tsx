@@ -163,7 +163,7 @@ export default function BlogAdminPanel({ token, products }: BlogAdminPanelProps)
           </button>
         )}
 
-        {staff.role === "administrator" && (
+        {staff.role !== "author" && (
           <button
             onClick={() => setActiveTab("ai-generator")}
             className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${activeTab === "ai-generator" ? "bg-primary/10 text-primary" : "text-gray-600 hover:bg-gray-100"}`}
@@ -191,7 +191,7 @@ export default function BlogAdminPanel({ token, products }: BlogAdminPanelProps)
         {activeTab === "comments" && staff.role !== "author" && <CommentsPanel staff={staff} />}
         {activeTab === "staff" && staff.role === "administrator" && <StaffPanel staff={staff} />}
         {activeTab === "settings" && staff.role === "administrator" && <SettingsPanel staff={staff} />}
-        {activeTab === "ai-generator" && staff.role === "administrator" && <SeoGeneratorSettingsPanel staff={staff} />}
+        {activeTab === "ai-generator" && staff.role !== "author" && <SeoGeneratorSettingsPanel staff={staff} />}
         </div>
       </div>
     </div>

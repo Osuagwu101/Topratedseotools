@@ -64,10 +64,11 @@ const GEMINI_MODELS = [
 
 export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser }) {
   const { toast } = useToast();
+  const isAdmin = staff.role === "administrator";
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState<UsageHistory | null>(null);
-  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(isAdmin);
   const [historyDays, setHistoryDays] = useState(30);
   const [exporting, setExporting] = useState(false);
   const [form, setForm] = useState({
@@ -103,6 +104,10 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
   }, []);
 
   useEffect(() => {
+    // Usage history / cost export is administrator-only on the backend
+    // (it surfaces spend and per-staff activity) -- editors don't have
+    // permission to view it, so skip the fetch entirely for them.
+    if (!isAdmin) return;
     const fetchHistory = async () => {
       setHistoryLoading(true);
       try {
@@ -116,7 +121,7 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
       }
     };
     fetchHistory();
-  }, [historyDays]);
+  }, [historyDays, isAdmin]);
 
   const handleExportCsv = async () => {
     setExporting(true);
@@ -195,14 +200,25 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
           <Sparkles className="w-5 h-5 text-primary" />
           <div>
             <h2 className="text-xl font-heading font-bold text-foreground">AI SEO Article Generator</h2>
-            <p className="text-sm text-muted-foreground mt-1">Provider, cost controls, and generation limits.</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isAdmin ? "Provider, cost controls, and generation limits." : "Current AI provider and generation settings."}
+            </p>
           </div>
         </div>
-        <Button onClick={handleSave} disabled={saving} className="font-bold gap-2">
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          Save Changes
-        </Button>
+        {isAdmin && (
+          <Button onClick={handleSave} disabled={saving} className="font-bold gap-2">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save Changes
+          </Button>
+        )}
       </div>
+
+      {!isAdmin && (
+        <p className="text-xs text-muted-foreground bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 mb-8">
+          To generate an AI-assisted article, open any post in the Posts tab and use the "AI Assistant" option there.
+          Provider/model, API keys, and cost limits below are read-only for your role — ask an administrator to change them.
+        </p>
+      )}
 
       <div className="space-y-8">
         <section>
@@ -215,9 +231,10 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Default Provider</label>
               <select
-                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
                 value={form.aiProvider}
                 onChange={e => setForm(f => ({ ...f, aiProvider: e.target.value }))}
+                disabled={!isAdmin}
               >
                 <option value="openai">OpenAI {form.hasOpenAiKey ? "(key configured)" : "(no key configured)"}</option>
                 <option value="gemini">Gemini {form.hasGeminiKey ? "(key configured)" : "(no key configured)"}</option>
@@ -227,9 +244,10 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">OpenAI Model</label>
               <select
-                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
                 value={form.aiModel}
                 onChange={e => setForm(f => ({ ...f, aiModel: e.target.value }))}
+                disabled={!isAdmin}
               >
                 {OPENAI_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>
@@ -237,9 +255,10 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Gemini Model</label>
               <select
-                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
                 value={form.geminiModel}
                 onChange={e => setForm(f => ({ ...f, geminiModel: e.target.value }))}
+                disabled={!isAdmin}
               >
                 {GEMINI_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>
@@ -250,6 +269,7 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
           )}
         </section>
 
+        {isAdmin && (
         <section>
           <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-4 border-b border-gray-100 pb-2">SERP Data Provider (optional)</h3>
           <p className="text-xs text-muted-foreground mb-3">
@@ -283,7 +303,9 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
             </div>
           </div>
         </section>
+        )}
 
+        {isAdmin && (
         <section>
           <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-4 border-b border-gray-100 pb-2">Cost & Usage Controls</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -313,15 +335,19 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
             <Switch checked={form.confirmBeforeExpensiveOps} onCheckedChange={(v) => setForm(f => ({ ...f, confirmBeforeExpensiveOps: v }))} />
           </div>
         </section>
+        )}
       </div>
 
+      {isAdmin && (
       <div className="mt-8 pt-6 border-t border-gray-200">
         <Button onClick={handleSave} disabled={saving} className="font-bold gap-2 w-full sm:w-auto">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Save Changes
         </Button>
       </div>
+      )}
 
+      {isAdmin && (
       <div className="mt-10 pt-8 border-t border-gray-200">
         <div className="flex items-center justify-between gap-4 mb-2 flex-wrap">
           <div className="flex items-center gap-2">
@@ -445,6 +471,7 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
