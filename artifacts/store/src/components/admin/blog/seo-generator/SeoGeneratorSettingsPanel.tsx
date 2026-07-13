@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { StaffUser } from "../../BlogAdminPanel";
-import { Loader2, Save, Sparkles, BarChart3 } from "lucide-react";
+import { Loader2, Save, Sparkles, BarChart3, Download } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface DailyCount {
@@ -68,6 +68,8 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
   const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState<UsageHistory | null>(null);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyDays, setHistoryDays] = useState(30);
+  const [exporting, setExporting] = useState(false);
   const [form, setForm] = useState({
     aiProvider: "openai" as string,
     aiModel: "gpt-4o-mini",
@@ -102,8 +104,9 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
 
   useEffect(() => {
     const fetchHistory = async () => {
+      setHistoryLoading(true);
       try {
-        const res = await fetch("/api/admin/blog/seo-generator/usage-history?days=30", { credentials: "include" });
+        const res = await fetch(`/api/admin/blog/seo-generator/usage-history?days=${historyDays}`, { credentials: "include" });
         if (!res.ok) throw new Error(await res.text());
         setHistory(await res.json());
       } catch (err: any) {
@@ -113,7 +116,30 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
       }
     };
     fetchHistory();
-  }, []);
+  }, [historyDays]);
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch(`/api/admin/blog/seo-generator/usage-history/export?days=${historyDays}`, { credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const filenameMatch = disposition.match(/filename="?([^";]+)"?/);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filenameMatch?.[1] ?? `ai-generator-usage-${historyDays}d.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast({ title: "Error exporting usage history", description: err.message, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const chartData = (() => {
     if (!history) return [];
@@ -297,12 +323,37 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
       </div>
 
       <div className="mt-10 pt-8 border-t border-gray-200">
-        <div className="flex items-center gap-2 mb-2">
-          <BarChart3 className="w-5 h-5 text-primary" />
-          <h3 className="text-lg font-heading font-bold text-foreground">Usage & Cost History</h3>
+        <div className="flex items-center justify-between gap-4 mb-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-primary" />
+            <h3 className="text-lg font-heading font-bold text-foreground">Usage & Cost History</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              className="flex h-9 items-center justify-between rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              value={historyDays}
+              onChange={(e) => setHistoryDays(parseInt(e.target.value, 10))}
+              aria-label="Date range"
+            >
+              <option value={7}>Last 7 days</option>
+              <option value={30}>Last 30 days</option>
+              <option value={90}>Last 90 days</option>
+              <option value={365}>Last 365 days</option>
+            </select>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={handleExportCsv}
+              disabled={exporting || historyLoading || !history || history.recentEntries.length === 0}
+            >
+              {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              Export CSV
+            </Button>
+          </div>
         </div>
         <p className="text-xs text-muted-foreground mb-6">
-          Generation activity over the last {history?.days ?? 30} days, so you can spot spend trends before the monthly cap is hit.
+          Generation activity over the last {history?.days ?? historyDays} days, so you can spot spend trends before the monthly cap is hit.
         </p>
 
         {historyLoading ? (

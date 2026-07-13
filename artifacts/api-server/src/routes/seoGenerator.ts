@@ -27,11 +27,20 @@ import { getActiveBannedPhrases } from "../lib/seoGenerator/bannedPhrases";
 import { validateArticleStructure, checkKeywordPlacement, plainText } from "../lib/seoGenerator/validators";
 import { checkUsageLimits, logUsage, getMonthlyUsageStatus } from "../lib/seoGenerator/usageLimits";
 import { assembleFullContent, saveSectionVersion, getActiveSectionVersions, listSectionVersions, restoreSectionVersion } from "../lib/seoGenerator/contentAssembly";
+import { buildCsvDocument } from "../lib/csv";
 
 const router: IRouter = Router();
 router.use(attachStaffUser);
 
 const STAFF_ROLES = ["administrator", "editor", "author"] as const;
+
+const ACTION_LABELS: Record<string, string> = {
+  research: "Keyword research",
+  brief: "Content brief",
+  generate_full: "Full article",
+  generate_section: "Section generation",
+  regenerate_section: "Section regeneration",
+};
 
 async function getOrCreateSettings() {
   const [row] = await db.select().from(seoGeneratorSettingsTable).limit(1);
@@ -172,46 +181,51 @@ router.get("/admin/blog/seo-generator/usage-alert", requireStaffRole("administra
   }
 });
 
-// Admin-only usage/cost history report: generation counts by day and by staff
-// member, plus a recent activity feed, so admins can track AI generator spend
-// over time (separate from the live per-user counter surfaced in the settings
-// endpoint above). Restricted to administrators since it exposes what every
-// staff member has been doing, not just the requester's own usage.
-router.get("/admin/blog/seo-generator/usage-history", requireStaffRole("administrator"), async (req, res): Promise<void> => {
-  try {
-    const daysParam = parseInt(String(req.query.days ?? "30"), 10);
-    const days = Number.isFinite(daysParam) && daysParam > 0 ? Math.min(daysParam, 365) : 30;
-    const since = new Date();
-    since.setHours(0, 0, 0, 0);
-    since.setDate(since.getDate() - (days - 1));
+function parseHistoryDays(raw: unknown): number {
+  const daysParam = parseInt(String(raw ?? "30"), 10);
+  return Number.isFinite(daysParam) && daysParam > 0 ? Math.min(daysParam, 365) : 30;
+}
 
-    const settings = await getOrCreateSettings();
+function historyRangeSince(days: number): Date {
+  const since = new Date();
+  since.setHours(0, 0, 0, 0);
+  since.setDate(since.getDate() - (days - 1));
+  return since;
+}
 
-    const [dailyCounts, byStaff, recentEntries] = await Promise.all([
-      db
-        .select({
-          date: sql<string>`to_char(date_trunc('day', ${generationUsageLogTable.createdAt}), 'YYYY-MM-DD')`,
-          action: generationUsageLogTable.action,
-          count: sql<number>`count(*)::int`,
-        })
-        .from(generationUsageLogTable)
-        .where(gte(generationUsageLogTable.createdAt, since))
-        .groupBy(sql`date_trunc('day', ${generationUsageLogTable.createdAt})`, generationUsageLogTable.action)
-        .orderBy(sql`date_trunc('day', ${generationUsageLogTable.createdAt})`),
-      db
-        .select({
-          staffUserId: generationUsageLogTable.staffUserId,
-          staffName: staffUsersTable.name,
-          staffEmail: staffUsersTable.email,
-          count: sql<number>`count(*)::int`,
-          lastUsedAt: sql<string>`max(${generationUsageLogTable.createdAt})`,
-        })
-        .from(generationUsageLogTable)
-        .leftJoin(staffUsersTable, eq(generationUsageLogTable.staffUserId, staffUsersTable.id))
-        .where(gte(generationUsageLogTable.createdAt, since))
-        .groupBy(generationUsageLogTable.staffUserId, staffUsersTable.name, staffUsersTable.email)
-        .orderBy(sql`count(*) desc`),
-      db
+/**
+ * Shared by the in-app usage-history view and the CSV export: generation
+ * counts by day/action and by staff member, plus a recent activity feed.
+ * `recentEntriesLimit` caps the activity feed for the UI (100 rows); the CSV
+ * export passes `undefined` so the download covers the full selected range.
+ */
+async function loadUsageHistoryData(since: Date, recentEntriesLimit?: number) {
+  const [dailyCounts, byStaff, recentEntriesQuery] = await Promise.all([
+    db
+      .select({
+        date: sql<string>`to_char(date_trunc('day', ${generationUsageLogTable.createdAt}), 'YYYY-MM-DD')`,
+        action: generationUsageLogTable.action,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(generationUsageLogTable)
+      .where(gte(generationUsageLogTable.createdAt, since))
+      .groupBy(sql`date_trunc('day', ${generationUsageLogTable.createdAt})`, generationUsageLogTable.action)
+      .orderBy(sql`date_trunc('day', ${generationUsageLogTable.createdAt})`),
+    db
+      .select({
+        staffUserId: generationUsageLogTable.staffUserId,
+        staffName: staffUsersTable.name,
+        staffEmail: staffUsersTable.email,
+        count: sql<number>`count(*)::int`,
+        lastUsedAt: sql<string>`max(${generationUsageLogTable.createdAt})`,
+      })
+      .from(generationUsageLogTable)
+      .leftJoin(staffUsersTable, eq(generationUsageLogTable.staffUserId, staffUsersTable.id))
+      .where(gte(generationUsageLogTable.createdAt, since))
+      .groupBy(generationUsageLogTable.staffUserId, staffUsersTable.name, staffUsersTable.email)
+      .orderBy(sql`count(*) desc`),
+    (() => {
+      let q = db
         .select({
           id: generationUsageLogTable.id,
           staffUserId: generationUsageLogTable.staffUserId,
@@ -226,9 +240,26 @@ router.get("/admin/blog/seo-generator/usage-history", requireStaffRole("administ
         .from(generationUsageLogTable)
         .leftJoin(staffUsersTable, eq(generationUsageLogTable.staffUserId, staffUsersTable.id))
         .leftJoin(blogPostsTable, eq(generationUsageLogTable.postId, blogPostsTable.id))
-        .orderBy(desc(generationUsageLogTable.createdAt))
-        .limit(100),
-    ]);
+        .where(gte(generationUsageLogTable.createdAt, since))
+        .orderBy(desc(generationUsageLogTable.createdAt));
+      return recentEntriesLimit ? q.limit(recentEntriesLimit) : q;
+    })(),
+  ]);
+  return { dailyCounts, byStaff, recentEntries: recentEntriesQuery };
+}
+
+// Admin-only usage/cost history report: generation counts by day and by staff
+// member, plus a recent activity feed, so admins can track AI generator spend
+// over time (separate from the live per-user counter surfaced in the settings
+// endpoint above). Restricted to administrators since it exposes what every
+// staff member has been doing, not just the requester's own usage.
+router.get("/admin/blog/seo-generator/usage-history", requireStaffRole("administrator"), async (req, res): Promise<void> => {
+  try {
+    const days = parseHistoryDays(req.query.days);
+    const since = historyRangeSince(days);
+    const settings = await getOrCreateSettings();
+
+    const { dailyCounts, byStaff, recentEntries } = await loadUsageHistoryData(since, 100);
 
     const { getUsageCounts } = await import("../lib/seoGenerator/usageLimits");
     const currentCounts = await getUsageCounts(req.staffUser!.id);
@@ -248,6 +279,55 @@ router.get("/admin/blog/seo-generator/usage-history", requireStaffRole("administ
   } catch (err) {
     logger.error({ err }, "Failed to load SEO generator usage history");
     res.status(500).json({ error: "Failed to load usage history" });
+  }
+});
+
+// Admin-only CSV export of the same usage/cost history report above, covering
+// the full selected date range (not just the top 100 recent entries shown
+// in-app) so admins can pull complete data into a spreadsheet.
+router.get("/admin/blog/seo-generator/usage-history/export", requireStaffRole("administrator"), async (req, res): Promise<void> => {
+  try {
+    const days = parseHistoryDays(req.query.days);
+    const since = historyRangeSince(days);
+    const { dailyCounts, byStaff, recentEntries } = await loadUsageHistoryData(since);
+
+    const csv = buildCsvDocument([
+      {
+        heading: `Daily generation volume (last ${days} days)`,
+        header: ["Date", "Action", "Count"],
+        rows: dailyCounts.map((row) => [row.date, ACTION_LABELS[row.action] ?? row.action, row.count]),
+      },
+      {
+        heading: "By staff member",
+        header: ["Staff Name", "Staff Email", "Generations", "Last Used"],
+        rows: byStaff.map((row) => [
+          row.staffName ?? `Staff #${row.staffUserId}`,
+          row.staffEmail ?? "",
+          row.count,
+          row.lastUsedAt ? new Date(row.lastUsedAt).toISOString() : "",
+        ]),
+      },
+      {
+        heading: "Recent activity",
+        header: ["When", "Staff Name", "Staff Email", "Action", "Post", "Detail"],
+        rows: recentEntries.map((entry) => [
+          new Date(entry.createdAt).toISOString(),
+          entry.staffName ?? "",
+          entry.staffEmail ?? "",
+          ACTION_LABELS[entry.action] ?? entry.action,
+          entry.postTitle ?? "",
+          entry.detail ?? "",
+        ]),
+      },
+    ]);
+
+    const filename = `ai-generator-usage-${days}d-${new Date().toISOString().slice(0, 10)}.csv`;
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch (err) {
+    logger.error({ err }, "Failed to export SEO generator usage history");
+    res.status(500).json({ error: "Failed to export usage history" });
   }
 });
 

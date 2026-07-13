@@ -15,3 +15,4 @@
 - [SEO generator review gating](seo-generator-review-gating.md) — quality-report reviewedAt/issuesAcknowledged gate Publish; any content-changing endpoint must reset it or stale sign-off lets unreviewed content publish.
 - [SubsHub monthly cap alerting](subshub-monthly-cap-alerting.md) — no email service configured; AI generator cap warnings use an in-app admin banner instead, computed live with no dedupe.
 - [Post-merge DB schema drift](post-merge-db-schema-drift.md) — after a task-agent merge adds columns to lib/db schema source, always rebuild lib/db (`tsc -b --force`) and typecheck dependents before trusting them; stale dist/*.d.ts silently breaks consumers with confusing "property does not exist" errors that look unrelated to the real cause.
+- [Dev DB schema drift](dev-db-schema-drift.md) — a schema.ts column can typecheck fine but be missing from the actual dev table; run `pnpm run push` in lib/db, don't assume the code is wrong.
