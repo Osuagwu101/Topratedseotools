@@ -142,7 +142,7 @@ async function computeLiveCustomersServed(): Promise<{ liveCount: number; counti
   return { liveCount: rows.length, countingMethod };
 }
 
-async function getDisplayedCustomersServed(): Promise<number> {
+export async function getDisplayedCustomersServed(): Promise<number> {
   const settings = await ensureSettings();
   const { liveCount } = await computeLiveCustomersServed();
   return settings.customersServedBaseline + settings.customersServedManualCorrection + liveCount;

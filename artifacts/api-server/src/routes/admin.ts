@@ -16,13 +16,14 @@ import {
   saveMetaCapiSettings,
   saveGtmSettings,
 } from "../lib/analyticsSettings";
-import { and, desc, eq, isNotNull, ne, notInArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNotNull, lte, ne, notInArray, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { activateOrderByReference } from "../lib/activateOrder";
 import { logger } from "../lib/logger";
 import { parseUserAgent } from "../lib/userAgent";
 import { analyzeImage, processAndStoreToolImage, STANDARD_IMAGE_SIZE } from "../lib/toolImages";
 import { loginToTool, setSession, invalidateSessionsForProduct } from "../lib/toolSession";
+import { getDisplayedCustomersServed } from "./trust";
 
 const router: IRouter = Router();
 
@@ -65,6 +66,44 @@ const requireAdmin: RequestHandler = (req, res, next) => {
 
   next();
 };
+
+// ── Dashboard stats ──────────────────────────────────────────────────────────
+// Powers the admin landing page: overall totals plus a date-range filter that
+// narrows the sales count and earnings figure (customers/products stay overall).
+
+router.get("/admin/dashboard/stats", requireAdmin, async (req, res): Promise<void> => {
+  const fromRaw = typeof req.query.from === "string" ? req.query.from : undefined;
+  const toRaw = typeof req.query.to === "string" ? req.query.to : undefined;
+
+  const fromDate = fromRaw ? new Date(`${fromRaw}T00:00:00.000Z`) : undefined;
+  const toDate = toRaw ? new Date(`${toRaw}T23:59:59.999Z`) : undefined;
+
+  if ((fromRaw && Number.isNaN(fromDate?.getTime())) || (toRaw && Number.isNaN(toDate?.getTime()))) {
+    res.status(400).json({ error: "Invalid date range" });
+    return;
+  }
+
+  const salesConditions = [eq(ordersTable.status, "success"), eq(ordersTable.settlementStatus, "valid")];
+  if (fromDate) salesConditions.push(gte(ordersTable.createdAt, fromDate));
+  if (toDate) salesConditions.push(lte(ordersTable.createdAt, toDate));
+
+  const [[productsRow], [salesRow], customersCount] = await Promise.all([
+    db.select({ count: count() }).from(productsTable).where(ne(productsTable.isDeleted, true)),
+    db
+      .select({ count: count(), totalKobo: sql<number>`coalesce(sum(${ordersTable.amountKobo}), 0)` })
+      .from(ordersTable)
+      .where(and(...salesConditions)),
+    getDisplayedCustomersServed(),
+  ]);
+
+  res.json({
+    productsCount: productsRow?.count ?? 0,
+    customersCount,
+    salesCount: salesRow?.count ?? 0,
+    totalEarningsKobo: Number(salesRow?.totalKobo ?? 0),
+    range: fromRaw || toRaw ? { from: fromRaw ?? null, to: toRaw ?? null } : null,
+  });
+});
 
 // ── Products (with servers + pricing) ────────────────────────────────────────
 

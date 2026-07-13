@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import TrustAdminPanel from "@/components/admin/TrustAdminPanel";
 import HomepageAdminPanel from "@/components/admin/HomepageAdminPanel";
 import BlogAdminPanel from "@/components/admin/BlogAdminPanel";
+import DashboardPanel from "@/components/admin/DashboardPanel";
 import {
   Eye,
   EyeOff,
@@ -49,6 +50,12 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Menu,
+  LayoutDashboard,
+  Wrench,
+  Users,
+  FileText,
+  LogOut,
 } from "lucide-react";
 
 interface ToolServer {
@@ -2744,8 +2751,9 @@ export default function AdminPanel() {
   const [products, setProducts] = useState<ProductWithServers[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"tools" | "devices" | "users" | "branding" | "analytics" | "trust" | "homepage" | "blog">("tools");
+  const [tab, setTab] = useState<"dashboard" | "tools" | "devices" | "users" | "branding" | "analytics" | "trust" | "homepage" | "blog">("dashboard");
   const [addToolOpen, setAddToolOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const { toast } = useToast();
 
   const authenticated = !!token;
@@ -2855,12 +2863,36 @@ export default function AdminPanel() {
     );
   }
 
+  const navItems: { key: typeof tab; label: string; icon: typeof Wrench }[] = [
+    { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { key: "tools", label: "Tools & Pricing", icon: Wrench },
+    { key: "users", label: "Users", icon: Users },
+    { key: "devices", label: "Device Sessions", icon: Monitor },
+    { key: "branding", label: "Branding", icon: Palette },
+    { key: "analytics", label: "Analytics", icon: BarChart3 },
+    { key: "trust", label: "Trust & Support", icon: ShieldCheck },
+    { key: "homepage", label: "Homepage", icon: ImageIcon },
+    { key: "blog", label: "Blog", icon: FileText },
+  ];
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("admin_token");
+    setToken("");
+  };
+
   return (
     <div className="min-h-screen bg-[#F7F8F9]">
-      <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-10">
+      <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-20">
         <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between max-w-5xl">
           <div className="flex items-center gap-3">
-            <ShieldCheck className="w-5 h-5 text-primary" />
+            <button
+              onClick={() => setMenuOpen(true)}
+              className="p-2 -ml-2 rounded-lg text-foreground hover:bg-gray-100 transition-colors"
+              aria-label="Open menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <ShieldCheck className="w-5 h-5 text-primary hidden sm:block" />
             <span className="font-heading font-bold text-foreground text-lg uppercase tracking-wide">
               Top Rated SEO Tools Admin
             </span>
@@ -2869,70 +2901,66 @@ export default function AdminPanel() {
             variant="ghost"
             size="sm"
             className="text-red-500 hover:text-red-600 font-semibold text-sm"
-            onClick={() => {
-              sessionStorage.removeItem("admin_token");
-              setToken("");
-            }}
+            onClick={handleLogout}
           >
             Logout
           </Button>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 md:px-6 max-w-5xl">
-        <div className="flex gap-1 mt-6 mb-8 bg-gray-100 rounded-xl p-1 w-fit">
-          <button
-            onClick={() => setTab("tools")}
-            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "tools" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Tools &amp; Pricing
-          </button>
-          <button
-            onClick={() => setTab("users")}
-            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "users" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Users
-          </button>
-          <button
-            onClick={() => setTab("devices")}
-            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "devices" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Device Sessions
-          </button>
-          <button
-            onClick={() => setTab("branding")}
-            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "branding" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Branding
-          </button>
-          <button
-            onClick={() => setTab("analytics")}
-            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "analytics" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Analytics
-          </button>
-          <button
-            onClick={() => setTab("trust")}
-            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "trust" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Trust &amp; Support
-          </button>
-          <button
-            onClick={() => setTab("homepage")}
-            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "homepage" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Homepage
-          </button>
-          <button
-            onClick={() => setTab("blog")}
-            className={`px-5 py-2 rounded-lg text-sm font-bold transition-colors ${tab === "blog" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Blog
-          </button>
+      {/* ── Slide-in menu ─────────────────────────────────────────────── */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-30" role="dialog" aria-modal="true">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-white shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Menu</p>
+              <button
+                onClick={() => setMenuOpen(false)}
+                className="p-1.5 rounded-lg text-muted-foreground hover:bg-gray-100 hover:text-foreground transition-colors"
+                aria-label="Close menu"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <nav className="flex-1 py-2 overflow-y-auto">
+              {navItems.map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setTab(key);
+                    setMenuOpen(false);
+                  }}
+                  className={`w-full text-left px-5 py-3 text-sm font-semibold transition-colors flex items-center gap-3 ${
+                    tab === key
+                      ? "bg-primary/10 text-primary border-r-2 border-primary"
+                      : "text-foreground hover:bg-gray-50"
+                  }`}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {label}
+                </button>
+              ))}
+            </nav>
+            <div className="border-t border-gray-100 p-2">
+              <button
+                onClick={handleLogout}
+                className="w-full text-left px-3 py-3 rounded-lg text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors flex items-center gap-3"
+              >
+                <LogOut className="w-4 h-4 shrink-0" />
+                Log out
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
-      <main className="container mx-auto px-4 md:px-6 pb-10 max-w-5xl">
+      <main className="container mx-auto px-4 md:px-6 pt-6 pb-10 max-w-5xl">
+        {tab === "dashboard" && <DashboardPanel token={token} />}
+
         {tab === "tools" && (
           <>
             <div className="mb-8 flex items-start justify-between gap-4">
