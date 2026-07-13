@@ -3,7 +3,7 @@ import { and, eq, desc } from "drizzle-orm";
 import { sanitizeBlogContent } from "../sanitizeBlogHtml";
 
 /** Order sections appear in the assembled post content. FAQ comes after the body, before the conclusion. */
-const SECTION_ORDER: SectionKey[] = ["featured_snippet", "intro", "body", "faq", "conclusion"];
+const SECTION_ORDER: SectionKey[] = ["intro", "featured_snippet", "body", "faq", "conclusion"];
 
 export async function getActiveSectionVersions(postId: number): Promise<Record<string, string>> {
   const rows = await db
@@ -18,19 +18,23 @@ export async function getActiveSectionVersions(postId: number): Promise<Record<s
 /**
  * Assembles the post's stored `content` HTML from the active section
  * versions. The "featured_snippet" section is rendered as a visually
- * distinct callout box at the very top of the article.
+ * distinct callout box placed right after the introduction — the
+ * paragraph that explicitly answers the search intent — rather than
+ * before it.
  */
 export function assembleFullContent(sections: Record<string, string>): string {
   const parts: string[] = [];
-  if (sections.featured_snippet) {
-    parts.push(
-      sanitizeBlogContent(
-        `<div class="featured-snippet-answer" data-seo-featured-snippet="true"><p><strong>${sections.featured_snippet}</strong></p></div>`,
-      ),
-    );
-  }
   for (const key of SECTION_ORDER) {
-    if (key === "featured_snippet") continue;
+    if (key === "featured_snippet") {
+      if (sections.featured_snippet) {
+        parts.push(
+          sanitizeBlogContent(
+            `<div class="featured-snippet-answer" data-seo-featured-snippet="true"><p><strong>${sections.featured_snippet}</strong></p></div>`,
+          ),
+        );
+      }
+      continue;
+    }
     if (sections[key]) parts.push(sections[key]);
   }
   // Sections are already sanitized individually in saveSectionVersion before
