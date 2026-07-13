@@ -50,6 +50,54 @@ export default function PostEditor({
   const [mediaTarget, setMediaTarget] = useState<"featured" | "content">("content");
   const [aiAssistantOpen, setAiAssistantOpen] = useState(openAiAssistant);
   const [qualityReport, setQualityReport] = useState<any>(null);
+
+  // Resizable sidebar: lets the editor/admin/author drag the divider to
+  // widen the content editor or the metadata sidebar to taste.
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    try {
+      const saved = Number(localStorage.getItem("blogEditorSidebarWidth"));
+      return saved >= 260 && saved <= 560 ? saved : 320;
+    } catch {
+      return 320;
+    }
+  });
+  const [isDesktop, setIsDesktop] = useState<boolean>(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const handler = () => setIsDesktop(mq.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  const startSidebarResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+    const onMove = (ev: MouseEvent) => {
+      const delta = ev.clientX - startX;
+      setSidebarWidth(Math.min(560, Math.max(260, startWidth - delta)));
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      setSidebarWidth((current) => {
+        try {
+          localStorage.setItem("blogEditorSidebarWidth", String(current));
+        } catch {
+          // ignore storage errors (e.g. private mode)
+        }
+        return current;
+      });
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
   
   // Data State
   const [form, setForm] = useState({
@@ -320,7 +368,7 @@ export default function PostEditor({
         <div className="flex flex-col lg:flex-row max-w-[1400px] mx-auto">
           
           {/* Main Content Column */}
-          <div className="flex-1 p-6 lg:border-r border-gray-200 lg:min-h-screen">
+          <div className="flex-1 min-w-0 p-6 lg:min-h-screen">
             <div className="max-w-3xl mx-auto space-y-6">
               
               <Input 
@@ -377,8 +425,28 @@ export default function PostEditor({
             </div>
           </div>
 
+          {/* Resize Handle */}
+          <div
+            onMouseDown={startSidebarResize}
+            onDoubleClick={() => {
+              setSidebarWidth(320);
+              try {
+                localStorage.setItem("blogEditorSidebarWidth", "320");
+              } catch {
+                // ignore storage errors
+              }
+            }}
+            title="Drag to resize • double-click to reset"
+            className="hidden lg:flex w-3 shrink-0 cursor-col-resize select-none items-center justify-center group border-x border-gray-200 bg-gray-50 hover:bg-primary/5 transition-colors"
+          >
+            <div className="w-1 h-10 rounded-full bg-gray-300 group-hover:bg-primary transition-colors" />
+          </div>
+
           {/* Sidebar Column */}
-          <div className="w-full lg:w-80 bg-gray-50/50 p-6 space-y-8">
+          <div
+            className="w-full lg:shrink-0 bg-gray-50/50 p-6 space-y-8"
+            style={isDesktop ? { width: sidebarWidth } : undefined}
+          >
             
             {/* Excerpt */}
             <div>
