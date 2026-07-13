@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import {
   db,
   blogPostsTable,
+  productsTable,
   seoGeneratorSettingsTable,
   keywordResearchSessionsTable,
   keywordResearchItemsTable,
@@ -605,6 +606,20 @@ router.post("/admin/blog/posts/:postId/seo-generator/generate", requireStaffRole
       .where(and(eq(keywordResearchItemsTable.sessionId, session.id), eq(keywordResearchItemsTable.included, true)));
     const secondaryKeywords = items.filter((i) => i.kind === "related_keyword" || i.kind === "autocomplete").map((i) => i.value);
 
+    // Candidate pool for internal linking: only live, purchasable products and
+    // published posts (excluding this post itself) are offered to the model,
+    // so it can never link something a reader would hit a dead end on.
+    const linkableProducts = await db
+      .select({ id: productsTable.id, name: productsTable.name, description: productsTable.description })
+      .from(productsTable)
+      .where(and(eq(productsTable.isHidden, false), eq(productsTable.isDeleted, false)))
+      .limit(40);
+    const linkablePosts = await db
+      .select({ slug: blogPostsTable.slug, title: blogPostsTable.title, excerpt: blogPostsTable.excerpt })
+      .from(blogPostsTable)
+      .where(and(eq(blogPostsTable.status, "published"), sql`${blogPostsTable.id} != ${postId}`))
+      .limit(40);
+
     const { data: article, provider: articleProviderUsed, model: articleModelUsed, fallbackFrom: articleFallback } = await generateJsonWithFallback<{
       title: string;
       metaDescription: string;
@@ -625,8 +640,26 @@ router.post("/admin/blog/posts/:postId/seo-generator/generate", requireStaffRole
         headingOutline: brief.headingOutline as { level: number; text: string }[],
         faqCandidates: brief.faqCandidates as { question: string }[],
         featuredSnippetTarget: brief.featuredSnippetTarget ?? session.primaryKeyword,
+        linkCandidates: {
+          products: linkableProducts.map((p) => ({ id: p.id, name: p.name, description: p.description })),
+          posts: linkablePosts.map((p) => ({ slug: p.slug, title: p.title, excerpt: p.excerpt ?? "" })),
+        },
       }),
     });
+
+    const validLinkHrefs = new Set<string>([
+      ...linkableProducts.map((p) => `/products/${p.id}`),
+      ...linkablePosts.map((p) => `/blog/${p.slug}`),
+    ]);
+    // Safety net: strip any <a> the model produced pointing somewhere outside
+    // the candidate list we gave it (hallucinated id/slug), unwrapping to
+    // plain text so the sentence still reads naturally instead of breaking.
+    const stripInvalidLinks = (html: string) =>
+      html.replace(/<a\s+[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, (match, href, text) =>
+        validLinkHrefs.has(href) ? match : text
+      );
+    article.bodyHtml = stripInvalidLinks(article.bodyHtml);
+    article.conclusionHtml = stripInvalidLinks(article.conclusionHtml);
 
     if (articleFallback) {
       // The job row was created with the originally requested provider/model

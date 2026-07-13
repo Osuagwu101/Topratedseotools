@@ -55,6 +55,10 @@ export function buildFullArticlePrompt(params: {
   headingOutline: { level: number; text: string }[];
   faqCandidates: { question: string }[];
   featuredSnippetTarget: string;
+  linkCandidates: {
+    products: { id: number; name: string; description: string }[];
+    posts: { slug: string; title: string; excerpt: string }[];
+  };
 }): { system: string; user: string } {
   const system = `You are an expert SEO content writer producing a complete blog article. ${NIGERIAN_VOICE_GUIDANCE}
 
@@ -66,6 +70,8 @@ Structural rules (must all be followed exactly):
 5. Use proper heading structure (H2 for main sections, H3 for subsections) following the provided outline as a guide (you may refine wording).
 6. Include an FAQ section near the end answering the candidate questions provided (rephrase questions naturally, do not just copy them verbatim if awkward).
 7. Body content must use clean HTML: <p>, <h2>, <h3>, <ul>/<li>, <strong> where useful. No inline styles, no <script>, no <html>/<body> wrapper tags.
+8. Add between 1 and 5 internal links total, placed inside "bodyHtml" and/or "conclusionHtml" wherever they fit naturally — never bunch them all in one paragraph. Choose links ONLY from the "Internal link candidates" list given below; never invent a URL, product id, or post slug that isn't in that list, and never link the same target twice. Pick however many are genuinely relevant to this specific topic — sometimes only 1, sometimes up to 5; do not pad the count if few candidates truly fit. Link a product when that tool is genuinely useful for what the reader is trying to do; link another blog post when it covers a closely related subtopic worth reading next. Use descriptive, natural anchor text (never "click here", "this link", or a bare URL). Format product links as exactly <a href="/products/{id}">anchor text</a> and post links as exactly <a href="/blog/{slug}">anchor text</a>, using the exact id/slug from the candidate list.
+9. "Top Rated SEO Tools" is the brand/site this article is published on. Where it genuinely fits the topic, you may mention the Top Rated SEO Tools brand once and/or recommend one of the relevant tools from the candidate list (via the linking rule above) as a natural solution to a problem raised in the article. This must read as a knowledgeable recommendation, not an ad — no banner-style CTAs, no "sign up now", no repeating the brand name more than once, and no mention at all if nothing in the candidate list is genuinely relevant to the topic.
 
 Respond ONLY with a JSON object matching this shape:
 {
@@ -86,6 +92,10 @@ Target total word count (excluding FAQ): ${params.targetWordCount}
 Heading outline to follow: ${JSON.stringify(params.headingOutline)}
 FAQ questions to answer: ${JSON.stringify(params.faqCandidates.map((f) => f.question))}
 Featured snippet should directly answer: ${params.featuredSnippetTarget}
+
+Internal link candidates (use ONLY these, per rules 8-9 above; omit any category with no entries):
+Products: ${JSON.stringify(params.linkCandidates.products)}
+Existing blog posts: ${JSON.stringify(params.linkCandidates.posts)}
 
 Write the full article now as the JSON object described.`;
 
