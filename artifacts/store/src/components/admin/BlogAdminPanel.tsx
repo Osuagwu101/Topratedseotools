@@ -11,6 +11,8 @@ import SettingsPanel from "./blog/SettingsPanel";
 import SeoGeneratorSettingsPanel from "./blog/seo-generator/SeoGeneratorSettingsPanel";
 import MonthlyUsageBanner from "./blog/seo-generator/MonthlyUsageBanner";
 
+export type BlogAdminTab = "posts" | "taxonomy" | "media" | "comments" | "staff" | "settings" | "ai-generator";
+
 interface BlogAdminPanelProps {
   // Present when embedded in the main /admin dashboard (legacy admin
   // basic-auth token) -- auto-signs in as the site-owner administrator.
@@ -18,6 +20,11 @@ interface BlogAdminPanelProps {
   // user must already hold their own staff session cookie instead.
   token?: string;
   products: { id: number; name: string; description: string | null }[];
+  // Optional controlled active tab -- lets a parent (e.g. the admin
+  // dashboard's collapsing sidebar) drive which sub-page is shown. Falls
+  // back to internal state when embedded standalone.
+  activeTab?: BlogAdminTab;
+  onActiveTabChange?: (tab: BlogAdminTab) => void;
 }
 
 export interface StaffUser {
@@ -31,13 +38,18 @@ export interface StaffUser {
   active: boolean;
 }
 
-export default function BlogAdminPanel({ token, products }: BlogAdminPanelProps) {
+export default function BlogAdminPanel({ token, products, activeTab: controlledTab, onActiveTabChange }: BlogAdminPanelProps) {
   const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(true);
   const [staff, setStaff] = useState<StaffUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<"posts" | "taxonomy" | "media" | "comments" | "staff" | "settings" | "ai-generator">("posts");
+  const [internalTab, setInternalTab] = useState<BlogAdminTab>("posts");
+  const activeTab = controlledTab ?? internalTab;
+  const setActiveTab = (tab: BlogAdminTab) => {
+    if (onActiveTabChange) onActiveTabChange(tab);
+    else setInternalTab(tab);
+  };
   // When set, PostsPanel opens a fresh "New Post" straight into the AI
   // Assistant, so the "New AI Article" shortcut on the AI Generator tab can
   // jump the user directly into keyword research without a detour through

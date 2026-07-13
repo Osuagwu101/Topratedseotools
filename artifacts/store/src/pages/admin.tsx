@@ -24,7 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import TrustAdminPanel from "@/components/admin/TrustAdminPanel";
 import HomepageAdminPanel from "@/components/admin/HomepageAdminPanel";
-import BlogAdminPanel from "@/components/admin/BlogAdminPanel";
+import BlogAdminPanel, { type BlogAdminTab } from "@/components/admin/BlogAdminPanel";
 import DashboardPanel from "@/components/admin/DashboardPanel";
 import {
   Eye,
@@ -56,6 +56,7 @@ import {
   Users,
   FileText,
   LogOut,
+  ChevronDown,
 } from "lucide-react";
 
 interface ToolServer {
@@ -2184,12 +2185,27 @@ interface IntegrationSettingsResponse {
   updatedBy: string | null;
 }
 
-function AnalyticsPanel({ token }: { token: string }) {
+type AnalyticsSubPage = "all" | "facebook" | "gtm";
+
+function AnalyticsPanel({
+  token,
+  subPage: controlledSubPage,
+  onSubPageChange,
+}: {
+  token: string;
+  subPage?: AnalyticsSubPage;
+  onSubPageChange?: (page: AnalyticsSubPage) => void;
+}) {
   const { toast } = useToast();
   const authHeaders = { Authorization: token };
 
-  type SubPage = "all" | "facebook" | "gtm";
-  const [subPage, setSubPage] = useState<SubPage>("all");
+  type SubPage = AnalyticsSubPage;
+  const [internalSubPage, setInternalSubPage] = useState<SubPage>("all");
+  const subPage = controlledSubPage ?? internalSubPage;
+  const setSubPage = (page: SubPage) => {
+    if (onSubPageChange) onSubPageChange(page);
+    else setInternalSubPage(page);
+  };
 
   const [settings, setSettings] = useState<IntegrationSettingsResponse | null>(null);
   const [events, setEvents] = useState<Array<{
@@ -2754,6 +2770,9 @@ export default function AdminPanel() {
   const [tab, setTab] = useState<"dashboard" | "tools" | "devices" | "users" | "branding" | "analytics" | "trust" | "homepage" | "blog">("dashboard");
   const [addToolOpen, setAddToolOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [expandedNavKey, setExpandedNavKey] = useState<string | null>(null);
+  const [blogSubTab, setBlogSubTab] = useState<BlogAdminTab>("posts");
+  const [analyticsSubTab, setAnalyticsSubTab] = useState<AnalyticsSubPage>("all");
   const { toast } = useToast();
 
   const authenticated = !!token;
@@ -2863,21 +2882,64 @@ export default function AdminPanel() {
     );
   }
 
-  const navItems: { key: typeof tab; label: string; icon: typeof Wrench }[] = [
+  const navItems: {
+    key: typeof tab;
+    label: string;
+    icon: typeof Wrench;
+    children?: { key: string; label: string }[];
+  }[] = [
     { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { key: "tools", label: "Tools & Pricing", icon: Wrench },
     { key: "users", label: "Users", icon: Users },
     { key: "devices", label: "Device Sessions", icon: Monitor },
     { key: "branding", label: "Branding", icon: Palette },
-    { key: "analytics", label: "Analytics", icon: BarChart3 },
+    {
+      key: "analytics",
+      label: "Analytics",
+      icon: BarChart3,
+      children: [
+        { key: "all", label: "All Integrations" },
+        { key: "facebook", label: "Facebook Pixel + Conv API" },
+        { key: "gtm", label: "Google Tag Manager" },
+      ],
+    },
     { key: "trust", label: "Trust & Support", icon: ShieldCheck },
     { key: "homepage", label: "Homepage", icon: ImageIcon },
-    { key: "blog", label: "Blog", icon: FileText },
+    {
+      key: "blog",
+      label: "Blog",
+      icon: FileText,
+      children: [
+        { key: "posts", label: "Posts" },
+        { key: "taxonomy", label: "Categories & Tags" },
+        { key: "media", label: "Media Library" },
+        { key: "comments", label: "Comments" },
+        { key: "staff", label: "Staff" },
+        { key: "settings", label: "Settings & Redirects" },
+        { key: "ai-generator", label: "AI Generator" },
+      ],
+    },
   ];
 
   const handleLogout = () => {
     sessionStorage.removeItem("admin_token");
     setToken("");
+  };
+
+  const handleNavItemClick = (key: typeof tab, hasChildren: boolean) => {
+    if (hasChildren) {
+      setExpandedNavKey((prev) => (prev === key ? null : key));
+      return;
+    }
+    setTab(key);
+    setMenuOpen(false);
+  };
+
+  const handleNavChildClick = (parentKey: typeof tab, childKey: string) => {
+    setTab(parentKey);
+    if (parentKey === "blog") setBlogSubTab(childKey as BlogAdminTab);
+    if (parentKey === "analytics") setAnalyticsSubTab(childKey as AnalyticsSubPage);
+    setMenuOpen(false);
   };
 
   return (
@@ -2886,7 +2948,10 @@ export default function AdminPanel() {
         <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between max-w-5xl">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setMenuOpen(true)}
+              onClick={() => {
+                setExpandedNavKey(tab === "blog" || tab === "analytics" ? tab : null);
+                setMenuOpen(true);
+              }}
               className="p-2 -ml-2 rounded-lg text-foreground hover:bg-gray-100 transition-colors"
               aria-label="Open menu"
             >
@@ -2927,23 +2992,51 @@ export default function AdminPanel() {
               </button>
             </div>
             <nav className="flex-1 py-2 overflow-y-auto">
-              {navItems.map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => {
-                    setTab(key);
-                    setMenuOpen(false);
-                  }}
-                  className={`w-full text-left px-5 py-3 text-sm font-semibold transition-colors flex items-center gap-3 ${
-                    tab === key
-                      ? "bg-primary/10 text-primary border-r-2 border-primary"
-                      : "text-foreground hover:bg-gray-50"
-                  }`}
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  {label}
-                </button>
-              ))}
+              {navItems.map(({ key, label, icon: Icon, children }) => {
+                const isExpanded = expandedNavKey === key;
+                const activeChildKey = key === "blog" ? blogSubTab : key === "analytics" ? analyticsSubTab : null;
+                return (
+                  <div key={key}>
+                    <button
+                      onClick={() => handleNavItemClick(key, !!children)}
+                      className={`w-full text-left px-5 py-3 text-sm font-semibold transition-colors flex items-center gap-3 ${
+                        tab === key && !children
+                          ? "bg-primary/10 text-primary border-r-2 border-primary"
+                          : tab === key && children
+                          ? "text-primary"
+                          : "text-foreground hover:bg-gray-50"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span className="flex-1">{label}</span>
+                      {children && (
+                        <ChevronDown
+                          className={`w-4 h-4 shrink-0 text-muted-foreground transition-transform ${
+                            isExpanded ? "rotate-180" : ""
+                          }`}
+                        />
+                      )}
+                    </button>
+                    {children && isExpanded && (
+                      <div className="bg-gray-50 py-1">
+                        {children.map((child) => (
+                          <button
+                            key={child.key}
+                            onClick={() => handleNavChildClick(key, child.key)}
+                            className={`w-full text-left pl-12 pr-5 py-2.5 text-sm font-medium transition-colors ${
+                              tab === key && activeChildKey === child.key
+                                ? "text-primary font-semibold bg-primary/5 border-r-2 border-primary"
+                                : "text-muted-foreground hover:bg-gray-100 hover:text-foreground"
+                            }`}
+                          >
+                            {child.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </nav>
             <div className="border-t border-gray-100 p-2">
               <button
@@ -3021,7 +3114,9 @@ export default function AdminPanel() {
 
         {tab === "branding" && <BrandingPanel token={token} />}
 
-        {tab === "analytics" && <AnalyticsPanel token={token} />}
+        {tab === "analytics" && (
+          <AnalyticsPanel token={token} subPage={analyticsSubTab} onSubPageChange={setAnalyticsSubTab} />
+        )}
 
         {tab === "trust" && <TrustAdminPanel token={token} />}
 
@@ -3031,6 +3126,8 @@ export default function AdminPanel() {
           <BlogAdminPanel
             token={token}
             products={products.map((p) => ({ id: p.id, name: p.name, description: p.description ?? null }))}
+            activeTab={blogSubTab}
+            onActiveTabChange={setBlogSubTab}
           />
         )}
       </main>
