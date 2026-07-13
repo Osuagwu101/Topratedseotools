@@ -367,7 +367,7 @@ export default function PostEditor({
               </div>
 
               {/* Editor */}
-              <div className="prose prose-slate max-w-none min-h-[500px]">
+              <div className="prose prose-slate max-w-none min-h-[1300px]">
                 <EditorContent editor={editor} />
               </div>
               
