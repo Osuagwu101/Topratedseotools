@@ -76,15 +76,18 @@ export default function AiAssistantPanel({
   const [highlightPreview, setHighlightPreview] = useState(false);
   const [versionHistory, setVersionHistory] = useState<{ sectionKey: string; versions: any[] } | null>(null);
   const [sectionInstructions, setSectionInstructions] = useState<Record<string, string>>({});
+  const [provider, setProvider] = useState<"openai" | "gemini">("openai");
+  const [providerAvailability, setProviderAvailability] = useState({ hasOpenAiKey: true, hasGeminiKey: true });
 
   const base = "/api/admin/blog/posts";
 
   const loadExisting = async () => {
     try {
-      const [researchRes, usageRes, reportRes] = await Promise.all([
+      const [researchRes, usageRes, reportRes, settingsRes] = await Promise.all([
         fetch(`${base}/${postId}/seo-generator/research`, { credentials: "include" }),
         fetch(`/api/admin/blog/seo-generator/usage`, { credentials: "include" }),
         fetch(`${base}/${postId}/seo-generator/quality-report`, { credentials: "include" }),
+        fetch(`/api/admin/blog/seo-generator/settings`, { credentials: "include" }),
       ]);
       if (researchRes.ok) {
         const data = await researchRes.json();
@@ -95,6 +98,11 @@ export default function AiAssistantPanel({
       }
       if (usageRes.ok) setUsage(await usageRes.json());
       if (reportRes.ok) setReport(await reportRes.json());
+      if (settingsRes.ok) {
+        const s = await settingsRes.json();
+        setProviderAvailability({ hasOpenAiKey: Boolean(s.hasOpenAiKey), hasGeminiKey: Boolean(s.hasGeminiKey) });
+        setProvider(s.aiProvider === "gemini" ? "gemini" : "openai");
+      }
     } catch (err: any) {
       toast({ title: "Error loading AI assistant data", description: err.message, variant: "destructive" });
     } finally {
@@ -115,7 +123,7 @@ export default function AiAssistantPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ primaryKeyword: keyword.trim() }),
+        body: JSON.stringify({ primaryKeyword: keyword.trim(), provider }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -153,7 +161,7 @@ export default function AiAssistantPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ sessionId: session.id }),
+        body: JSON.stringify({ sessionId: session.id, provider }),
       });
       if (!res.ok) throw new Error(await res.text());
       setBrief(await res.json());
@@ -172,7 +180,7 @@ export default function AiAssistantPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ confirm }),
+        body: JSON.stringify({ confirm, provider }),
       });
       if (res.status === 409) {
         setConfirmNeeded({ kind: "generate" });
@@ -203,7 +211,7 @@ export default function AiAssistantPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ sectionKey, confirm, instructions: sectionInstructions[sectionKey] || undefined }),
+        body: JSON.stringify({ sectionKey, confirm, provider, instructions: sectionInstructions[sectionKey] || undefined }),
       });
       if (res.status === 409) {
         setConfirmNeeded({ kind: "section", sectionKey });
@@ -290,6 +298,33 @@ export default function AiAssistantPanel({
           )}
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
+      </div>
+
+      <div className="flex items-center gap-3 px-6 py-3 border-b border-gray-100 bg-gray-50 shrink-0">
+        <span className="text-xs font-bold uppercase tracking-wider text-gray-500">AI Provider</span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setProvider("openai")}
+            disabled={!providerAvailability.hasOpenAiKey}
+            className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-colors ${provider === "openai" ? "bg-primary text-white border-primary" : "bg-white text-gray-600 border-gray-200"} disabled:opacity-40 disabled:cursor-not-allowed`}
+            title={providerAvailability.hasOpenAiKey ? undefined : "OPENAI_API_KEY is not configured"}
+          >
+            OpenAI
+          </button>
+          <button
+            type="button"
+            onClick={() => setProvider("gemini")}
+            disabled={!providerAvailability.hasGeminiKey}
+            className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-colors ${provider === "gemini" ? "bg-primary text-white border-primary" : "bg-white text-gray-600 border-gray-200"} disabled:opacity-40 disabled:cursor-not-allowed`}
+            title={providerAvailability.hasGeminiKey ? undefined : "GEMINI_API_KEY is not configured"}
+          >
+            Gemini
+          </button>
+        </div>
+        <span className="text-xs text-gray-400">
+          Every research/brief/generate action below uses this provider — switch here if you run out of credit on the other one.
+        </span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-8">

@@ -17,7 +17,9 @@ import { eq, and, desc, gte, sql } from "drizzle-orm";
 import type { Response } from "express";
 import { logger } from "../lib/logger";
 import { attachStaffUser, requireStaffRole } from "../lib/staffAuth";
-import { ALLOWED_AI_MODELS, callJsonModel } from "../lib/openaiClient";
+import { ALLOWED_AI_MODELS } from "../lib/openaiClient";
+import { ALLOWED_GEMINI_MODELS } from "../lib/geminiClient";
+import { AI_PROVIDERS, isValidProvider, resolveModel, generateJson, type AiProvider } from "../lib/seoGenerator/aiClient";
 import { fetchAutocompleteSuggestions } from "../lib/seoGenerator/autocomplete";
 import { fetchSerpData, estimateCompetitorWordCounts } from "../lib/seoGenerator/serpProvider";
 import { buildIntentAndBriefPrompt, buildRelatedKeywordsPrompt, buildFullArticlePrompt, buildSectionRegenerationPrompt, buildClaimFlaggingPrompt } from "../lib/seoGenerator/prompts";
@@ -36,6 +38,20 @@ async function getOrCreateSettings() {
   if (row) return row;
   const [created] = await db.insert(seoGeneratorSettingsTable).values({}).returning();
   return created;
+}
+
+/**
+ * Resolves which AI provider/model a request should use: an explicit
+ * per-request override (e.g. the editor picked "Gemini" because they're out
+ * of OpenAI credit) takes precedence over the admin-configured default.
+ */
+function resolveProviderAndModel(
+  body: Record<string, unknown>,
+  settings: { aiProvider: string; aiModel: string; geminiModel: string },
+): { provider: AiProvider; model: string } {
+  const provider: AiProvider = isValidProvider(body.provider) ? body.provider : (settings.aiProvider as AiProvider);
+  const requestedModel = typeof body.model === "string" ? body.model : provider === "gemini" ? settings.geminiModel : settings.aiModel;
+  return { provider, model: resolveModel(provider, requestedModel) };
 }
 
 async function getPostOr404(postId: number) {
@@ -71,7 +87,15 @@ async function assertPostAccess(
 router.get("/admin/blog/seo-generator/settings", requireStaffRole(...STAFF_ROLES), async (_req, res): Promise<void> => {
   const settings = await getOrCreateSettings();
   const { serpApiKey, ...rest } = settings;
-  res.json({ ...rest, hasSerpApiKey: Boolean(serpApiKey) });
+  res.json({
+    ...rest,
+    hasSerpApiKey: Boolean(serpApiKey),
+    hasOpenAiKey: Boolean(process.env.OPENAI_API_KEY),
+    hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
+    providers: AI_PROVIDERS,
+    openAiModels: ALLOWED_AI_MODELS,
+    geminiModels: ALLOWED_GEMINI_MODELS,
+  });
 });
 
 router.put("/admin/blog/seo-generator/settings", requireStaffRole("administrator"), async (req, res): Promise<void> => {
@@ -82,6 +106,12 @@ router.put("/admin/blog/seo-generator/settings", requireStaffRole("administrator
 
     if (typeof body.aiModel === "string" && (ALLOWED_AI_MODELS as readonly string[]).includes(body.aiModel)) {
       updates.aiModel = body.aiModel;
+    }
+    if (typeof body.geminiModel === "string" && (ALLOWED_GEMINI_MODELS as readonly string[]).includes(body.geminiModel)) {
+      updates.geminiModel = body.geminiModel;
+    }
+    if (isValidProvider(body.aiProvider)) {
+      updates.aiProvider = body.aiProvider;
     }
     if (body.serpProvider === null || body.serpProvider === "serpapi" || body.serpProvider === "searchapi") {
       updates.serpProvider = body.serpProvider;
@@ -102,7 +132,15 @@ router.put("/admin/blog/seo-generator/settings", requireStaffRole("administrator
       .where(eq(seoGeneratorSettingsTable.id, current.id))
       .returning();
     const { serpApiKey, ...rest } = updated;
-    res.json({ ...rest, hasSerpApiKey: Boolean(serpApiKey) });
+    res.json({
+      ...rest,
+      hasSerpApiKey: Boolean(serpApiKey),
+      hasOpenAiKey: Boolean(process.env.OPENAI_API_KEY),
+      hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
+      providers: AI_PROVIDERS,
+      openAiModels: ALLOWED_AI_MODELS,
+      geminiModels: ALLOWED_GEMINI_MODELS,
+    });
   } catch (err) {
     logger.error({ err }, "Failed to update SEO generator settings");
     res.status(500).json({ error: "Failed to update settings" });
@@ -207,11 +245,13 @@ router.post("/admin/blog/posts/:postId/seo-generator/research", requireStaffRole
     }
 
     const settings = await getOrCreateSettings();
+    const { provider, model } = resolveProviderAndModel(req.body as Record<string, unknown>, settings);
 
     const [autocomplete, relatedResult, serpData] = await Promise.all([
       fetchAutocompleteSuggestions(primaryKeyword),
-      callJsonModel<{ relatedKeywords: string[] }>({
-        model: settings.aiModel,
+      generateJson<{ relatedKeywords: string[] }>({
+        provider,
+        model,
         ...buildRelatedKeywordsPrompt(primaryKeyword),
       }).catch((err) => {
         logger.warn({ err }, "Related-keyword generation failed");
@@ -253,7 +293,7 @@ router.post("/admin/blog/posts/:postId/seo-generator/research", requireStaffRole
     ];
     const insertedItems = items.length ? await db.insert(keywordResearchItemsTable).values(items).returning() : [];
 
-    await logUsage({ staffUserId: req.staffUser!.id, postId, action: "research", detail: primaryKeyword });
+    await logUsage({ staffUserId: req.staffUser!.id, postId, action: "research", detail: `${primaryKeyword} (${provider})` });
 
     res.status(201).json({ session, items: insertedItems });
   } catch (err) {
@@ -330,7 +370,8 @@ router.post("/admin/blog/posts/:postId/seo-generator/brief", requireStaffRole(..
       .map((i) => (i.extra as any).wordCount as number);
 
     const settings = await getOrCreateSettings();
-    const briefResult = await callJsonModel<{
+    const { provider, model } = resolveProviderAndModel(req.body as Record<string, unknown>, settings);
+    const briefResult = await generateJson<{
       searchIntent: string;
       targetWordCount: number;
       headingOutline: { level: number; text: string }[];
@@ -338,7 +379,8 @@ router.post("/admin/blog/posts/:postId/seo-generator/brief", requireStaffRole(..
       featuredSnippetTarget: string;
       notes: string;
     }>({
-      model: settings.aiModel,
+      provider,
+      model,
       ...buildIntentAndBriefPrompt({
         primaryKeyword: session.primaryKeyword,
         autocomplete: byKind("autocomplete"),
@@ -385,7 +427,7 @@ router.post("/admin/blog/posts/:postId/seo-generator/brief", requireStaffRole(..
         .returning();
     }
 
-    await logUsage({ staffUserId: req.staffUser!.id, postId, action: "brief" });
+    await logUsage({ staffUserId: req.staffUser!.id, postId, action: "brief", detail: provider });
     res.status(201).json(brief);
   } catch (err) {
     logger.error({ err }, "Content brief generation failed");
@@ -421,6 +463,7 @@ router.post("/admin/blog/posts/:postId/seo-generator/generate", requireStaffRole
     if (!post) return;
     const { confirm } = req.body as { confirm?: boolean };
     const settings = await getOrCreateSettings();
+    const { provider, model } = resolveProviderAndModel(req.body as Record<string, unknown>, settings);
 
     if (settings.confirmBeforeExpensiveOps && !confirm) {
       res.status(409).json({ requiresConfirmation: true, message: "Generating a full article calls the AI model and counts against your daily limit. Confirm to proceed." });
@@ -447,7 +490,7 @@ router.post("/admin/blog/posts/:postId/seo-generator/generate", requireStaffRole
 
     const [job] = await db
       .insert(generationJobsTable)
-      .values({ postId, sessionId: session.id, jobType: "full_article", status: "running", model: settings.aiModel, createdBy: req.staffUser!.id })
+      .values({ postId, sessionId: session.id, jobType: "full_article", status: "running", provider, model, createdBy: req.staffUser!.id })
       .returning();
 
     const items = await db
@@ -456,7 +499,7 @@ router.post("/admin/blog/posts/:postId/seo-generator/generate", requireStaffRole
       .where(and(eq(keywordResearchItemsTable.sessionId, session.id), eq(keywordResearchItemsTable.included, true)));
     const secondaryKeywords = items.filter((i) => i.kind === "related_keyword" || i.kind === "autocomplete").map((i) => i.value);
 
-    const article = await callJsonModel<{
+    const article = await generateJson<{
       title: string;
       metaDescription: string;
       featuredSnippet: string;
@@ -465,7 +508,8 @@ router.post("/admin/blog/posts/:postId/seo-generator/generate", requireStaffRole
       faqHtml: string;
       conclusionHtml: string;
     }>({
-      model: settings.aiModel,
+      provider,
+      model,
       maxTokens: 8192,
       ...buildFullArticlePrompt({
         primaryKeyword: session.primaryKeyword,
@@ -527,8 +571,9 @@ router.post("/admin/blog/posts/:postId/seo-generator/generate", requireStaffRole
       })
       .where(eq(blogPostsTable.id, postId));
 
-    const claimFlagResult = await callJsonModel<{ flaggedClaims: string[] }>({
-      model: settings.aiModel,
+    const claimFlagResult = await generateJson<{ flaggedClaims: string[] }>({
+      provider,
+      model,
       ...buildClaimFlaggingPrompt(plainText(fullContent)),
     }).catch(() => ({ flaggedClaims: [] }));
 
@@ -552,7 +597,7 @@ router.post("/admin/blog/posts/:postId/seo-generator/generate", requireStaffRole
       })
       .returning();
 
-    await logUsage({ staffUserId: req.staffUser!.id, postId, action: "generate_full" });
+    await logUsage({ staffUserId: req.staffUser!.id, postId, action: "generate_full", detail: provider });
 
     const [updatedPost] = await db.select().from(blogPostsTable).where(eq(blogPostsTable.id, postId)).limit(1);
     res.status(201).json({ job, report, post: updatedPost, article: { title: article.title, metaDescription: article.metaDescription } });
@@ -573,6 +618,7 @@ router.post("/admin/blog/posts/:postId/seo-generator/regenerate-section", requir
       return;
     }
     const settings = await getOrCreateSettings();
+    const { provider, model } = resolveProviderAndModel(req.body as Record<string, unknown>, settings);
     if (settings.confirmBeforeExpensiveOps && !confirm) {
       res.status(409).json({ requiresConfirmation: true, message: "Regenerating this section calls the AI model and counts against your daily limit. Confirm to proceed." });
       return;
@@ -596,12 +642,13 @@ router.post("/admin/blog/posts/:postId/seo-generator/regenerate-section", requir
 
     const [job] = await db
       .insert(generationJobsTable)
-      .values({ postId, sessionId: session.id, jobType: "section", sectionKey, status: "running", model: settings.aiModel, createdBy: req.staffUser!.id })
+      .values({ postId, sessionId: session.id, jobType: "section", sectionKey, status: "running", provider, model, createdBy: req.staffUser!.id })
       .returning();
 
     const contextSummary = plainText(post.content).slice(0, 2000) || "(no existing content yet)";
-    const result = await callJsonModel<{ html: string }>({
-      model: settings.aiModel,
+    const result = await generateJson<{ html: string }>({
+      provider,
+      model,
       ...buildSectionRegenerationPrompt({
         sectionKey,
         primaryKeyword: session.primaryKeyword,
@@ -624,7 +671,7 @@ router.post("/admin/blog/posts/:postId/seo-generator/regenerate-section", requir
     const bannedPhraseHits = bannedPhrases.filter((p) => result.html.toLowerCase().includes(p.toLowerCase()));
 
     await db.update(generationJobsTable).set({ status: "succeeded", resultSummary: { bannedPhraseHits }, completedAt: new Date() }).where(eq(generationJobsTable.id, job.id));
-    await logUsage({ staffUserId: req.staffUser!.id, postId, action: "regenerate_section", detail: sectionKey });
+    await logUsage({ staffUserId: req.staffUser!.id, postId, action: "regenerate_section", detail: `${sectionKey} (${provider})` });
 
     res.status(201).json({ job, sectionKey, html: result.html, bannedPhraseHits, fullContent });
   } catch (err) {

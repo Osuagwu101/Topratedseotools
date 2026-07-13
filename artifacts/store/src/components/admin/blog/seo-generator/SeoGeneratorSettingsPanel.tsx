@@ -48,11 +48,17 @@ const ACTION_LABELS: Record<string, string> = {
   regenerate_section: "Section regeneration",
 };
 
-const MODELS = [
+const OPENAI_MODELS = [
   { value: "gpt-4o-mini", label: "GPT-4o mini (fastest, cheapest)" },
   { value: "gpt-4o", label: "GPT-4o (higher quality)" },
   { value: "gpt-4.1-mini", label: "GPT-4.1 mini" },
   { value: "gpt-4.1", label: "GPT-4.1 (highest quality)" },
+];
+
+const GEMINI_MODELS = [
+  { value: "gemini-flash-latest", label: "Gemini Flash (fast, free-tier friendly)" },
+  { value: "gemini-flash-lite-latest", label: "Gemini Flash-Lite (fastest, cheapest)" },
+  { value: "gemini-pro-latest", label: "Gemini Pro (higher quality, may need billing on free tier)" },
 ];
 
 export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser }) {
@@ -62,7 +68,11 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
   const [history, setHistory] = useState<UsageHistory | null>(null);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [form, setForm] = useState({
+    aiProvider: "openai" as string,
     aiModel: "gpt-4o-mini",
+    geminiModel: "gemini-flash-latest",
+    hasOpenAiKey: false,
+    hasGeminiKey: false,
     serpProvider: "" as string,
     serpApiKey: "",
     hasSerpApiKey: false,
@@ -118,7 +128,9 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
     setSaving(true);
     try {
       const payload: Record<string, unknown> = {
+        aiProvider: form.aiProvider,
         aiModel: form.aiModel,
+        geminiModel: form.geminiModel,
         serpProvider: form.serpProvider || null,
         cacheDurationMinutes: form.cacheDurationMinutes,
         perUserDailyLimit: form.perUserDailyLimit,
@@ -165,15 +177,48 @@ export default function SeoGeneratorSettingsPanel({ staff }: { staff: StaffUser 
 
       <div className="space-y-8">
         <section>
-          <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-4 border-b border-gray-100 pb-2">AI Model</h3>
-          <p className="text-xs text-muted-foreground mb-3">Uses the OpenAI API key configured for this project. Article generation always saves as a draft — it is never published automatically.</p>
-          <select
-            className="flex h-10 w-full max-w-sm items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            value={form.aiModel}
-            onChange={e => setForm(f => ({ ...f, aiModel: e.target.value }))}
-          >
-            {MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-          </select>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-4 border-b border-gray-100 pb-2">AI Provider & Model</h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Editors can override the provider per-generation (e.g. switch to Gemini if OpenAI credit runs out) — this is just the
+            default. Article generation always saves as a draft — it is never published automatically.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Default Provider</label>
+              <select
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                value={form.aiProvider}
+                onChange={e => setForm(f => ({ ...f, aiProvider: e.target.value }))}
+              >
+                <option value="openai">OpenAI {form.hasOpenAiKey ? "(key configured)" : "(no key configured)"}</option>
+                <option value="gemini">Gemini {form.hasGeminiKey ? "(key configured)" : "(no key configured)"}</option>
+              </select>
+            </div>
+            <div />
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">OpenAI Model</label>
+              <select
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                value={form.aiModel}
+                onChange={e => setForm(f => ({ ...f, aiModel: e.target.value }))}
+              >
+                {OPENAI_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Gemini Model</label>
+              <select
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                value={form.geminiModel}
+                onChange={e => setForm(f => ({ ...f, geminiModel: e.target.value }))}
+              >
+                {GEMINI_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+            </div>
+          </div>
+          {!form.hasOpenAiKey && !form.hasGeminiKey && (
+            <p className="text-xs text-red-600 mt-3">Neither OPENAI_API_KEY nor GEMINI_API_KEY is configured — generation will fail until at least one is added.</p>
+          )}
         </section>
 
         <section>

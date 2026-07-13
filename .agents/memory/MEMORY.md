@@ -10,3 +10,5 @@
 - [lib/db composite declaration staleness](lib-db-composite-declarations.md) — after adding @workspace/db schema exports, rebuild its dist/*.d.ts (`tsc -b`) or consumers fail typecheck.
 - [GitHub tag push via connector](github-tag-push.md) — pushing tags/branches to GitHub needs the connectors-sdk proxy for auth, not a bare git remote.
 - [Blog CMS staff auth model](blog-cms-staff-auth.md) — two separate auth systems (legacy Basic Auth bootstrap vs staff session cookie) for the SubsHub blog; read before touching blog admin auth again.
+- [Gemini JSON mode quirks](gemini-json-mode-quirks.md) — dated Gemini model IDs 404 for new keys (use "-latest" aliases); JSON response mode can return truncated/malformed JSON even on finishReason STOP — always parse leniently.
+- [Multi-provider AI generation pattern](multi-provider-ai-generation.md) — when adding a 2nd LLM provider as a fallback/choice alongside an existing one, add a provider-agnostic dispatcher module rather than branching per call site.

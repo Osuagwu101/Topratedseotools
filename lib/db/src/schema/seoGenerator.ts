@@ -1,9 +1,16 @@
 import { pgTable, serial, text, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 
 // ── Provider / limits settings (singleton row, admin-configurable) ──────────
+export const aiProviders = ["openai", "gemini"] as const;
+export type AiProvider = (typeof aiProviders)[number];
+
 export const seoGeneratorSettingsTable = pgTable("seo_generator_settings", {
   id: serial("id").primaryKey(),
-  aiModel: text("ai_model").notNull().default("gpt-4o-mini"),
+  // Default provider used when the editor doesn't explicitly pick one at
+  // generation time (e.g. "use Gemini because I'm out of OpenAI credit").
+  aiProvider: text("ai_provider").notNull().default("openai"), // AiProvider
+  aiModel: text("ai_model").notNull().default("gpt-4o-mini"), // OpenAI model
+  geminiModel: text("gemini_model").notNull().default("gemini-flash-latest"),
   // Optional SERP data provider for PAA / related searches / competitor analysis.
   // Null/empty means those features are disabled; autocomplete + generation
   // still work without it. Key is stored server-side only and never returned
@@ -88,6 +95,7 @@ export const generationJobsTable = pgTable("generation_jobs", {
   jobType: text("job_type").notNull(), // GenerationJobType
   sectionKey: text("section_key"), // SectionKey, set when jobType = "section"
   status: text("status").notNull().default("pending"), // GenerationJobStatus
+  provider: text("provider").notNull().default("openai"), // AiProvider
   model: text("model").notNull(),
   errorMessage: text("error_message"),
   // Validation summary produced right after generation (word counts, keyword
