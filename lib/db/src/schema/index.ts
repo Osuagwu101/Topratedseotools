@@ -29,3 +29,4 @@ export * from "./backups";
 export * from "./restores";
 export * from "./dbIntegrity";
 export * from "./productRecovery";
+export * from "./paymentRecovery";
