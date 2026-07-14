@@ -58,12 +58,14 @@ export function clerkProxyMiddleware(): RequestHandler {
     return (_req, _res, next) => next();
   }
 
-  const secretKey = process.env.CLERK_SECRET_KEY;
-  if (!secretKey) {
-    return (_req, _res, next) => next();
-  }
-
-  return createProxyMiddleware({
+  // Deliberately do NOT capture CLERK_SECRET_KEY here: this factory runs once
+  // at app startup, but an administrator can set/rotate the key later from
+  // the System Configuration Centre (see lib/systemConfig.ts), which mirrors
+  // the change into process.env immediately. Reading it fresh on every
+  // request — both for this guard and inside proxyReq below — means that
+  // takes effect with no restart, instead of freezing on whatever value (or
+  // absence of one) existed when the server booted.
+  const proxy = createProxyMiddleware({
     target: CLERK_FAPI,
     changeOrigin: true,
     // Take over the response so it can be re-sent with a Content-Length (see
@@ -78,7 +80,7 @@ export function clerkProxyMiddleware(): RequestHandler {
         const proxyUrl = `${protocol}://${host}${CLERK_PROXY_PATH}`;
 
         proxyReq.setHeader("Clerk-Proxy-Url", proxyUrl);
-        proxyReq.setHeader("Clerk-Secret-Key", secretKey);
+        proxyReq.setHeader("Clerk-Secret-Key", process.env.CLERK_SECRET_KEY ?? "");
 
         const xff = req.headers["x-forwarded-for"];
         const clientIp =
@@ -143,4 +145,15 @@ export function clerkProxyMiddleware(): RequestHandler {
       },
     },
   }) as RequestHandler;
+
+  return (req, res, next) => {
+    // No key configured (yet) — skip proxying rather than forwarding a
+    // request that Clerk will reject. Checked live so setting the key later
+    // via the System Configuration Centre activates the proxy immediately.
+    if (!process.env.CLERK_SECRET_KEY) {
+      next();
+      return;
+    }
+    proxy(req, res, next);
+  };
 }

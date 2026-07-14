@@ -68,119 +68,120 @@ declare global {
   }
 }
 
-// The Blog CMS no longer requires its own separate sign-in: anyone who is
-// already authenticated into the main admin dashboard (the legacy
-// ADMIN_USERNAME/ADMIN_PASSWORD basic-auth credential) is automatically
-// treated as a Blog CMS administrator. We still keep the staff_users table
-// and session cookie plumbing around (for any additional editor/author
-// accounts created via the Staff panel), but reaching the CMS from /admin no
-// longer prompts for a second login.
-function isLegacyAdminRequest(req: { headers: { authorization?: string } }): boolean {
-  const adminUsername = process.env.ADMIN_USERNAME;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminUsername || !adminPassword) return false;
+const AUTO_ADMIN_SLUG = "site-owner";
+const SITE_OWNER_SUFFIX = "@site-owner.local";
+
+/** Turns a bare "username" into a login email, matching how bootstrapSuperAdminIfNeeded() names the account. */
+function normalizeLoginIdentifier(raw: string): string {
+  const trimmed = raw.trim().toLowerCase();
+  return trimmed.includes("@") ? trimmed : `${trimmed}${SITE_OWNER_SUFFIX}`;
+}
+
+/**
+ * Ensures at least one real `administrator` staff account exists so the
+ * Super Admin dashboard and System Configuration Centre are never locked
+ * out. Runs once at server startup. If an administrator already exists,
+ * this is a no-op. Otherwise, if legacy ADMIN_USERNAME/ADMIN_PASSWORD are
+ * present, it provisions (or upgrades) one real staff account from them —
+ * replacing the old "any Basic-Auth request matching a shared env
+ * credential gets auto-signed-in" bridge with a single, real, auditable
+ * account that must be signed into explicitly (or used directly with
+ * requireSuperAdmin's per-request Basic Auth, now checked against this
+ * account's hashed password instead of a shared secret).
+ */
+export async function bootstrapSuperAdminIfNeeded(): Promise<void> {
+  const [anyAdmin] = await db
+    .select({ id: staffUsersTable.id })
+    .from(staffUsersTable)
+    .where(eq(staffUsersTable.role, "administrator"))
+    .limit(1);
+  if (anyAdmin) return;
+
+  const username = process.env.ADMIN_USERNAME;
+  const password = process.env.ADMIN_PASSWORD;
+  if (!username || !password) {
+    return; // already logged as info by startupValidation.ts
+  }
+
+  const email = normalizeLoginIdentifier(username);
+  const [existingByEmail] = await db.select().from(staffUsersTable).where(eq(staffUsersTable.email, email)).limit(1);
+  if (existingByEmail) {
+    await db
+      .update(staffUsersTable)
+      .set({ role: "administrator", passwordHash: hashPassword(password), active: true, updatedAt: new Date() })
+      .where(eq(staffUsersTable.id, existingByEmail.id));
+    return;
+  }
+
+  let slug = AUTO_ADMIN_SLUG;
+  let n = 2;
+  while (true) {
+    const [existing] = await db.select({ id: staffUsersTable.id }).from(staffUsersTable).where(eq(staffUsersTable.authorSlug, slug)).limit(1);
+    if (!existing) break;
+    slug = `${AUTO_ADMIN_SLUG}-${n}`;
+    n += 1;
+  }
+
+  await db.insert(staffUsersTable).values({
+    email,
+    passwordHash: hashPassword(password),
+    name: "Site Owner",
+    role: "administrator",
+    authorSlug: slug,
+    active: true,
+  });
+}
+
+/** Attaches req.staffUser if a valid staff session cookie is present. Never rejects. */
+export const attachStaffUser: RequestHandler = async (req, _res, next) => {
+  try {
+    const cookieToken = req.cookies?.[STAFF_SESSION_COOKIE] as string | undefined;
+    const user = await getStaffUserFromToken(cookieToken);
+    if (user) req.staffUser = user;
+  } catch {
+    // ignore — treated as unauthenticated
+  }
+  next();
+};
+
+/**
+ * Super Admin gate for legacy Basic-Auth-style admin routes (dashboard,
+ * products, homepage/site settings, trust content, tool assignments, System
+ * Configuration Centre, ...). Unlike the old per-file requireAdmin() copies,
+ * this checks the Authorization header's credentials against a real
+ * staff_users row (administrator role, scrypt-hashed password) instead of a
+ * single shared ADMIN_USERNAME/ADMIN_PASSWORD pair — so access is per-person
+ * and auditable, and can be revoked per-account. The frontend admin login
+ * form is unchanged: whatever the operator types as "username" is treated
+ * as their staff email (see normalizeLoginIdentifier).
+ */
+export const requireSuperAdmin: RequestHandler = async (req, res, next) => {
   const auth = req.headers.authorization ?? "";
-  if (!auth.startsWith("Basic ")) return false;
+  if (!auth.startsWith("Basic ")) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   let decoded: string;
   try {
     decoded = Buffer.from(auth.slice(6), "base64").toString("utf-8");
   } catch {
-    return false;
+    res.status(401).json({ error: "Unauthorized" });
+    return;
   }
   const colonIdx = decoded.indexOf(":");
-  const u = colonIdx >= 0 ? decoded.slice(0, colonIdx) : decoded;
-  const p = colonIdx >= 0 ? decoded.slice(colonIdx + 1) : "";
-  return u === adminUsername && p === adminPassword;
-}
-
-const AUTO_ADMIN_EMAIL = "owner@blog.internal";
-const AUTO_ADMIN_SLUG = "site-owner";
-let cachedAutoAdminId: number | null = null;
-
-/**
- * Finds or creates the single "site owner" staff account that any legacy
- * admin-authenticated request is auto-signed-in as. Idempotent and safe to
- * call concurrently (falls back to a re-select on a unique-constraint race).
- */
-export async function ensureAutoAdministrator(): Promise<StaffUser> {
-  if (cachedAutoAdminId) {
-    const [existing] = await db
-      .select()
-      .from(staffUsersTable)
-      .where(eq(staffUsersTable.id, cachedAutoAdminId))
-      .limit(1);
-    if (existing) return existing;
-    cachedAutoAdminId = null;
+  const rawUser = colonIdx >= 0 ? decoded.slice(0, colonIdx) : decoded;
+  const password = colonIdx >= 0 ? decoded.slice(colonIdx + 1) : "";
+  if (!rawUser || !password) {
+    res.status(401).json({ error: "Wrong username or password." });
+    return;
   }
-  const [existing] = await db
-    .select()
-    .from(staffUsersTable)
-    .where(eq(staffUsersTable.email, AUTO_ADMIN_EMAIL))
-    .limit(1);
-  if (existing) {
-    cachedAutoAdminId = existing.id;
-    return existing;
+  const email = normalizeLoginIdentifier(rawUser);
+  const [user] = await db.select().from(staffUsersTable).where(eq(staffUsersTable.email, email)).limit(1);
+  if (!user || !user.active || user.role !== "administrator" || !verifyPassword(password, user.passwordHash)) {
+    res.status(401).json({ error: "Wrong username or password." });
+    return;
   }
-  try {
-    const [created] = await db
-      .insert(staffUsersTable)
-      .values({
-        email: AUTO_ADMIN_EMAIL,
-        passwordHash: hashPassword(randomBytes(32).toString("hex")),
-        name: "Site Owner",
-        role: "administrator",
-        authorSlug: AUTO_ADMIN_SLUG,
-        active: true,
-      })
-      .returning();
-    cachedAutoAdminId = created.id;
-    return created;
-  } catch {
-    // Unique-constraint race: another request created it first.
-    const [race] = await db
-      .select()
-      .from(staffUsersTable)
-      .where(eq(staffUsersTable.email, AUTO_ADMIN_EMAIL))
-      .limit(1);
-    if (!race) throw new Error("Failed to provision the auto-administrator staff account.");
-    cachedAutoAdminId = race.id;
-    return race;
-  }
-}
-
-/**
- * Attaches req.staffUser if a valid staff session cookie is present, or if
- * the request carries valid legacy admin basic-auth credentials (in which
- * case it is auto-signed-in as the site-owner administrator). When the
- * legacy-auth path is used, it also mints a real staff session cookie so
- * that subsequent same-origin CMS requests -- which rely on the cookie, not
- * the Authorization header -- stay signed in without re-checking the legacy
- * credential every time. Never rejects.
- */
-export const attachStaffUser: RequestHandler = async (req, res, next) => {
-  try {
-    const cookieToken = req.cookies?.[STAFF_SESSION_COOKIE] as string | undefined;
-    const user = await getStaffUserFromToken(cookieToken);
-    if (user) {
-      req.staffUser = user;
-    } else if (isLegacyAdminRequest(req)) {
-      const autoAdmin = await ensureAutoAdministrator();
-      req.staffUser = autoAdmin;
-      const sessionToken = await createStaffSession(autoAdmin.id, {
-        userAgent: req.headers["user-agent"],
-        ipAddress: req.ip,
-      });
-      res.cookie(STAFF_SESSION_COOKIE, sessionToken, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        maxAge: SESSION_TTL_MS,
-        path: "/",
-      });
-    }
-  } catch {
-    // ignore — treated as unauthenticated
-  }
+  req.staffUser = user;
   next();
 };
 

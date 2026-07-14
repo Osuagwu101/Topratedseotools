@@ -12,37 +12,12 @@ import {
 import { eq, and, desc, asc, sql, isNull, ne, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { pickDefaultServerForProduct } from "../lib/toolAccess";
+import { requireSuperAdmin } from "../lib/staffAuth";
 
 const router: IRouter = Router();
 
-const requireAdmin: RequestHandler = (req, res, next) => {
-  const adminUsername = process.env.ADMIN_USERNAME;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminUsername || !adminPassword) {
-    res.status(503).json({ error: "Admin credentials not configured." });
-    return;
-  }
-  const auth = req.headers.authorization ?? "";
-  if (!auth.startsWith("Basic ")) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  let decoded: string;
-  try {
-    decoded = Buffer.from(auth.slice(6), "base64").toString("utf-8");
-  } catch {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  const colonIdx = decoded.indexOf(":");
-  const u = colonIdx >= 0 ? decoded.slice(0, colonIdx) : decoded;
-  const p = colonIdx >= 0 ? decoded.slice(colonIdx + 1) : "";
-  if (u !== adminUsername || p !== adminPassword) {
-    res.status(401).json({ error: "Wrong username or password." });
-    return;
-  }
-  next();
-};
+// Shared Super Admin gate — see lib/staffAuth.ts.
+const requireAdmin: RequestHandler = requireSuperAdmin;
 
 const VALID_SOURCES = ["purchase", "renewal", "manual_assignment", "complimentary", "promotional", "admin_correction"];
 const VALID_STATUSES = ["active", "revoked", "expired"];
@@ -220,7 +195,7 @@ router.post("/admin/tool-assignments", requireAdmin, async (req, res): Promise<v
     .values({
       clerkUserId,
       productId,
-      adminUsername: process.env.ADMIN_USERNAME ?? "admin",
+      adminUsername: req.staffUser?.email ?? process.env.ADMIN_USERNAME ?? "admin",
       source,
       reason,
       reviewInvitationEnabled,
@@ -313,7 +288,7 @@ router.delete("/admin/tool-assignments/:id", requireAdmin, async (req, res): Pro
 
   const [updated] = await db
     .update(toolAssignmentsTable)
-    .set({ status: "revoked", revokedAt: new Date(), revokedBy: process.env.ADMIN_USERNAME ?? "admin", updatedAt: new Date() })
+    .set({ status: "revoked", revokedAt: new Date(), revokedBy: req.staffUser?.email ?? process.env.ADMIN_USERNAME ?? "admin", updatedAt: new Date() })
     .where(eq(toolAssignmentsTable.id, id))
     .returning();
 

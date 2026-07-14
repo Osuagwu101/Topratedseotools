@@ -23,6 +23,7 @@ import blogCommentsRouter from "./blogComments";
 import blogSettingsRouter from "./blogSettings";
 import blogRedirectsRouter from "./blogRedirects";
 import seoGeneratorRouter from "./seoGenerator";
+import systemConfigRouter from "./systemConfig";
 import { deviceTrackingMiddleware } from "../middlewares/deviceTracking";
 
 const router: IRouter = Router();
@@ -50,6 +51,7 @@ router.use(paystackRouter);
 router.use(deviceTrackingMiddleware);
 router.use(usersRouter);
 router.use(adminRouter);
+router.use(systemConfigRouter);
 router.use(autologinRouter);
 router.use(proxyRouter);
 

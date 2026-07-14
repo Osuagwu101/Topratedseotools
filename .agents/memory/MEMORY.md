@@ -1,1 +1,2 @@
 - [GitHub git-source-control auth](github-git-source-control-auth.md) — git push/pull needs a distinct connection from the API connector or account social logins.
+- [Admin Basic-Auth hardening](admin-auth-hardening.md) — swap the shared-secret check for a real per-user DB lookup behind the same Basic-Auth header; no frontend rewrite needed.

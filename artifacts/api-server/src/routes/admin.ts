@@ -24,6 +24,7 @@ import { parseUserAgent } from "../lib/userAgent";
 import { analyzeImage, processAndStoreToolImage, STANDARD_IMAGE_SIZE } from "../lib/toolImages";
 import { loginToTool, setSession, invalidateSessionsForProduct } from "../lib/toolSession";
 import { getDisplayedCustomersServed } from "./trust";
+import { requireSuperAdmin } from "../lib/staffAuth";
 
 const router: IRouter = Router();
 
@@ -32,40 +33,9 @@ const imageUpload = multer({
   limits: { fileSize: 8 * 1024 * 1024 },
 });
 
-const requireAdmin: RequestHandler = (req, res, next) => {
-  const adminUsername = process.env.ADMIN_USERNAME;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-
-  if (!adminUsername || !adminPassword) {
-    res.status(503).json({ error: "Admin credentials not configured (ADMIN_USERNAME / ADMIN_PASSWORD)." });
-    return;
-  }
-
-  const auth = req.headers.authorization ?? "";
-  if (!auth.startsWith("Basic ")) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-
-  let decoded: string;
-  try {
-    decoded = Buffer.from(auth.slice(6), "base64").toString("utf-8");
-  } catch {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-
-  const colonIdx = decoded.indexOf(":");
-  const u = colonIdx >= 0 ? decoded.slice(0, colonIdx) : decoded;
-  const p = colonIdx >= 0 ? decoded.slice(colonIdx + 1) : "";
-
-  if (u !== adminUsername || p !== adminPassword) {
-    res.status(401).json({ error: "Wrong username or password." });
-    return;
-  }
-
-  next();
-};
+// Shared Super Admin gate — see lib/staffAuth.ts. Kept as a local alias so
+// the rest of this file's route registrations don't need to change.
+const requireAdmin: RequestHandler = requireSuperAdmin;
 
 // ── Dashboard stats ──────────────────────────────────────────────────────────
 // Powers the admin landing page: overall totals plus a date-range filter that

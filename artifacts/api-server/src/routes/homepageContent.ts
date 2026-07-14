@@ -2,37 +2,12 @@ import { Router, type IRouter, type RequestHandler } from "express";
 import { db, benefitCardsTable, howItWorksStepsTable, faqItemsTable } from "@workspace/db";
 import { eq, asc } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { requireSuperAdmin } from "../lib/staffAuth";
 
 const router: IRouter = Router();
 
-const requireAdmin: RequestHandler = (req, res, next) => {
-  const adminUsername = process.env.ADMIN_USERNAME;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminUsername || !adminPassword) {
-    res.status(503).json({ error: "Admin credentials not configured." });
-    return;
-  }
-  const auth = req.headers.authorization ?? "";
-  if (!auth.startsWith("Basic ")) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  let decoded: string;
-  try {
-    decoded = Buffer.from(auth.slice(6), "base64").toString("utf-8");
-  } catch {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  const colonIdx = decoded.indexOf(":");
-  const u = colonIdx >= 0 ? decoded.slice(0, colonIdx) : decoded;
-  const p = colonIdx >= 0 ? decoded.slice(colonIdx + 1) : "";
-  if (u !== adminUsername || p !== adminPassword) {
-    res.status(401).json({ error: "Wrong username or password." });
-    return;
-  }
-  next();
-};
+// Shared Super Admin gate — see lib/staffAuth.ts.
+const requireAdmin: RequestHandler = requireSuperAdmin;
 
 // ── Generic CRUD helper for the three simple, sortable homepage-content tables ──
 // (benefit cards, how-it-works steps, FAQ items) — same shape: question/title +

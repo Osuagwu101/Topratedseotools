@@ -3,7 +3,12 @@ import { db, analyticsSettingsTable } from "@workspace/db";
 import { logger } from "./logger";
 
 function getDerivedKey(): Buffer {
-  const secret = process.env.SESSION_SECRET ?? "analytics-fallback-key-do-not-use-in-production";
+  // SESSION_SECRET is required at startup (see startupValidation.ts) — the
+  // server never boots without it, so there is no insecure fallback here.
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    throw new Error("SESSION_SECRET is not set; cannot encrypt/decrypt analytics tokens.");
+  }
   return crypto.createHash("sha256").update(`analytics-token-key:${secret}`).digest();
 }
 

@@ -1,22 +1,22 @@
 import OpenAI from "openai";
 
-let client: OpenAI | null = null;
-
 /**
- * Lazily-instantiated OpenAI client using the user-supplied OPENAI_API_KEY
- * secret. Never sent to the browser; only used server-side by the AI SEO
- * article generator.
+ * Constructs an OpenAI client using the user-supplied OPENAI_API_KEY secret.
+ * Never sent to the browser; only used server-side by the AI SEO article
+ * generator. Deliberately not cached across calls: an administrator can
+ * rotate this key from the System Configuration Centre while the server is
+ * running (see lib/systemConfig.ts), which mirrors the change into
+ * process.env immediately, and constructing the SDK client is cheap (no
+ * network call), so re-reading it live is cheap and always correct.
  */
 export function getOpenAIClient(): OpenAI {
-  if (client) return client;
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error(
       "OPENAI_API_KEY is not configured. Ask an administrator to add it before using the AI SEO Article Generator.",
     );
   }
-  client = new OpenAI({ apiKey });
-  return client;
+  return new OpenAI({ apiKey });
 }
 
 /** Allowed models an administrator can select in provider settings. */

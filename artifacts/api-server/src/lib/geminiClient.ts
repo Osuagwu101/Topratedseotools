@@ -1,23 +1,23 @@
 import { GoogleGenAI } from "@google/genai";
 
-let client: GoogleGenAI | null = null;
-
 /**
- * Lazily-instantiated Gemini client using the user-supplied GEMINI_API_KEY
- * secret (their own Google AI Studio key, not the Replit AI proxy). Never
- * sent to the browser; only used server-side by the AI SEO article
- * generator as a free-tier alternative to OpenAI.
+ * Constructs a Gemini client using the user-supplied GEMINI_API_KEY secret
+ * (their own Google AI Studio key, not the Replit AI proxy). Never sent to
+ * the browser; only used server-side by the AI SEO article generator as a
+ * free-tier alternative to OpenAI. Deliberately not cached across calls: an
+ * administrator can rotate this key from the System Configuration Centre
+ * while the server is running (see lib/systemConfig.ts), which mirrors the
+ * change into process.env immediately, and constructing the SDK client is
+ * cheap (no network call), so re-reading it live is cheap and always correct.
  */
 export function getGeminiClient(): GoogleGenAI {
-  if (client) return client;
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error(
       "GEMINI_API_KEY is not configured. Ask an administrator to add it before generating with Gemini.",
     );
   }
-  client = new GoogleGenAI({ apiKey });
-  return client;
+  return new GoogleGenAI({ apiKey });
 }
 
 /**
