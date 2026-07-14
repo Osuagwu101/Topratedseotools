@@ -16,4 +16,10 @@ export interface Order {
   reference: string;
   createdAt: string;
   durationMonths: number;
+  /** Amount discounted by a coupon, if any. */
+  discountKobo?: number;
+  /** @nullable */
+  couponCode?: string | null;
+  /** Store credit applied to this order, if any. */
+  creditAppliedKobo?: number;
 }

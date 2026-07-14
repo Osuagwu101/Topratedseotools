@@ -12,4 +12,11 @@ export interface OrderInput {
   customerName: string;
   /** 1, 3, or 12 — defaults to 1 */
   durationMonths?: number;
+  /**
+     * Optional coupon code to apply to this order.
+     * @nullable
+     */
+  couponCode?: string | null;
+  /** When true, applies as much of the buyer's available store credit as possible. */
+  useStoreCredit?: boolean;
 }

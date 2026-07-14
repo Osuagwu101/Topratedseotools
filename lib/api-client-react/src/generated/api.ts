@@ -20,7 +20,16 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminCoupon,
+  AdminReferralSettings,
+  AdminReferralsResponse,
+  CouponInput,
+  CouponRedemption,
+  CouponValidateInput,
+  CouponValidateResponse,
+  CreditBalance,
   HealthStatus,
+  MyReferralSummary,
   Order,
   OrderInput,
   PaymentInit,
@@ -28,6 +37,7 @@ import type {
   PaymentVerification,
   PaystackWebhookPayload,
   Product,
+  ReferralSettingsInput,
   SiteSettings,
   UserOrder
 } from './api.schemas';
@@ -734,6 +744,824 @@ export const usePaystackWebhook = <TError = ErrorType<void>,
       > => {
       return useMutation(getPaystackWebhookMutationOptions(options));
     }
+
+export const getValidateCouponCodeUrl = () => {
+
+
+
+
+  return `/api/coupons/validate`
+}
+
+/**
+ * @summary Validate a coupon code and preview its discount for a given product/duration
+ */
+export const validateCouponCode = async (couponValidateInput: CouponValidateInput, options?: RequestInit): Promise<CouponValidateResponse> => {
+
+  return customFetch<CouponValidateResponse>(getValidateCouponCodeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(couponValidateInput)
+  }
+);}
+
+
+
+
+
+export const getValidateCouponCodeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateCouponCode>>, TError,{data: BodyType<CouponValidateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof validateCouponCode>>, TError,{data: BodyType<CouponValidateInput>}, TContext> => {
+
+const mutationKey = ['validateCouponCode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof validateCouponCode>>, {data: BodyType<CouponValidateInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  validateCouponCode(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ValidateCouponCodeMutationResult = NonNullable<Awaited<ReturnType<typeof validateCouponCode>>>
+    export type ValidateCouponCodeMutationBody = BodyType<CouponValidateInput>
+    export type ValidateCouponCodeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Validate a coupon code and preview its discount for a given product/duration
+ */
+export const useValidateCouponCode = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateCouponCode>>, TError,{data: BodyType<CouponValidateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof validateCouponCode>>,
+        TError,
+        {data: BodyType<CouponValidateInput>},
+        TContext
+      > => {
+      return useMutation(getValidateCouponCodeMutationOptions(options));
+    }
+
+export const getGetMyReferralUrl = () => {
+
+
+
+
+  return `/api/users/me/referral`
+}
+
+/**
+ * @summary Get (or lazily create) the current user's referral code, stats, and history
+ */
+export const getMyReferral = async ( options?: RequestInit): Promise<MyReferralSummary> => {
+
+  return customFetch<MyReferralSummary>(getGetMyReferralUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyReferralQueryKey = () => {
+    return [
+    `/api/users/me/referral`
+    ] as const;
+    }
+
+
+export const getGetMyReferralQueryOptions = <TData = Awaited<ReturnType<typeof getMyReferral>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyReferral>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyReferralQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyReferral>>> = ({ signal }) => getMyReferral({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyReferral>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyReferralQueryResult = NonNullable<Awaited<ReturnType<typeof getMyReferral>>>
+export type GetMyReferralQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get (or lazily create) the current user's referral code, stats, and history
+ */
+
+export function useGetMyReferral<TData = Awaited<ReturnType<typeof getMyReferral>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyReferral>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyReferralQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyCreditUrl = () => {
+
+
+
+
+  return `/api/users/me/credit`
+}
+
+/**
+ * @summary Get the current user's store credit balance
+ */
+export const getMyCredit = async ( options?: RequestInit): Promise<CreditBalance> => {
+
+  return customFetch<CreditBalance>(getGetMyCreditUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyCreditQueryKey = () => {
+    return [
+    `/api/users/me/credit`
+    ] as const;
+    }
+
+
+export const getGetMyCreditQueryOptions = <TData = Awaited<ReturnType<typeof getMyCredit>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyCredit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyCreditQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyCredit>>> = ({ signal }) => getMyCredit({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyCredit>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyCreditQueryResult = NonNullable<Awaited<ReturnType<typeof getMyCredit>>>
+export type GetMyCreditQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the current user's store credit balance
+ */
+
+export function useGetMyCredit<TData = Awaited<ReturnType<typeof getMyCredit>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyCredit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyCreditQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListCouponsUrl = () => {
+
+
+
+
+  return `/api/admin/coupons`
+}
+
+/**
+ * @summary List all coupons (admin)
+ */
+export const listCoupons = async ( options?: RequestInit): Promise<AdminCoupon[]> => {
+
+  return customFetch<AdminCoupon[]>(getListCouponsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCouponsQueryKey = () => {
+    return [
+    `/api/admin/coupons`
+    ] as const;
+    }
+
+
+export const getListCouponsQueryOptions = <TData = Awaited<ReturnType<typeof listCoupons>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCoupons>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCouponsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCoupons>>> = ({ signal }) => listCoupons({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCoupons>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCouponsQueryResult = NonNullable<Awaited<ReturnType<typeof listCoupons>>>
+export type ListCouponsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all coupons (admin)
+ */
+
+export function useListCoupons<TData = Awaited<ReturnType<typeof listCoupons>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCoupons>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCouponsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateCouponUrl = () => {
+
+
+
+
+  return `/api/admin/coupons`
+}
+
+/**
+ * @summary Create a coupon (admin)
+ */
+export const createCoupon = async (couponInput: CouponInput, options?: RequestInit): Promise<AdminCoupon> => {
+
+  return customFetch<AdminCoupon>(getCreateCouponUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(couponInput)
+  }
+);}
+
+
+
+
+
+export const getCreateCouponMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCoupon>>, TError,{data: BodyType<CouponInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCoupon>>, TError,{data: BodyType<CouponInput>}, TContext> => {
+
+const mutationKey = ['createCoupon'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCoupon>>, {data: BodyType<CouponInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCoupon(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCouponMutationResult = NonNullable<Awaited<ReturnType<typeof createCoupon>>>
+    export type CreateCouponMutationBody = BodyType<CouponInput>
+    export type CreateCouponMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a coupon (admin)
+ */
+export const useCreateCoupon = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCoupon>>, TError,{data: BodyType<CouponInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCoupon>>,
+        TError,
+        {data: BodyType<CouponInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCouponMutationOptions(options));
+    }
+
+export const getUpdateCouponUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/coupons/${id}`
+}
+
+/**
+ * @summary Update a coupon (admin)
+ */
+export const updateCoupon = async (id: number,
+    couponInput: CouponInput, options?: RequestInit): Promise<AdminCoupon> => {
+
+  return customFetch<AdminCoupon>(getUpdateCouponUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(couponInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateCouponMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCoupon>>, TError,{id: number;data: BodyType<CouponInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCoupon>>, TError,{id: number;data: BodyType<CouponInput>}, TContext> => {
+
+const mutationKey = ['updateCoupon'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCoupon>>, {id: number;data: BodyType<CouponInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateCoupon(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCouponMutationResult = NonNullable<Awaited<ReturnType<typeof updateCoupon>>>
+    export type UpdateCouponMutationBody = BodyType<CouponInput>
+    export type UpdateCouponMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a coupon (admin)
+ */
+export const useUpdateCoupon = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCoupon>>, TError,{id: number;data: BodyType<CouponInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCoupon>>,
+        TError,
+        {id: number;data: BodyType<CouponInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateCouponMutationOptions(options));
+    }
+
+export const getDeleteCouponUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/coupons/${id}`
+}
+
+/**
+ * @summary Delete a coupon (admin)
+ */
+export const deleteCoupon = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteCouponUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteCouponMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCoupon>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCoupon>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteCoupon'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCoupon>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCoupon(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCouponMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCoupon>>>
+
+    export type DeleteCouponMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a coupon (admin)
+ */
+export const useDeleteCoupon = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCoupon>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCoupon>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteCouponMutationOptions(options));
+    }
+
+export const getListCouponRedemptionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/coupons/${id}/redemptions`
+}
+
+/**
+ * @summary List redemptions for a coupon (admin)
+ */
+export const listCouponRedemptions = async (id: number, options?: RequestInit): Promise<CouponRedemption[]> => {
+
+  return customFetch<CouponRedemption[]>(getListCouponRedemptionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCouponRedemptionsQueryKey = (id: number,) => {
+    return [
+    `/api/admin/coupons/${id}/redemptions`
+    ] as const;
+    }
+
+
+export const getListCouponRedemptionsQueryOptions = <TData = Awaited<ReturnType<typeof listCouponRedemptions>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCouponRedemptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCouponRedemptionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCouponRedemptions>>> = ({ signal }) => listCouponRedemptions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCouponRedemptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCouponRedemptionsQueryResult = NonNullable<Awaited<ReturnType<typeof listCouponRedemptions>>>
+export type ListCouponRedemptionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List redemptions for a coupon (admin)
+ */
+
+export function useListCouponRedemptions<TData = Awaited<ReturnType<typeof listCouponRedemptions>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCouponRedemptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCouponRedemptionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetReferralSettingsAdminUrl = () => {
+
+
+
+
+  return `/api/admin/referral-settings`
+}
+
+/**
+ * @summary Get referral programme configuration (admin)
+ */
+export const getReferralSettingsAdmin = async ( options?: RequestInit): Promise<AdminReferralSettings> => {
+
+  return customFetch<AdminReferralSettings>(getGetReferralSettingsAdminUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReferralSettingsAdminQueryKey = () => {
+    return [
+    `/api/admin/referral-settings`
+    ] as const;
+    }
+
+
+export const getGetReferralSettingsAdminQueryOptions = <TData = Awaited<ReturnType<typeof getReferralSettingsAdmin>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReferralSettingsAdmin>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReferralSettingsAdminQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReferralSettingsAdmin>>> = ({ signal }) => getReferralSettingsAdmin({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReferralSettingsAdmin>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetReferralSettingsAdminQueryResult = NonNullable<Awaited<ReturnType<typeof getReferralSettingsAdmin>>>
+export type GetReferralSettingsAdminQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get referral programme configuration (admin)
+ */
+
+export function useGetReferralSettingsAdmin<TData = Awaited<ReturnType<typeof getReferralSettingsAdmin>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReferralSettingsAdmin>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetReferralSettingsAdminQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateReferralSettingsAdminUrl = () => {
+
+
+
+
+  return `/api/admin/referral-settings`
+}
+
+/**
+ * @summary Update referral programme configuration (admin)
+ */
+export const updateReferralSettingsAdmin = async (referralSettingsInput: ReferralSettingsInput, options?: RequestInit): Promise<AdminReferralSettings> => {
+
+  return customFetch<AdminReferralSettings>(getUpdateReferralSettingsAdminUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(referralSettingsInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateReferralSettingsAdminMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateReferralSettingsAdmin>>, TError,{data: BodyType<ReferralSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateReferralSettingsAdmin>>, TError,{data: BodyType<ReferralSettingsInput>}, TContext> => {
+
+const mutationKey = ['updateReferralSettingsAdmin'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateReferralSettingsAdmin>>, {data: BodyType<ReferralSettingsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateReferralSettingsAdmin(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateReferralSettingsAdminMutationResult = NonNullable<Awaited<ReturnType<typeof updateReferralSettingsAdmin>>>
+    export type UpdateReferralSettingsAdminMutationBody = BodyType<ReferralSettingsInput>
+    export type UpdateReferralSettingsAdminMutationError = ErrorType<void>
+
+    /**
+ * @summary Update referral programme configuration (admin)
+ */
+export const useUpdateReferralSettingsAdmin = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateReferralSettingsAdmin>>, TError,{data: BodyType<ReferralSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateReferralSettingsAdmin>>,
+        TError,
+        {data: BodyType<ReferralSettingsInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateReferralSettingsAdminMutationOptions(options));
+    }
+
+export const getListReferralsAdminUrl = () => {
+
+
+
+
+  return `/api/admin/referrals`
+}
+
+/**
+ * @summary List referrals with summary stats and top referrers (admin)
+ */
+export const listReferralsAdmin = async ( options?: RequestInit): Promise<AdminReferralsResponse> => {
+
+  return customFetch<AdminReferralsResponse>(getListReferralsAdminUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReferralsAdminQueryKey = () => {
+    return [
+    `/api/admin/referrals`
+    ] as const;
+    }
+
+
+export const getListReferralsAdminQueryOptions = <TData = Awaited<ReturnType<typeof listReferralsAdmin>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReferralsAdmin>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReferralsAdminQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReferralsAdmin>>> = ({ signal }) => listReferralsAdmin({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReferralsAdmin>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListReferralsAdminQueryResult = NonNullable<Awaited<ReturnType<typeof listReferralsAdmin>>>
+export type ListReferralsAdminQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List referrals with summary stats and top referrers (admin)
+ */
+
+export function useListReferralsAdmin<TData = Awaited<ReturnType<typeof listReferralsAdmin>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReferralsAdmin>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListReferralsAdminQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getVerifyPaymentUrl = (reference: string,) => {
 

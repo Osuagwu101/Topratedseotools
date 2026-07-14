@@ -83,7 +83,9 @@ export const CreateOrderBody = zod.object({
   "productId": zod.number(),
   "customerEmail": zod.string(),
   "customerName": zod.string(),
-  "durationMonths": zod.number().optional().describe('1, 3, or 12 — defaults to 1')
+  "durationMonths": zod.number().optional().describe('1, 3, or 12 — defaults to 1'),
+  "couponCode": zod.string().nullish().describe('Optional coupon code to apply to this order.'),
+  "useStoreCredit": zod.boolean().optional().describe('When true, applies as much of the buyer\'s available store credit as possible.')
 })
 
 export const CreateOrderResponse = zod.object({
@@ -95,7 +97,10 @@ export const CreateOrderResponse = zod.object({
   "status": zod.string(),
   "reference": zod.string(),
   "createdAt": zod.string(),
-  "durationMonths": zod.number()
+  "durationMonths": zod.number(),
+  "discountKobo": zod.number().optional().describe('Amount discounted by a coupon, if any.'),
+  "couponCode": zod.string().nullish(),
+  "creditAppliedKobo": zod.number().optional().describe('Store credit applied to this order, if any.')
 })
 
 
@@ -115,7 +120,10 @@ export const GetOrderResponse = zod.object({
   "status": zod.string(),
   "reference": zod.string(),
   "createdAt": zod.string(),
-  "durationMonths": zod.number()
+  "durationMonths": zod.number(),
+  "discountKobo": zod.number().optional().describe('Amount discounted by a coupon, if any.'),
+  "couponCode": zod.string().nullish(),
+  "creditAppliedKobo": zod.number().optional().describe('Store credit applied to this order, if any.')
 })
 
 
@@ -188,6 +196,274 @@ export const PaystackWebhookBody = zod.object({
 })
 
 export const PaystackWebhookResponse = zod.unknown()
+
+
+/**
+ * @summary Validate a coupon code and preview its discount for a given product/duration
+ */
+export const ValidateCouponCodeBody = zod.object({
+  "code": zod.string(),
+  "productId": zod.number(),
+  "durationMonths": zod.number().optional().describe('1, 3, or 12 — defaults to 1')
+})
+
+export const ValidateCouponCodeResponse = zod.object({
+  "ok": zod.boolean(),
+  "error": zod.string().optional(),
+  "discountKobo": zod.number().optional(),
+  "code": zod.string().optional()
+})
+
+
+/**
+ * @summary Get (or lazily create) the current user's referral code, stats, and history
+ */
+export const GetMyReferralResponse = zod.object({
+  "code": zod.string(),
+  "totalReferrals": zod.number(),
+  "completedReferrals": zod.number(),
+  "pendingReferrals": zod.number(),
+  "totalRewardedKobo": zod.number(),
+  "referrals": zod.array(zod.object({
+  "id": zod.number(),
+  "status": zod.string(),
+  "rewardKobo": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "completedAt": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary Get the current user's store credit balance
+ */
+export const GetMyCreditResponse = zod.object({
+  "balanceKobo": zod.number()
+})
+
+
+/**
+ * @summary List all coupons (admin)
+ */
+export const ListCouponsResponseItem = zod.object({
+  "id": zod.number(),
+  "code": zod.string(),
+  "description": zod.string().nullish(),
+  "discountType": zod.string(),
+  "discountValue": zod.number(),
+  "scope": zod.string(),
+  "productIds": zod.array(zod.number()),
+  "minPurchaseKobo": zod.number(),
+  "maxDiscountKobo": zod.number().nullish(),
+  "usageLimitTotal": zod.number().nullable(),
+  "usageLimitPerCustomer": zod.number().nullable(),
+  "usedCount": zod.number(),
+  "requiresLogin": zod.boolean(),
+  "active": zod.boolean(),
+  "startsAt": zod.string().nullish(),
+  "expiresAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string(),
+  "createdBy": zod.string().nullish()
+})
+export const ListCouponsResponse = zod.array(ListCouponsResponseItem)
+
+
+/**
+ * @summary Create a coupon (admin)
+ */
+export const CreateCouponBody = zod.object({
+  "code": zod.string(),
+  "description": zod.string().nullish(),
+  "discountType": zod.string().describe('percentage | fixed'),
+  "discountValue": zod.number(),
+  "scope": zod.string().optional().describe('all | selected'),
+  "productIds": zod.array(zod.number()).optional(),
+  "minPurchaseKobo": zod.number().optional(),
+  "maxDiscountKobo": zod.number().nullish(),
+  "usageLimitTotal": zod.number().nullish(),
+  "usageLimitPerCustomer": zod.number().nullish(),
+  "requiresLogin": zod.boolean().optional(),
+  "active": zod.boolean().optional(),
+  "startsAt": zod.string().nullish(),
+  "expiresAt": zod.string().nullish()
+})
+
+export const CreateCouponResponse = zod.object({
+  "id": zod.number(),
+  "code": zod.string(),
+  "description": zod.string().nullish(),
+  "discountType": zod.string(),
+  "discountValue": zod.number(),
+  "scope": zod.string(),
+  "productIds": zod.array(zod.number()),
+  "minPurchaseKobo": zod.number(),
+  "maxDiscountKobo": zod.number().nullish(),
+  "usageLimitTotal": zod.number().nullable(),
+  "usageLimitPerCustomer": zod.number().nullable(),
+  "usedCount": zod.number(),
+  "requiresLogin": zod.boolean(),
+  "active": zod.boolean(),
+  "startsAt": zod.string().nullish(),
+  "expiresAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string(),
+  "createdBy": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a coupon (admin)
+ */
+export const UpdateCouponParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateCouponBody = zod.object({
+  "code": zod.string(),
+  "description": zod.string().nullish(),
+  "discountType": zod.string().describe('percentage | fixed'),
+  "discountValue": zod.number(),
+  "scope": zod.string().optional().describe('all | selected'),
+  "productIds": zod.array(zod.number()).optional(),
+  "minPurchaseKobo": zod.number().optional(),
+  "maxDiscountKobo": zod.number().nullish(),
+  "usageLimitTotal": zod.number().nullish(),
+  "usageLimitPerCustomer": zod.number().nullish(),
+  "requiresLogin": zod.boolean().optional(),
+  "active": zod.boolean().optional(),
+  "startsAt": zod.string().nullish(),
+  "expiresAt": zod.string().nullish()
+})
+
+export const UpdateCouponResponse = zod.object({
+  "id": zod.number(),
+  "code": zod.string(),
+  "description": zod.string().nullish(),
+  "discountType": zod.string(),
+  "discountValue": zod.number(),
+  "scope": zod.string(),
+  "productIds": zod.array(zod.number()),
+  "minPurchaseKobo": zod.number(),
+  "maxDiscountKobo": zod.number().nullish(),
+  "usageLimitTotal": zod.number().nullable(),
+  "usageLimitPerCustomer": zod.number().nullable(),
+  "usedCount": zod.number(),
+  "requiresLogin": zod.boolean(),
+  "active": zod.boolean(),
+  "startsAt": zod.string().nullish(),
+  "expiresAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string(),
+  "createdBy": zod.string().nullish()
+})
+
+
+/**
+ * @summary Delete a coupon (admin)
+ */
+export const DeleteCouponParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteCouponResponse = zod.void()
+
+
+/**
+ * @summary List redemptions for a coupon (admin)
+ */
+export const ListCouponRedemptionsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListCouponRedemptionsResponseItem = zod.object({
+  "id": zod.number(),
+  "couponId": zod.number(),
+  "orderId": zod.number().nullish(),
+  "customerEmail": zod.string(),
+  "clerkUserId": zod.string().nullish(),
+  "discountKobo": zod.number(),
+  "createdAt": zod.string()
+})
+export const ListCouponRedemptionsResponse = zod.array(ListCouponRedemptionsResponseItem)
+
+
+/**
+ * @summary Get referral programme configuration (admin)
+ */
+export const GetReferralSettingsAdminResponse = zod.object({
+  "id": zod.number(),
+  "enabled": zod.boolean(),
+  "rewardType": zod.string().describe('percentage | fixed | store_credit | free_product'),
+  "rewardValue": zod.number(),
+  "rewardProductId": zod.number().nullish(),
+  "minPurchaseKobo": zod.number(),
+  "campaignStartsAt": zod.string().nullish(),
+  "campaignEndsAt": zod.string().nullish(),
+  "maxRewardsPerReferrer": zod.number().nullish(),
+  "updatedAt": zod.string(),
+  "updatedBy": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update referral programme configuration (admin)
+ */
+export const UpdateReferralSettingsAdminBody = zod.object({
+  "enabled": zod.boolean().optional(),
+  "rewardType": zod.string().optional(),
+  "rewardValue": zod.number().optional(),
+  "rewardProductId": zod.number().nullish(),
+  "minPurchaseKobo": zod.number().optional(),
+  "campaignStartsAt": zod.string().nullish(),
+  "campaignEndsAt": zod.string().nullish(),
+  "maxRewardsPerReferrer": zod.number().nullish()
+})
+
+export const UpdateReferralSettingsAdminResponse = zod.object({
+  "id": zod.number(),
+  "enabled": zod.boolean(),
+  "rewardType": zod.string().describe('percentage | fixed | store_credit | free_product'),
+  "rewardValue": zod.number(),
+  "rewardProductId": zod.number().nullish(),
+  "minPurchaseKobo": zod.number(),
+  "campaignStartsAt": zod.string().nullish(),
+  "campaignEndsAt": zod.string().nullish(),
+  "maxRewardsPerReferrer": zod.number().nullish(),
+  "updatedAt": zod.string(),
+  "updatedBy": zod.string().nullish()
+})
+
+
+/**
+ * @summary List referrals with summary stats and top referrers (admin)
+ */
+export const ListReferralsAdminResponse = zod.object({
+  "referrals": zod.array(zod.object({
+  "id": zod.number(),
+  "referrerClerkUserId": zod.string(),
+  "refereeClerkUserId": zod.string(),
+  "refereeEmail": zod.string().nullish(),
+  "status": zod.string(),
+  "qualifyingOrderId": zod.number().nullish(),
+  "rewardType": zod.string().nullish(),
+  "rewardKobo": zod.number().nullish(),
+  "rewardGranted": zod.boolean(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "completedAt": zod.string().nullish()
+})),
+  "totalReferrals": zod.number(),
+  "completedReferrals": zod.number(),
+  "pendingReferrals": zod.number(),
+  "rejectedReferrals": zod.number(),
+  "totalRewardedKobo": zod.number(),
+  "topReferrers": zod.array(zod.object({
+  "clerkUserId": zod.string(),
+  "completedCount": zod.number(),
+  "totalRewardedKobo": zod.number()
+}))
+})
 
 
 /**

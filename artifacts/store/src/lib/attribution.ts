@@ -10,6 +10,7 @@ export interface Attribution {
 
 const STORAGE_KEY = "trst_attribution";
 const FBC_KEY = "trst_fbc";
+const REFERRAL_KEY = "trst_referral_code";
 
 /**
  * Capture UTM parameters and click identifiers from the current URL.
@@ -48,6 +49,32 @@ export function captureAttribution(): void {
     }
   } catch {
     // ignore storage errors
+  }
+}
+
+/**
+ * Capture a `?ref=CODE` referral link, if present. Stored in localStorage
+ * (not sessionStorage) so it survives across a sign-up/sign-in redirect and
+ * persists until the referred purchase is made — first-touch, never
+ * overwritten by a later visit.
+ */
+export function captureReferralCode(): void {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    if (ref && !localStorage.getItem(REFERRAL_KEY)) {
+      localStorage.setItem(REFERRAL_KEY, ref.trim().toUpperCase());
+    }
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export function getReferralCode(): string | null {
+  try {
+    return localStorage.getItem(REFERRAL_KEY);
+  } catch {
+    return null;
   }
 }
 

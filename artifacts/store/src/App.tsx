@@ -29,7 +29,7 @@ import BlogSearch from "@/pages/blog/search";
 import { setDeviceId, ApiError } from "@workspace/api-client-react";
 import { PhoneOff } from "lucide-react";
 import { initGtm, initPixel, trackPageView, getConsent, setTrackingConfig, type TrackingConfig } from "@/lib/analytics";
-import { captureAttribution } from "@/lib/attribution";
+import { captureAttribution, captureReferralCode } from "@/lib/attribution";
 import { CookieConsent } from "@/components/CookieConsent";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 
@@ -175,6 +175,7 @@ const clerkAppearance = {
 function AppInit() {
   useEffect(() => {
     captureAttribution();
+    captureReferralCode();
     fetch("/api/tracking/config")
       .then((r) => r.json())
       .then((config: TrackingConfig) => {

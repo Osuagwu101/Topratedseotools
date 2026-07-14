@@ -31,6 +31,8 @@ import PaymentAdminPanel from "@/components/admin/PaymentAdminPanel";
 import AiConfigPanel from "@/components/admin/AiConfigPanel";
 import EmailConfigPanel from "@/components/admin/EmailConfigPanel";
 import FeatureManagementPanel from "@/components/admin/FeatureManagementPanel";
+import CouponsAdminPanel from "@/components/admin/CouponsAdminPanel";
+import ReferralsAdminPanel from "@/components/admin/ReferralsAdminPanel";
 import {
   Eye,
   EyeOff,
@@ -67,6 +69,7 @@ import {
   CreditCard,
   Sparkles,
   Mail,
+  Tag,
 } from "lucide-react";
 
 interface ToolServer {
@@ -2777,7 +2780,7 @@ export default function AdminPanel() {
   const [products, setProducts] = useState<ProductWithServers[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"dashboard" | "tools" | "devices" | "users" | "branding" | "analytics" | "trust" | "homepage" | "blog" | "system-config" | "payments-admin" | "ai-config" | "email-config" | "feature-management">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "tools" | "devices" | "users" | "branding" | "analytics" | "trust" | "homepage" | "blog" | "system-config" | "payments-admin" | "coupons" | "referrals" | "ai-config" | "email-config" | "feature-management">("dashboard");
   const [addToolOpen, setAddToolOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [expandedNavKey, setExpandedNavKey] = useState<string | null>(null);
@@ -2959,6 +2962,8 @@ export default function AdminPanel() {
       ],
     },
     { key: "payments-admin", label: "Payment Management", icon: CreditCard },
+    { key: "coupons", label: "Coupons", icon: Tag },
+    { key: "referrals", label: "Referrals", icon: Users },
     { key: "ai-config", label: "AI Configuration", icon: Sparkles },
     { key: "feature-management", label: "Feature Management", icon: Sliders },
     { key: "email-config", label: "Email Configuration", icon: Mail },
@@ -3199,6 +3204,8 @@ export default function AdminPanel() {
         )}
 
         {tab === "payments-admin" && <PaymentAdminPanel token={token} />}
+        {tab === "coupons" && <CouponsAdminPanel token={token} />}
+        {tab === "referrals" && <ReferralsAdminPanel token={token} />}
 
         {tab === "ai-config" && <AiConfigPanel token={token} />}
 

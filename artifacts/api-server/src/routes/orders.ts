@@ -12,6 +12,8 @@ import crypto from "crypto";
 import { logger } from "../lib/logger";
 import { getPaymentSettings } from "../lib/paymentSettings";
 import { computeOrderAmounts } from "../lib/paymentCalculation";
+import { validateCoupon, normalizeCouponCode, reserveCouponUsage } from "../lib/coupons";
+import { adjustCredit, lockCreditBalanceForUpdate } from "../lib/credits";
 
 const router: IRouter = Router();
 
@@ -75,25 +77,113 @@ router.post("/orders", async (req, res): Promise<void> => {
     return;
   }
 
-  const breakdown = computeOrderAmounts(baseAmountKobo, paymentSettings);
-
-  const [order] = await db
-    .insert(ordersTable)
-    .values({
+  // Coupon — validated and computed server-side; the client only ever sends the code.
+  let discountKobo = 0;
+  let appliedCouponId: number | null = null;
+  let appliedCouponCode: string | null = null;
+  if (parsed.data.couponCode) {
+    const result = await validateCoupon({
+      code: parsed.data.couponCode,
       productId: parsed.data.productId,
-      customerEmail: parsed.data.customerEmail,
-      customerName: parsed.data.customerName,
-      amountKobo: breakdown.totalKobo,
-      baseAmountKobo: breakdown.baseAmountKobo,
-      taxKobo: breakdown.taxKobo,
-      feeKobo: breakdown.feeKobo,
-      currency: paymentSettings.currency,
-      status: "pending",
-      reference,
+      baseAmountKobo,
       clerkUserId,
-      durationMonths,
-    })
-    .returning();
+      customerEmail: parsed.data.customerEmail,
+    });
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    discountKobo = result.discountKobo;
+    appliedCouponId = result.coupon.id;
+    appliedCouponCode = result.coupon.code;
+  }
+
+  // Referral code captured client-side from a ?ref= link (see attribution.ts pattern),
+  // recorded for processing once the order is actually paid.
+  const referralHeader = req.headers["x-referral-code"];
+  const referralCode = typeof referralHeader === "string" && referralHeader ? normalizeCouponCode(referralHeader) : null;
+
+  // Coupon usage limits, store credit, and the order itself are all claimed
+  // inside a single transaction:
+  // - reserveCouponUsage atomically claims a usage slot (total + per-customer
+  //   limits) and locks the coupon row for the rest of this transaction, so
+  //   concurrent checkouts against a nearly-exhausted coupon can never both
+  //   succeed (see coupons.ts for why this must happen at reservation time,
+  //   not at payment time, to actually prevent over-redemption).
+  // - lockCreditBalanceForUpdate locks the user's credit-balance row so two
+  //   simultaneous orders can never both spend the same available balance.
+  // Both reservations are released (coupon usedCount decremented, credit
+  // refunded) if the order later fails or is underpaid — see activateOrder.ts.
+  class CouponLimitError extends Error {}
+  let order: typeof ordersTable.$inferSelect;
+  try {
+    order = await db.transaction(async (tx) => {
+      if (appliedCouponId) {
+        const reservation = await reserveCouponUsage(tx, {
+          couponId: appliedCouponId,
+          clerkUserId,
+          customerEmail: parsed.data.customerEmail,
+        });
+        if (!reservation.ok) throw new CouponLimitError(reservation.error);
+      }
+
+      let creditAppliedKobo = 0;
+      const remainingAfterCoupon = Math.max(0, baseAmountKobo - discountKobo);
+      if (parsed.data.useStoreCredit && clerkUserId) {
+        const balanceKobo = await lockCreditBalanceForUpdate(tx, clerkUserId);
+        creditAppliedKobo = Math.min(balanceKobo, remainingAfterCoupon);
+      }
+
+      const discountedBaseAmountKobo = Math.max(0, baseAmountKobo - discountKobo - creditAppliedKobo);
+      const breakdown = computeOrderAmounts(discountedBaseAmountKobo, paymentSettings);
+
+      const [inserted] = await tx
+        .insert(ordersTable)
+        .values({
+          productId: parsed.data.productId,
+          customerEmail: parsed.data.customerEmail,
+          customerName: parsed.data.customerName,
+          amountKobo: breakdown.totalKobo,
+          baseAmountKobo: breakdown.baseAmountKobo,
+          taxKobo: breakdown.taxKobo,
+          feeKobo: breakdown.feeKobo,
+          currency: paymentSettings.currency,
+          status: "pending",
+          reference,
+          clerkUserId,
+          durationMonths,
+          couponId: appliedCouponId,
+          couponCode: appliedCouponCode,
+          discountKobo,
+          creditAppliedKobo,
+          referralCode,
+        })
+        .returning();
+
+      // Debit store credit immediately at order creation (not at payment
+      // success) so it can't be spent twice across two concurrent pending
+      // orders. Refunded automatically if the order later fails/underpays.
+      if (creditAppliedKobo > 0 && clerkUserId) {
+        await adjustCredit(
+          {
+            clerkUserId,
+            amountKobo: -creditAppliedKobo,
+            reason: "checkout_redeem",
+            orderId: inserted.id,
+          },
+          tx,
+        );
+      }
+
+      return inserted;
+    });
+  } catch (err) {
+    if (err instanceof CouponLimitError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
 
   // Persist UTM/click attribution sent by the client via X-Attribution header (optional)
   const attributionHeader = req.headers["x-attribution"];

@@ -18,6 +18,10 @@ tags:
     description: Paystack payment operations
   - name: users
     description: User account operations
+  - name: coupons
+    description: Coupon/discount codes
+  - name: referrals
+    description: Referral programme
 paths:
   /healthz:
     get:
@@ -179,6 +183,199 @@ paths:
         "400":
           description: Invalid signature or payload
 
+  /coupons/validate:
+    post:
+      operationId: validateCouponCode
+      tags: [coupons]
+      summary: Validate a coupon code and preview its discount for a given product/duration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CouponValidateInput"
+      responses:
+        "200":
+          description: Validation result (ok=false explains why the coupon can't be used)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CouponValidateResponse"
+
+  /users/me/referral:
+    get:
+      operationId: getMyReferral
+      tags: [referrals]
+      summary: Get (or lazily create) the current user's referral code, stats, and history
+      responses:
+        "200":
+          description: Referral summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyReferralSummary"
+        "401":
+          description: Unauthorized
+
+  /users/me/credit:
+    get:
+      operationId: getMyCredit
+      tags: [referrals]
+      summary: Get the current user's store credit balance
+      responses:
+        "200":
+          description: Credit balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreditBalance"
+        "401":
+          description: Unauthorized
+
+  /admin/coupons:
+    get:
+      operationId: listCoupons
+      tags: [coupons]
+      summary: List all coupons (admin)
+      responses:
+        "200":
+          description: List of coupons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminCoupon"
+    post:
+      operationId: createCoupon
+      tags: [coupons]
+      summary: Create a coupon (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CouponInput"
+      responses:
+        "201":
+          description: Coupon created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCoupon"
+        "400":
+          description: Validation error
+
+  /admin/coupons/{id}:
+    put:
+      operationId: updateCoupon
+      tags: [coupons]
+      summary: Update a coupon (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CouponInput"
+      responses:
+        "200":
+          description: Coupon updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCoupon"
+        "400":
+          description: Validation error
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteCoupon
+      tags: [coupons]
+      summary: Delete a coupon (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /admin/coupons/{id}/redemptions:
+    get:
+      operationId: listCouponRedemptions
+      tags: [coupons]
+      summary: List redemptions for a coupon (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of redemptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CouponRedemption"
+
+  /admin/referral-settings:
+    get:
+      operationId: getReferralSettingsAdmin
+      tags: [referrals]
+      summary: Get referral programme configuration (admin)
+      responses:
+        "200":
+          description: Referral settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReferralSettings"
+    put:
+      operationId: updateReferralSettingsAdmin
+      tags: [referrals]
+      summary: Update referral programme configuration (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReferralSettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReferralSettings"
+        "400":
+          description: Validation error
+
+  /admin/referrals:
+    get:
+      operationId: listReferralsAdmin
+      tags: [referrals]
+      summary: List referrals with summary stats and top referrers (admin)
+      responses:
+        "200":
+          description: Referral list and stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReferralsResponse"
+
   /paystack/verify/{reference}:
     get:
       operationId: verifyPayment
@@ -290,6 +487,12 @@ components:
         durationMonths:
           type: integer
           description: "1, 3, or 12 — defaults to 1"
+        couponCode:
+          type: ["string", "null"]
+          description: Optional coupon code to apply to this order.
+        useStoreCredit:
+          type: boolean
+          description: When true, applies as much of the buyer's available store credit as possible.
 
     Order:
       type: object
@@ -313,6 +516,14 @@ components:
           type: string
         durationMonths:
           type: integer
+        discountKobo:
+          type: integer
+          description: Amount discounted by a coupon, if any.
+        couponCode:
+          type: ["string", "null"]
+        creditAppliedKobo:
+          type: integer
+          description: Store credit applied to this order, if any.
 
     PaymentInit:
       type: object
@@ -417,6 +628,280 @@ components:
           type: ["string", "null"]
         updatedBy:
           type: ["string", "null"]
+
+    CouponValidateInput:
+      type: object
+      required: [code, productId]
+      properties:
+        code:
+          type: string
+        productId:
+          type: integer
+        durationMonths:
+          type: integer
+          description: "1, 3, or 12 — defaults to 1"
+
+    CouponValidateResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+        error:
+          type: string
+        discountKobo:
+          type: integer
+        code:
+          type: string
+
+    AdminCoupon:
+      type: object
+      required:
+        [id, code, discountType, discountValue, scope, productIds, minPurchaseKobo, usageLimitTotal,
+         usageLimitPerCustomer, usedCount, requiresLogin, active, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        description:
+          type: ["string", "null"]
+        discountType:
+          type: string
+        discountValue:
+          type: integer
+        scope:
+          type: string
+        productIds:
+          type: array
+          items:
+            type: integer
+        minPurchaseKobo:
+          type: integer
+        maxDiscountKobo:
+          type: ["integer", "null"]
+        usageLimitTotal:
+          type: ["integer", "null"]
+        usageLimitPerCustomer:
+          type: ["integer", "null"]
+        usedCount:
+          type: integer
+        requiresLogin:
+          type: boolean
+        active:
+          type: boolean
+        startsAt:
+          type: ["string", "null"]
+        expiresAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        createdBy:
+          type: ["string", "null"]
+
+    CouponInput:
+      type: object
+      required: [code, discountType, discountValue]
+      properties:
+        code:
+          type: string
+        description:
+          type: ["string", "null"]
+        discountType:
+          type: string
+          description: "percentage | fixed"
+        discountValue:
+          type: integer
+        scope:
+          type: string
+          description: "all | selected"
+        productIds:
+          type: array
+          items:
+            type: integer
+        minPurchaseKobo:
+          type: integer
+        maxDiscountKobo:
+          type: ["integer", "null"]
+        usageLimitTotal:
+          type: ["integer", "null"]
+        usageLimitPerCustomer:
+          type: ["integer", "null"]
+        requiresLogin:
+          type: boolean
+        active:
+          type: boolean
+        startsAt:
+          type: ["string", "null"]
+        expiresAt:
+          type: ["string", "null"]
+
+    CouponRedemption:
+      type: object
+      required: [id, couponId, customerEmail, discountKobo, createdAt]
+      properties:
+        id:
+          type: integer
+        couponId:
+          type: integer
+        orderId:
+          type: ["integer", "null"]
+        customerEmail:
+          type: string
+        clerkUserId:
+          type: ["string", "null"]
+        discountKobo:
+          type: integer
+        createdAt:
+          type: string
+
+    AdminReferralSettings:
+      type: object
+      required: [id, enabled, rewardType, rewardValue, minPurchaseKobo, updatedAt]
+      properties:
+        id:
+          type: integer
+        enabled:
+          type: boolean
+        rewardType:
+          type: string
+          description: "percentage | fixed | store_credit | free_product"
+        rewardValue:
+          type: integer
+        rewardProductId:
+          type: ["integer", "null"]
+        minPurchaseKobo:
+          type: integer
+        campaignStartsAt:
+          type: ["string", "null"]
+        campaignEndsAt:
+          type: ["string", "null"]
+        maxRewardsPerReferrer:
+          type: ["integer", "null"]
+        updatedAt:
+          type: string
+        updatedBy:
+          type: ["string", "null"]
+
+    ReferralSettingsInput:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        rewardType:
+          type: string
+        rewardValue:
+          type: integer
+        rewardProductId:
+          type: ["integer", "null"]
+        minPurchaseKobo:
+          type: integer
+        campaignStartsAt:
+          type: ["string", "null"]
+        campaignEndsAt:
+          type: ["string", "null"]
+        maxRewardsPerReferrer:
+          type: ["integer", "null"]
+
+    ReferralRecord:
+      type: object
+      required: [id, referrerClerkUserId, refereeClerkUserId, status, rewardGranted, createdAt]
+      properties:
+        id:
+          type: integer
+        referrerClerkUserId:
+          type: string
+        refereeClerkUserId:
+          type: string
+        refereeEmail:
+          type: ["string", "null"]
+        status:
+          type: string
+        qualifyingOrderId:
+          type: ["integer", "null"]
+        rewardType:
+          type: ["string", "null"]
+        rewardKobo:
+          type: ["integer", "null"]
+        rewardGranted:
+          type: boolean
+        note:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        completedAt:
+          type: ["string", "null"]
+
+    AdminReferralsResponse:
+      type: object
+      required: [referrals, totalReferrals, completedReferrals, pendingReferrals, rejectedReferrals, totalRewardedKobo, topReferrers]
+      properties:
+        referrals:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReferralRecord"
+        totalReferrals:
+          type: integer
+        completedReferrals:
+          type: integer
+        pendingReferrals:
+          type: integer
+        rejectedReferrals:
+          type: integer
+        totalRewardedKobo:
+          type: integer
+        topReferrers:
+          type: array
+          items:
+            type: object
+            required: [clerkUserId, completedCount, totalRewardedKobo]
+            properties:
+              clerkUserId:
+                type: string
+              completedCount:
+                type: integer
+              totalRewardedKobo:
+                type: integer
+
+    MyReferralSummary:
+      type: object
+      required: [code, totalReferrals, completedReferrals, pendingReferrals, totalRewardedKobo, referrals]
+      properties:
+        code:
+          type: string
+        totalReferrals:
+          type: integer
+        completedReferrals:
+          type: integer
+        pendingReferrals:
+          type: integer
+        totalRewardedKobo:
+          type: integer
+        referrals:
+          type: array
+          items:
+            type: object
+            required: [id, status, createdAt]
+            properties:
+              id:
+                type: integer
+              status:
+                type: string
+              rewardKobo:
+                type: ["integer", "null"]
+              createdAt:
+                type: string
+              completedAt:
+                type: ["string", "null"]
+
+    CreditBalance:
+      type: object
+      required: [balanceKobo]
+      properties:
+        balanceKobo:
+          type: integer
 
     PaymentVerification:
       type: object

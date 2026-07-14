@@ -28,6 +28,8 @@ import paymentSettingsRouter from "./paymentSettings";
 import aiConfigRouter from "./aiConfig";
 import emailRouter from "./email";
 import featureFlagsRouter from "./featureFlags";
+import couponsRouter from "./coupons";
+import referralsRouter from "./referrals";
 import { deviceTrackingMiddleware } from "../middlewares/deviceTracking";
 
 const router: IRouter = Router();
@@ -60,6 +62,8 @@ router.use(paymentSettingsRouter);
 router.use(aiConfigRouter);
 router.use(emailRouter);
 router.use(featureFlagsRouter);
+router.use(couponsRouter);
+router.use(referralsRouter);
 router.use(autologinRouter);
 router.use(proxyRouter);
 

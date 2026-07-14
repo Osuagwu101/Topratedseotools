@@ -1,13 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/react";
-import { useGetProduct, getGetProductQueryKey, useCreateOrder, useInitializePayment } from "@workspace/api-client-react";
+import {
+  useGetProduct,
+  getGetProductQueryKey,
+  useCreateOrder,
+  useInitializePayment,
+  useValidateCouponCode,
+  useGetMyCredit,
+  getGetMyCreditQueryKey,
+} from "@workspace/api-client-react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, ShieldCheck, Tag, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { trackInitiateCheckout } from "@/lib/analytics";
-import { getAttribution, getFbc, getFbp } from "@/lib/attribution";
+import { getAttribution, getFbc, getFbp, getReferralCode } from "@/lib/attribution";
 
 type Duration = 1 | 3 | 12;
 
@@ -56,9 +66,16 @@ export default function Checkout() {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [duration, setDuration] = useState<Duration>(1);
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountKobo: number } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [useStoreCredit, setUseStoreCredit] = useState(false);
   const { toast } = useToast();
   const { user } = useUser();
   const paymentSettings = usePaymentSettings();
+  const validateCoupon = useValidateCouponCode();
+  const { data: credit } = useGetMyCredit({ query: { enabled: !!user, queryKey: getGetMyCreditQueryKey() } });
+  const creditBalanceKobo = credit?.balanceKobo ?? 0;
 
   const { data: product, isLoading: isProductLoading } = useGetProduct(productId, {
     query: { enabled: !!productId, queryKey: getGetProductQueryKey(productId) }
@@ -77,8 +94,13 @@ export default function Checkout() {
     }
   })();
 
+  const referralCode = getReferralCode();
+  const orderHeaders: Record<string, string> = {};
+  if (attributionHeader) orderHeaders["x-attribution"] = attributionHeader;
+  if (referralCode) orderHeaders["x-referral-code"] = referralCode;
+
   const createOrder = useCreateOrder(
-    attributionHeader ? { request: { headers: { "x-attribution": attributionHeader } } } : undefined,
+    Object.keys(orderHeaders).length > 0 ? { request: { headers: orderHeaders } } : undefined,
   );
   const initPayment = useInitializePayment();
 
@@ -95,13 +117,44 @@ export default function Checkout() {
   const selectedOption = availableDurations.find((o) => o.duration === duration) ?? availableDurations[0];
   const baseKobo = selectedOption?.priceKobo ?? product?.priceKobo ?? 0;
 
+  // Applied coupon/credit don't carry over across a duration change since the
+  // discount was computed against the previous plan's price.
+  useEffect(() => {
+    setAppliedCoupon(null);
+    setCouponError(null);
+  }, [duration]);
+
+  const discountKobo = appliedCoupon?.discountKobo ?? 0;
+  const remainingAfterCoupon = Math.max(0, baseKobo - discountKobo);
+  const creditAppliedKobo = useStoreCredit ? Math.min(creditBalanceKobo, remainingAfterCoupon) : 0;
+  const discountedBaseKobo = Math.max(0, remainingAfterCoupon - creditAppliedKobo);
+
   const breakdown = useMemo(() => {
-    if (!paymentSettings) return { taxKobo: 0, feeKobo: 0, totalKobo: baseKobo };
-    const taxKobo = Math.round(baseKobo * ((paymentSettings.taxPercent || 0) / 100));
+    if (!paymentSettings) return { taxKobo: 0, feeKobo: 0, totalKobo: discountedBaseKobo };
+    const taxKobo = Math.round(discountedBaseKobo * ((paymentSettings.taxPercent || 0) / 100));
     const feeKobo =
-      Math.round(baseKobo * ((paymentSettings.feePercent || 0) / 100)) + Math.max(0, paymentSettings.feeFlatKobo || 0);
-    return { taxKobo, feeKobo, totalKobo: baseKobo + taxKobo + feeKobo };
-  }, [baseKobo, paymentSettings]);
+      Math.round(discountedBaseKobo * ((paymentSettings.feePercent || 0) / 100)) +
+      Math.max(0, paymentSettings.feeFlatKobo || 0);
+    return { taxKobo, feeKobo, totalKobo: discountedBaseKobo + taxKobo + feeKobo };
+  }, [discountedBaseKobo, paymentSettings]);
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim() || !productId) return;
+    setCouponError(null);
+    try {
+      const result = await validateCoupon.mutateAsync({
+        data: { code: couponInput.trim(), productId, durationMonths: duration },
+      });
+      if (!result.ok) {
+        setCouponError(result.error ?? "This coupon could not be applied.");
+        setAppliedCoupon(null);
+        return;
+      }
+      setAppliedCoupon({ code: result.code ?? couponInput.trim().toUpperCase(), discountKobo: result.discountKobo ?? 0 });
+    } catch {
+      setCouponError("Could not validate this coupon right now. Please try again.");
+    }
+  };
 
   const outOfRangeMessage = useMemo(() => {
     if (!paymentSettings) return null;
@@ -143,6 +196,8 @@ export default function Checkout() {
           customerName: name,
           customerEmail: email,
           durationMonths: selectedOption?.duration ?? 1,
+          couponCode: appliedCoupon?.code,
+          useStoreCredit,
         }
       });
 
@@ -250,6 +305,65 @@ export default function Checkout() {
                   </div>
                 )}
 
+                <div className="space-y-4">
+                  <h2 className="text-2xl font-heading border-b border-border pb-4 uppercase">Coupon &amp; Credit</h2>
+
+                  {appliedCoupon ? (
+                    <div className="flex items-center justify-between bg-primary/5 border border-primary/30 rounded-xl px-4 py-3">
+                      <div className="flex items-center gap-2 text-sm font-bold text-primary">
+                        <Tag className="w-4 h-4" /> {appliedCoupon.code} applied — ₦{(appliedCoupon.discountKobo / 100).toLocaleString()} off
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAppliedCoupon(null);
+                          setCouponInput("");
+                        }}
+                        className="text-muted-foreground hover:text-foreground"
+                        data-testid="button-remove-coupon"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        value={couponInput}
+                        onChange={(e) => setCouponInput(e.target.value)}
+                        placeholder="Enter coupon code"
+                        className="flex-1"
+                        data-testid="input-coupon-code"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleApplyCoupon}
+                        disabled={validateCoupon.isPending || !couponInput.trim()}
+                        data-testid="button-apply-coupon"
+                      >
+                        {validateCoupon.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                        Apply
+                      </Button>
+                    </div>
+                  )}
+                  {couponError && (
+                    <p className="text-sm text-red-500 font-semibold" data-testid="text-coupon-error">{couponError}</p>
+                  )}
+
+                  {user && creditBalanceKobo > 0 && (
+                    <label className="flex items-center gap-3 bg-[#F7F8F9] border border-border rounded-xl px-4 py-3 cursor-pointer">
+                      <Checkbox
+                        checked={useStoreCredit}
+                        onCheckedChange={(checked) => setUseStoreCredit(checked === true)}
+                        data-testid="checkbox-use-credit"
+                      />
+                      <span className="text-sm font-semibold">
+                        Use store credit (₦{(creditBalanceKobo / 100).toLocaleString()} available)
+                      </span>
+                    </label>
+                  )}
+                </div>
+
                 {checkoutBlocked && (
                   <p className="text-sm text-red-500 font-semibold text-center" data-testid="text-checkout-blocked">
                     {gatewayDisabled
@@ -301,6 +415,18 @@ export default function Checkout() {
                   <span className="text-muted-foreground">Subtotal</span>
                   <span>₦{(baseKobo / 100).toLocaleString()}</span>
                 </div>
+                {discountKobo > 0 && (
+                  <div className="flex justify-between text-primary" data-testid="text-summary-discount">
+                    <span>Coupon discount</span>
+                    <span>-₦{(discountKobo / 100).toLocaleString()}</span>
+                  </div>
+                )}
+                {creditAppliedKobo > 0 && (
+                  <div className="flex justify-between text-primary" data-testid="text-summary-credit">
+                    <span>Store credit applied</span>
+                    <span>-₦{(creditAppliedKobo / 100).toLocaleString()}</span>
+                  </div>
+                )}
                 {breakdown.taxKobo > 0 && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Tax</span>

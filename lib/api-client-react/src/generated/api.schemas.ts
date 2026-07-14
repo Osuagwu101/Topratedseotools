@@ -73,6 +73,13 @@ export interface OrderInput {
   customerName: string;
   /** 1, 3, or 12 — defaults to 1 */
   durationMonths?: number;
+  /**
+     * Optional coupon code to apply to this order.
+     * @nullable
+     */
+  couponCode?: string | null;
+  /** When true, applies as much of the buyer's available store credit as possible. */
+  useStoreCredit?: boolean;
 }
 
 export interface Order {
@@ -85,6 +92,12 @@ export interface Order {
   reference: string;
   createdAt: string;
   durationMonths: number;
+  /** Amount discounted by a coupon, if any. */
+  discountKobo?: number;
+  /** @nullable */
+  couponCode?: string | null;
+  /** Store credit applied to this order, if any. */
+  creditAppliedKobo?: number;
 }
 
 export interface PaymentInit {
@@ -152,6 +165,181 @@ export interface SiteSettings {
   updatedAt?: string | null;
   /** @nullable */
   updatedBy?: string | null;
+}
+
+export interface CouponValidateInput {
+  code: string;
+  productId: number;
+  /** 1, 3, or 12 — defaults to 1 */
+  durationMonths?: number;
+}
+
+export interface CouponValidateResponse {
+  ok: boolean;
+  error?: string;
+  discountKobo?: number;
+  code?: string;
+}
+
+export interface AdminCoupon {
+  id: number;
+  code: string;
+  /** @nullable */
+  description?: string | null;
+  discountType: string;
+  discountValue: number;
+  scope: string;
+  productIds: number[];
+  minPurchaseKobo: number;
+  /** @nullable */
+  maxDiscountKobo?: number | null;
+  /** @nullable */
+  usageLimitTotal: number | null;
+  /** @nullable */
+  usageLimitPerCustomer: number | null;
+  usedCount: number;
+  requiresLogin: boolean;
+  active: boolean;
+  /** @nullable */
+  startsAt?: string | null;
+  /** @nullable */
+  expiresAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** @nullable */
+  createdBy?: string | null;
+}
+
+export interface CouponInput {
+  code: string;
+  /** @nullable */
+  description?: string | null;
+  /** percentage | fixed */
+  discountType: string;
+  discountValue: number;
+  /** all | selected */
+  scope?: string;
+  productIds?: number[];
+  minPurchaseKobo?: number;
+  /** @nullable */
+  maxDiscountKobo?: number | null;
+  /** @nullable */
+  usageLimitTotal?: number | null;
+  /** @nullable */
+  usageLimitPerCustomer?: number | null;
+  requiresLogin?: boolean;
+  active?: boolean;
+  /** @nullable */
+  startsAt?: string | null;
+  /** @nullable */
+  expiresAt?: string | null;
+}
+
+export interface CouponRedemption {
+  id: number;
+  couponId: number;
+  /** @nullable */
+  orderId?: number | null;
+  customerEmail: string;
+  /** @nullable */
+  clerkUserId?: string | null;
+  discountKobo: number;
+  createdAt: string;
+}
+
+export interface AdminReferralSettings {
+  id: number;
+  enabled: boolean;
+  /** percentage | fixed | store_credit | free_product */
+  rewardType: string;
+  rewardValue: number;
+  /** @nullable */
+  rewardProductId?: number | null;
+  minPurchaseKobo: number;
+  /** @nullable */
+  campaignStartsAt?: string | null;
+  /** @nullable */
+  campaignEndsAt?: string | null;
+  /** @nullable */
+  maxRewardsPerReferrer?: number | null;
+  updatedAt: string;
+  /** @nullable */
+  updatedBy?: string | null;
+}
+
+export interface ReferralSettingsInput {
+  enabled?: boolean;
+  rewardType?: string;
+  rewardValue?: number;
+  /** @nullable */
+  rewardProductId?: number | null;
+  minPurchaseKobo?: number;
+  /** @nullable */
+  campaignStartsAt?: string | null;
+  /** @nullable */
+  campaignEndsAt?: string | null;
+  /** @nullable */
+  maxRewardsPerReferrer?: number | null;
+}
+
+export interface ReferralRecord {
+  id: number;
+  referrerClerkUserId: string;
+  refereeClerkUserId: string;
+  /** @nullable */
+  refereeEmail?: string | null;
+  status: string;
+  /** @nullable */
+  qualifyingOrderId?: number | null;
+  /** @nullable */
+  rewardType?: string | null;
+  /** @nullable */
+  rewardKobo?: number | null;
+  rewardGranted: boolean;
+  /** @nullable */
+  note?: string | null;
+  createdAt: string;
+  /** @nullable */
+  completedAt?: string | null;
+}
+
+export type AdminReferralsResponseTopReferrersItem = {
+  clerkUserId: string;
+  completedCount: number;
+  totalRewardedKobo: number;
+};
+
+export interface AdminReferralsResponse {
+  referrals: ReferralRecord[];
+  totalReferrals: number;
+  completedReferrals: number;
+  pendingReferrals: number;
+  rejectedReferrals: number;
+  totalRewardedKobo: number;
+  topReferrers: AdminReferralsResponseTopReferrersItem[];
+}
+
+export type MyReferralSummaryReferralsItem = {
+  id: number;
+  status: string;
+  /** @nullable */
+  rewardKobo?: number | null;
+  createdAt: string;
+  /** @nullable */
+  completedAt?: string | null;
+};
+
+export interface MyReferralSummary {
+  code: string;
+  totalReferrals: number;
+  completedReferrals: number;
+  pendingReferrals: number;
+  totalRewardedKobo: number;
+  referrals: MyReferralSummaryReferralsItem[];
+}
+
+export interface CreditBalance {
+  balanceKobo: number;
 }
 
 export interface PaymentVerification {

@@ -21,6 +21,16 @@ export const ordersTable = pgTable("orders", {
   taxKobo: integer("tax_kobo"),
   feeKobo: integer("fee_kobo"),
   currency: text("currency"),
+  // Coupon applied at checkout, if any. discountKobo/creditAppliedKobo were
+  // already subtracted from baseAmountKobo before tax/fee were computed.
+  couponId: integer("coupon_id"),
+  couponCode: text("coupon_code"),
+  discountKobo: integer("discount_kobo").notNull().default(0),
+  // Store credit balance spent on this order, if any.
+  creditAppliedKobo: integer("credit_applied_kobo").notNull().default(0),
+  // Referral code carried by the buyer at checkout (from a ?ref= link), for
+  // referral tracking once the order is paid. Not a scoped discount.
+  referralCode: text("referral_code"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

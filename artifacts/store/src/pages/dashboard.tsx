@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useCurrency } from "@/context/currency";
 import { useUser, useClerk, Show } from "@clerk/react";
-import { useGetMyOrders } from "@workspace/api-client-react";
+import { useGetMyOrders, useGetMyReferral, useGetMyCredit } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -23,11 +23,63 @@ import {
   Eye,
   EyeOff,
   ExternalLink,
+  Gift,
+  Wallet,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ToolCard, LOGOS, BG_COLORS, getLogoKey } from "@/components/tool-card";
 import { ReviewPrompt } from "@/components/ReviewPrompt";
 import { useFeatureFlags } from "@/context/featureFlags";
+
+function ReferralCard() {
+  const { toast } = useToast();
+  const { data: referral, isLoading } = useGetMyReferral();
+  const { data: credit } = useGetMyCredit();
+
+  if (isLoading || !referral) return null;
+
+  const link = `${window.location.origin}${BASE_PATH}/?ref=${referral.code}`;
+  const copyLink = () => {
+    navigator.clipboard.writeText(link);
+    toast({ title: "Referral link copied!" });
+  };
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl p-6 mb-8">
+      <div className="flex items-center gap-2 mb-4">
+        <Gift className="w-5 h-5 text-primary" />
+        <h2 className="text-lg font-heading font-bold uppercase text-foreground">Refer &amp; Earn</h2>
+      </div>
+      <p className="text-sm text-muted-foreground mb-4">
+        Share your link — when someone you refer makes a qualifying purchase, you earn a reward.
+      </p>
+      <div className="flex flex-col sm:flex-row gap-2 mb-4">
+        <div className="flex-1 bg-[#F7F8F9] border border-border rounded-xl px-4 py-3 font-mono text-sm truncate" data-testid="text-referral-link">
+          {link}
+        </div>
+        <Button onClick={copyLink} variant="outline" className="font-bold" data-testid="button-copy-referral-link">
+          <Copy className="w-4 h-4 mr-2" /> Copy
+        </Button>
+      </div>
+      <div className="grid grid-cols-3 gap-3 text-center">
+        <div className="bg-[#F7F8F9] rounded-xl py-3">
+          <div className="text-xl font-heading text-primary">{referral.totalReferrals}</div>
+          <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Referred</div>
+        </div>
+        <div className="bg-[#F7F8F9] rounded-xl py-3">
+          <div className="text-xl font-heading text-primary">{referral.completedReferrals}</div>
+          <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Completed</div>
+        </div>
+        <div className="bg-[#F7F8F9] rounded-xl py-3">
+          <div className="text-xl font-heading text-primary flex items-center justify-center gap-1">
+            <Wallet className="w-4 h-4" /> ₦{((credit?.balanceKobo ?? 0) / 100).toLocaleString()}
+          </div>
+          <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Credit Balance</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "success") {
@@ -235,6 +287,8 @@ export default function Dashboard() {
             </Button>
           </div>
         </div>
+
+        <ReferralCard />
 
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
