@@ -11,10 +11,11 @@ import {
   creditTransactionsTable,
   userCreditsTable,
   userDailyUsageTable,
+  userDeviceSessionsTable,
   integrityAuditLogTable,
   type StaffUser,
 } from "@workspace/db";
-import { eq, inArray, isNotNull, and, ne } from "drizzle-orm";
+import { eq, inArray, isNotNull, and, ne, lt } from "drizzle-orm";
 import type { PgTableWithColumns } from "drizzle-orm/pg-core";
 import { logger } from "./logger";
 import { pickDefaultServerForProduct } from "./toolAccess";
@@ -266,6 +267,28 @@ const CHECKS: IntegrityCheck[] = [
       return { count: bad.length, sample: bad.slice(0, SAMPLE_LIMIT).map((u) => ({ id: u.id, userId: u.userId, toolId: u.toolId, usageDate: u.usageDate })) };
     },
   },
+  {
+    key: "device_sessions_orphaned",
+    label: "Device sessions with no order, entitlement, or assignment on record",
+    category: "orphaned",
+    table: "user_device_sessions",
+    description:
+      "A device session's userId never shows up in orders, tool_entitlements, or tool_assignments — informational only (many are simply visitors who never purchased), never repaired or deleted.",
+    scan: async () => {
+      const [sessions, orders, entitlements, assignments] = await Promise.all([
+        db.select().from(userDeviceSessionsTable),
+        db.select({ clerkUserId: ordersTable.clerkUserId }).from(ordersTable),
+        db.select({ clerkUserId: toolEntitlementsTable.clerkUserId }).from(toolEntitlementsTable),
+        db.select({ clerkUserId: toolAssignmentsTable.clerkUserId }).from(toolAssignmentsTable),
+      ]);
+      const known = new Set<string>();
+      for (const o of orders) if (o.clerkUserId) known.add(o.clerkUserId);
+      for (const e of entitlements) known.add(e.clerkUserId);
+      for (const a of assignments) known.add(a.clerkUserId);
+      const bad = sessions.filter((s) => !known.has(s.userId));
+      return { count: bad.length, sample: bad.slice(0, SAMPLE_LIMIT).map((s) => ({ id: s.id, userId: s.userId, deviceId: s.deviceId, lastSeenAt: s.lastSeenAt })) };
+    },
+  },
 
   // ----------------------------------------------------------------- BROKEN
   {
@@ -339,6 +362,63 @@ const CHECKS: IntegrityCheck[] = [
           .where(inArray(toolEntitlementsTable.id, bad.map((e) => e.id)));
       }
       return { repairedCount: bad.length, detail: { revokedIds: bad.map((e) => e.id) } };
+    },
+  },
+
+  {
+    key: "expired_entitlement_still_active",
+    label: "Entitlements past their expiry but still marked active",
+    category: "broken",
+    table: "tool_entitlements",
+    description: "A tool entitlement's expiresAt is in the past, but its status is still \"active\" — the subscription should have lapsed.",
+    protectedDataset: "subscriptions",
+    scan: async () => {
+      const bad = await db
+        .select()
+        .from(toolEntitlementsTable)
+        .where(and(eq(toolEntitlementsTable.status, "active"), lt(toolEntitlementsTable.expiresAt, new Date())));
+      return { count: bad.length, sample: bad.slice(0, SAMPLE_LIMIT).map((e) => ({ id: e.id, clerkUserId: e.clerkUserId, productId: e.productId, expiresAt: e.expiresAt })) };
+    },
+    repair: async () => {
+      const bad = await db
+        .select()
+        .from(toolEntitlementsTable)
+        .where(and(eq(toolEntitlementsTable.status, "active"), lt(toolEntitlementsTable.expiresAt, new Date())));
+      if (bad.length > 0) {
+        await db
+          .update(toolEntitlementsTable)
+          .set({ status: "expired", updatedAt: new Date() })
+          .where(inArray(toolEntitlementsTable.id, bad.map((e) => e.id)));
+      }
+      return { repairedCount: bad.length, detail: { expiredIds: bad.map((e) => e.id) } };
+    },
+  },
+  {
+    key: "expired_assignment_still_active",
+    label: "Tool assignments past their expiry but still marked active",
+    category: "broken",
+    table: "tool_assignments",
+    description: "A tool assignment's expiresAt is in the past, but its status is still \"active\".",
+    protectedDataset: "subscriptions",
+    scan: async () => {
+      const bad = await db
+        .select()
+        .from(toolAssignmentsTable)
+        .where(and(eq(toolAssignmentsTable.status, "active"), isNotNull(toolAssignmentsTable.expiresAt), lt(toolAssignmentsTable.expiresAt, new Date())));
+      return { count: bad.length, sample: bad.slice(0, SAMPLE_LIMIT).map((a) => ({ id: a.id, clerkUserId: a.clerkUserId, productId: a.productId, expiresAt: a.expiresAt })) };
+    },
+    repair: async () => {
+      const bad = await db
+        .select()
+        .from(toolAssignmentsTable)
+        .where(and(eq(toolAssignmentsTable.status, "active"), isNotNull(toolAssignmentsTable.expiresAt), lt(toolAssignmentsTable.expiresAt, new Date())));
+      if (bad.length > 0) {
+        await db
+          .update(toolAssignmentsTable)
+          .set({ status: "expired", updatedAt: new Date() })
+          .where(inArray(toolAssignmentsTable.id, bad.map((a) => a.id)));
+      }
+      return { repairedCount: bad.length, detail: { expiredIds: bad.map((a) => a.id) } };
     },
   },
 

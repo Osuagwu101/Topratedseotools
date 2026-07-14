@@ -30,3 +30,4 @@ export * from "./restores";
 export * from "./dbIntegrity";
 export * from "./productRecovery";
 export * from "./paymentRecovery";
+export * from "./customerRecovery";

@@ -43,6 +43,7 @@ import RestoreCentrePanel from "@/components/admin/RestoreCentrePanel";
 import DbIntegrityPanel from "@/components/admin/DbIntegrityPanel";
 import ProductRecoveryPanel from "@/components/admin/ProductRecoveryPanel";
 import PaymentRecoveryPanel from "@/components/admin/PaymentRecoveryPanel";
+import CustomerRecoveryPanel from "@/components/admin/CustomerRecoveryPanel";
 import SystemHealthPanel from "@/components/admin/SystemHealthPanel";
 import EmergencyRecoveryPanel from "@/components/admin/EmergencyRecoveryPanel";
 import {
@@ -2813,6 +2814,7 @@ export default function AdminPanel() {
     | "db-integrity"
     | "product-recovery"
     | "payment-recovery"
+    | "customer-recovery"
   >("auth-manager");
   const [environment, setEnvironment] = useState<"development" | "production" | null>(null);
   const { toast } = useToast();
@@ -3023,6 +3025,7 @@ export default function AdminPanel() {
         { key: "db-integrity", label: "Database Integrity" },
         { key: "product-recovery", label: "Product Recovery" },
         { key: "payment-recovery", label: "Payment Recovery" },
+        { key: "customer-recovery", label: "Customer Recovery" },
       ],
     },
   ];
@@ -3296,6 +3299,7 @@ export default function AdminPanel() {
             {opsSubTab === "db-integrity" && <DbIntegrityPanel token={token} />}
             {opsSubTab === "product-recovery" && <ProductRecoveryPanel token={token} />}
             {opsSubTab === "payment-recovery" && <PaymentRecoveryPanel token={token} />}
+            {opsSubTab === "customer-recovery" && <CustomerRecoveryPanel token={token} />}
           </>
         )}
       </main>
