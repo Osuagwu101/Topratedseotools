@@ -7,7 +7,7 @@
 // rest of this codebase's "no cron" architecture.
 import { db, blogPostsTable, productsTable, seoLinkInsightsTable, type SeoGeneratorSettings } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
-import { generateJsonWithFallback, type AiProvider } from "./aiClient";
+import { generateJsonWithFallback, type AiProvider, type ProviderAvailability } from "./aiClient";
 import { buildLinkOpportunityPrompt } from "./prompts";
 import { logger } from "../logger";
 
@@ -50,7 +50,11 @@ export function isScanStale(settings: Pick<SeoGeneratorSettings, "lastLinkInsigh
  * 5-internal-link cap so no cost is spent on posts that can't take a
  * recommendation anyway.
  */
-export async function runLinkInsightsScan(defaultProvider: AiProvider, defaultModel: string): Promise<void> {
+export async function runLinkInsightsScan(
+  defaultProvider: AiProvider,
+  defaultModel: string,
+  availability: ProviderAvailability = {},
+): Promise<void> {
   const posts = await db
     .select({ id: blogPostsTable.id, slug: blogPostsTable.slug, title: blogPostsTable.title, content: blogPostsTable.content, status: blogPostsTable.status })
     .from(blogPostsTable)
@@ -110,6 +114,7 @@ export async function runLinkInsightsScan(defaultProvider: AiProvider, defaultMo
       const { data } = await generateJsonWithFallback<{ hasOpportunity: boolean; targetType?: "product" | "post"; targetId?: number; targetSlug?: string; targetLabel?: string; reason?: string }>({
         provider: defaultProvider,
         model: defaultModel,
+        availability,
         ...buildLinkOpportunityPrompt({
           postTitle: post.title,
           postExcerptOrIntro: post.content.replace(/<[^>]*>/g, " ").slice(0, 600),

@@ -48,25 +48,34 @@ function isQuotaOrRateLimitError(err: unknown): boolean {
   return status === 429 || /RESOURCE_EXHAUSTED/i.test(message) || /rate.?limit/i.test(message) || /exceeded your current quota/i.test(message);
 }
 
+/** Admin-configured provider availability -- an explicitly disabled provider is never attempted, even with a valid key. Both default true so installs with no AI Configuration Centre changes keep today's "available if a key is present" behavior. */
+export interface ProviderAvailability {
+  openaiEnabled?: boolean;
+  geminiEnabled?: boolean;
+}
+
 /**
  * Fallback order to try when the requested provider/model is out of quota:
  * other models on the same provider first (Gemini gives each model its own
  * independent free-tier daily cap, so a sibling model often still has
  * headroom), then the other provider's default model if it's configured.
- * Only providers/models with a configured API key are attempted.
+ * Only providers/models that are both admin-enabled and have a configured
+ * API key are attempted.
  */
-function buildFallbackChain(provider: AiProvider, model: string): { provider: AiProvider; model: string }[] {
+function buildFallbackChain(provider: AiProvider, model: string, availability: ProviderAvailability): { provider: AiProvider; model: string }[] {
+  const openaiUsable = availability.openaiEnabled !== false && Boolean(process.env.OPENAI_API_KEY);
+  const geminiUsable = availability.geminiEnabled !== false && Boolean(process.env.GEMINI_API_KEY);
   const chain: { provider: AiProvider; model: string }[] = [];
   if (provider === "gemini") {
-    if (process.env.GEMINI_API_KEY) {
+    if (geminiUsable) {
       for (const m of ALLOWED_GEMINI_MODELS) {
         if (m !== model) chain.push({ provider: "gemini", model: m });
       }
     }
-    if (process.env.OPENAI_API_KEY) chain.push({ provider: "openai", model: DEFAULT_MODEL_BY_PROVIDER.openai });
+    if (openaiUsable) chain.push({ provider: "openai", model: DEFAULT_MODEL_BY_PROVIDER.openai });
   } else {
-    if (process.env.GEMINI_API_KEY) chain.push({ provider: "gemini", model: DEFAULT_MODEL_BY_PROVIDER.gemini });
-    if (process.env.OPENAI_API_KEY) {
+    if (geminiUsable) chain.push({ provider: "gemini", model: DEFAULT_MODEL_BY_PROVIDER.gemini });
+    if (openaiUsable) {
       for (const m of ALLOWED_AI_MODELS) {
         if (m !== model) chain.push({ provider: "openai", model: m });
       }
@@ -100,24 +109,33 @@ export async function generateJsonWithFallback<T = unknown>(params: {
   user: string;
   maxTokens?: number;
   temperature?: number;
+  /** Admin-configured provider enable/disable (AI Configuration Centre). Omit to preserve legacy behavior (both treated as enabled). */
+  availability?: ProviderAvailability;
 }): Promise<GenerateJsonResult<T>> {
-  const { provider, model, ...rest } = params;
-  const attempts = [{ provider, model }, ...buildFallbackChain(provider, model)];
+  const { provider, model, availability = {}, ...rest } = params;
+  const requestedProviderEnabled = provider === "gemini" ? availability.geminiEnabled !== false : availability.openaiEnabled !== false;
+  const fallbackChain = buildFallbackChain(provider, model, availability);
+  const attempts = requestedProviderEnabled ? [{ provider, model }, ...fallbackChain] : fallbackChain;
+  if (attempts.length === 0) {
+    throw new Error(
+      `AI generation is unavailable: the requested provider (${provider}) is disabled, and no other provider is both enabled and has a configured API key. Check the AI Configuration Centre.`,
+    );
+  }
   let lastErr: unknown;
   for (let i = 0; i < attempts.length; i++) {
     const attempt = attempts[i];
     try {
       const data = await generateJson<T>({ ...rest, provider: attempt.provider, model: attempt.model });
-      if (i === 0) return { data, provider: attempt.provider, model: attempt.model };
+      if (requestedProviderEnabled && i === 0) return { data, provider: attempt.provider, model: attempt.model };
       logger.warn(
-        { requested: { provider, model }, used: attempt, reason: lastErr instanceof Error ? lastErr.message : String(lastErr) },
-        "AI SEO generator fell back to a different provider/model after a quota/rate-limit error",
+        { requested: { provider, model }, used: attempt, reason: lastErr instanceof Error ? lastErr.message : requestedProviderEnabled ? String(lastErr) : "requested provider is disabled" },
+        "AI SEO generator fell back to a different provider/model",
       );
       return {
         data,
         provider: attempt.provider,
         model: attempt.model,
-        fallbackFrom: { provider, model, reason: lastErr instanceof Error ? lastErr.message : String(lastErr) },
+        fallbackFrom: { provider, model, reason: lastErr instanceof Error ? lastErr.message : requestedProviderEnabled ? String(lastErr) : "The requested provider is disabled in the AI Configuration Centre." },
       };
     } catch (err) {
       lastErr = err;

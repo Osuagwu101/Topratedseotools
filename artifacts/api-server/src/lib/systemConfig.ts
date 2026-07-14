@@ -74,6 +74,20 @@ async function testGeminiConnection(): Promise<{ ok: boolean; message: string }>
   }
 }
 
+async function testResendConnection(): Promise<{ ok: boolean; message: string }> {
+  const key = await getConfigValue("RESEND_API_KEY");
+  if (!key) return { ok: false, message: "No Resend API key configured." };
+  try {
+    const { Resend } = await import("resend");
+    const client = new Resend(key);
+    const { error } = await client.apiKeys.list();
+    if (error) return { ok: false, message: error.message || "Resend rejected the key." };
+    return { ok: true, message: "Resend accepted the key." };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : "Could not reach Resend." };
+  }
+}
+
 export const CONFIG_DEFINITIONS: ConfigDefinition[] = [
   {
     key: "PAYSTACK_SECRET_KEY",
@@ -122,6 +136,7 @@ export const CONFIG_DEFINITIONS: ConfigDefinition[] = [
     label: "Resend API Key",
     category: "email",
     description: "Transactional email sending. Configure sender address/templates in the Email Configuration Centre.",
+    testConnection: testResendConnection,
   },
   {
     key: "SESSION_SECRET",

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, timestamp, jsonb, doublePrecision } from "drizzle-orm/pg-core";
 
 // ── Provider / limits settings (singleton row, admin-configurable) ──────────
 export const aiProviders = ["openai", "gemini"] as const;
@@ -11,6 +11,17 @@ export const seoGeneratorSettingsTable = pgTable("seo_generator_settings", {
   aiProvider: text("ai_provider").notNull().default("openai"), // AiProvider
   aiModel: text("ai_model").notNull().default("gpt-4o-mini"), // OpenAI model
   geminiModel: text("gemini_model").notNull().default("gemini-flash-latest"),
+  // Independent enable/disable per provider (AI Configuration Centre). A
+  // disabled provider is skipped entirely -- both as the default and as a
+  // fallback target -- even if its API key is configured. Both default to
+  // true so existing installs keep today's "available if a key is present"
+  // behavior with no admin action required.
+  openaiEnabled: boolean("openai_enabled").notNull().default(true),
+  geminiEnabled: boolean("gemini_enabled").notNull().default(true),
+  // Generation defaults applied to every AI SEO Article Generator call site
+  // that doesn't pass an explicit override.
+  temperature: doublePrecision("temperature").notNull().default(0.7),
+  maxTokens: integer("max_tokens").notNull().default(4096),
   // Optional SERP data provider for PAA / related searches / competitor analysis.
   // Null/empty means those features are disabled; autocomplete + generation
   // still work without it. Key is stored server-side only and never returned

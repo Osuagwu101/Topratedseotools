@@ -139,6 +139,14 @@ router.put("/admin/blog/seo-generator/settings", requireStaffRole("administrator
       updates.warningThresholdPercent = Math.min(100, Math.max(1, Math.round(body.warningThresholdPercent)));
     }
     if (typeof body.confirmBeforeExpensiveOps === "boolean") updates.confirmBeforeExpensiveOps = body.confirmBeforeExpensiveOps;
+    if (typeof body.openaiEnabled === "boolean") updates.openaiEnabled = body.openaiEnabled;
+    if (typeof body.geminiEnabled === "boolean") updates.geminiEnabled = body.geminiEnabled;
+    if (typeof body.temperature === "number" && Number.isFinite(body.temperature)) {
+      updates.temperature = Math.min(2, Math.max(0, body.temperature));
+    }
+    if (typeof body.maxTokens === "number" && Number.isInteger(body.maxTokens)) {
+      updates.maxTokens = Math.min(16000, Math.max(256, body.maxTokens));
+    }
 
     const [updated] = await db
       .update(seoGeneratorSettingsTable)
@@ -194,7 +202,10 @@ router.get("/admin/blog/seo-generator/link-insights", requireStaffRole(...STAFF_
     const settings = await getOrCreateSettings();
     const forceRescan = req.query.refresh === "true" && req.staffUser!.role === "administrator";
     if (forceRescan || isScanStale(settings)) {
-      await runLinkInsightsScan(settings.aiProvider as AiProvider, settings.aiModel);
+      await runLinkInsightsScan(settings.aiProvider as AiProvider, settings.aiModel, {
+        openaiEnabled: settings.openaiEnabled,
+        geminiEnabled: settings.geminiEnabled,
+      });
       await db.update(seoGeneratorSettingsTable).set({ lastLinkInsightsScanAt: new Date() }).where(eq(seoGeneratorSettingsTable.id, settings.id));
     }
 
@@ -396,6 +407,9 @@ router.post("/admin/blog/posts/:postId/seo-generator/research", requireStaffRole
       generateJsonWithFallback<{ relatedKeywords: string[] }>({
         provider,
         model,
+        temperature: settings.temperature,
+        maxTokens: settings.maxTokens,
+        availability: { openaiEnabled: settings.openaiEnabled, geminiEnabled: settings.geminiEnabled },
         ...buildRelatedKeywordsPrompt(primaryKeyword),
       })
         .then((r) => {
@@ -530,6 +544,9 @@ router.post("/admin/blog/posts/:postId/seo-generator/brief", requireStaffRole(..
     }>({
       provider,
       model,
+      temperature: settings.temperature,
+      maxTokens: settings.maxTokens,
+      availability: { openaiEnabled: settings.openaiEnabled, geminiEnabled: settings.geminiEnabled },
       ...buildIntentAndBriefPrompt({
         primaryKeyword: session.primaryKeyword,
         autocomplete: byKind("autocomplete"),
@@ -674,6 +691,8 @@ router.post("/admin/blog/posts/:postId/seo-generator/generate", requireStaffRole
       provider,
       model,
       maxTokens: 8192,
+      temperature: settings.temperature,
+      availability: { openaiEnabled: settings.openaiEnabled, geminiEnabled: settings.geminiEnabled },
       ...buildFullArticlePrompt({
         primaryKeyword: session.primaryKeyword,
         secondaryKeywords,
@@ -766,6 +785,9 @@ router.post("/admin/blog/posts/:postId/seo-generator/generate", requireStaffRole
     const claimFlagResult = await generateJsonWithFallback<{ flaggedClaims: string[] }>({
       provider: articleProviderUsed,
       model: articleModelUsed,
+      temperature: settings.temperature,
+      maxTokens: settings.maxTokens,
+      availability: { openaiEnabled: settings.openaiEnabled, geminiEnabled: settings.geminiEnabled },
       ...buildClaimFlaggingPrompt(plainText(fullContent)),
     })
       .then((r) => r.data)
@@ -855,6 +877,9 @@ router.post("/admin/blog/posts/:postId/seo-generator/regenerate-section", requir
     const { data: result, provider: sectionProviderUsed, model: sectionModelUsed, fallbackFrom: sectionFallback } = await generateJsonWithFallback<{ html: string }>({
       provider,
       model,
+      temperature: settings.temperature,
+      maxTokens: settings.maxTokens,
+      availability: { openaiEnabled: settings.openaiEnabled, geminiEnabled: settings.geminiEnabled },
       ...buildSectionRegenerationPrompt({
         sectionKey,
         primaryKeyword: session.primaryKeyword,
