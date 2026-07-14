@@ -51,25 +51,29 @@ interface SectionConfigEntry {
   visible: boolean;
 }
 
+// Hero is the homepage's above-the-fold banner and must always render first
+// and always be visible — it is not subject to admin reordering/hiding, no
+// matter what a stored or stale config says.
 function resolveSectionOrder(raw: string | null): string[] {
-  if (!raw) return DEFAULT_SECTION_ORDER;
+  const rest = DEFAULT_SECTION_ORDER.filter((k) => k !== "hero");
+  if (!raw) return ["hero", ...rest];
   try {
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return DEFAULT_SECTION_ORDER;
+    if (!Array.isArray(parsed)) return ["hero", ...rest];
     const entries = parsed.filter(
       (e): e is SectionConfigEntry =>
-        e && typeof e.key === "string" && typeof e.visible === "boolean" && DEFAULT_SECTION_ORDER.includes(e.key),
+        e && typeof e.key === "string" && typeof e.visible === "boolean" && rest.includes(e.key),
     );
-    if (entries.length === 0) return DEFAULT_SECTION_ORDER;
+    if (entries.length === 0) return ["hero", ...rest];
     const visibleKeys = entries.filter((e) => e.visible).map((e) => e.key);
     // Append any section missing from a stale/older config so new sections
     // introduced after the config was saved still render.
-    for (const key of DEFAULT_SECTION_ORDER) {
+    for (const key of rest) {
       if (!entries.some((e) => e.key === key)) visibleKeys.push(key);
     }
-    return visibleKeys;
+    return ["hero", ...visibleKeys];
   } catch {
-    return DEFAULT_SECTION_ORDER;
+    return ["hero", ...rest];
   }
 }
 

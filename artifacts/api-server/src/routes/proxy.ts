@@ -72,9 +72,16 @@ const proxyHandler: RequestHandler = async (req, res): Promise<void> => {
   // Global kill-switch: when off, this overrides every individual tool's
   // One-Click Auth setting below.
   const [globalFlags] = await db
-    .select({ oneClickAuthEnabled: featureFlagsTable.oneClickAuthEnabled })
+    .select({
+      oneClickAuthEnabled: featureFlagsTable.oneClickAuthEnabled,
+      aiToolsEnabled: featureFlagsTable.aiToolsEnabled,
+    })
     .from(featureFlagsTable)
     .where(eq(featureFlagsTable.id, 1));
+  if (globalFlags && !globalFlags.aiToolsEnabled) {
+    res.status(403).send("AI Tools access is temporarily disabled.");
+    return;
+  }
   if (globalFlags && !globalFlags.oneClickAuthEnabled) {
     res.status(403).send("One-Click Auth is temporarily disabled.");
     return;

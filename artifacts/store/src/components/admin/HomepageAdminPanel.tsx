@@ -71,7 +71,10 @@ function parseSectionsConfig(raw: string | null): SectionConfigEntry[] {
   for (const key of HOMEPAGE_SECTION_KEYS) {
     if (!seen.has(key)) parsed.push({ key, visible: true });
   }
-  return parsed;
+  // Hero is pinned first and always visible, regardless of what a stale or
+  // hand-edited config says.
+  const rest = parsed.filter((e) => e.key !== "hero");
+  return [{ key: "hero", visible: true }, ...rest];
 }
 
 interface BenefitCard {
@@ -397,13 +400,15 @@ export default function HomepageAdminPanel({
   };
 
   const toggleSectionVisible = (key: string) => {
+    if (key === "hero") return; // Hero is pinned: always visible, never hidden.
     const next = sections.map((s) => (s.key === key ? { ...s, visible: !s.visible } : s));
     setSections(next);
     saveSections(next);
   };
 
   const handleSectionDrop = (targetKey: string) => {
-    if (sectionDragKey === null || sectionDragKey === targetKey) {
+    // Hero is pinned first and cannot be dragged or dropped onto.
+    if (sectionDragKey === null || sectionDragKey === targetKey || sectionDragKey === "hero" || targetKey === "hero") {
       setSectionDragKey(null);
       setSectionDragOverKey(null);
       return;
@@ -432,14 +437,16 @@ export default function HomepageAdminPanel({
       </p>
       <div className="space-y-2">
         {sections.map((s) => {
+          const isHero = s.key === "hero";
           const isDragging = sectionDragKey === s.key;
           const isDragOver = sectionDragOverKey === s.key && sectionDragKey !== s.key;
           return (
             <div
               key={s.key}
-              draggable
-              onDragStart={() => setSectionDragKey(s.key)}
+              draggable={!isHero}
+              onDragStart={() => !isHero && setSectionDragKey(s.key)}
               onDragOver={(e) => {
+                if (isHero) return;
                 e.preventDefault();
                 if (sectionDragOverKey !== s.key) setSectionDragOverKey(s.key);
               }}
@@ -448,28 +455,33 @@ export default function HomepageAdminPanel({
                 setSectionDragOverKey(null);
               }}
               onDrop={(e) => {
+                if (isHero) return;
                 e.preventDefault();
                 handleSectionDrop(s.key);
               }}
-              className={`flex items-center gap-3 p-3 border rounded-lg bg-white transition-colors ${
-                isDragging ? "opacity-40" : ""
-              } ${isDragOver ? "border-primary border-2" : "border-gray-100"}`}
+              className={`flex items-center gap-3 p-3 border rounded-lg transition-colors ${
+                isHero ? "bg-gray-50" : "bg-white"
+              } ${isDragging ? "opacity-40" : ""} ${isDragOver ? "border-primary border-2" : "border-gray-100"}`}
             >
               <button
                 type="button"
-                className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0"
-                aria-label={`Drag to reorder ${HOMEPAGE_SECTION_LABELS[s.key]}`}
-                title="Drag to reorder"
+                disabled={isHero}
+                className={`shrink-0 ${isHero ? "text-gray-300 cursor-not-allowed" : "cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"}`}
+                aria-label={isHero ? "Hero is pinned first" : `Drag to reorder ${HOMEPAGE_SECTION_LABELS[s.key]}`}
+                title={isHero ? "Hero always renders first" : "Drag to reorder"}
               >
                 <GripVertical className="w-5 h-5" />
               </button>
               <div className={`font-bold flex-1 ${s.visible ? "text-foreground" : "text-muted-foreground"}`}>
                 {HOMEPAGE_SECTION_LABELS[s.key]}
-                {!s.visible && <span className="ml-2 text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-gray-200 text-gray-500">Hidden</span>}
+                {isHero && <span className="ml-2 text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">Pinned first</span>}
+                {!isHero && !s.visible && <span className="ml-2 text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-gray-200 text-gray-500">Hidden</span>}
               </div>
-              <Button size="sm" variant="outline" onClick={() => toggleSectionVisible(s.key)}>
-                {s.visible ? "Hide" : "Show"}
-              </Button>
+              {!isHero && (
+                <Button size="sm" variant="outline" onClick={() => toggleSectionVisible(s.key)}>
+                  {s.visible ? "Hide" : "Show"}
+                </Button>
+              )}
             </div>
           );
         })}

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { getAuth } from "@clerk/express";
-import { db, ordersTable, productsTable, orderAttributionsTable } from "@workspace/db";
+import { db, ordersTable, productsTable, orderAttributionsTable, featureFlagsTable } from "@workspace/db";
 import {
   CreateOrderBody,
   CreateOrderResponse,
@@ -19,6 +19,15 @@ router.post("/orders", async (req, res): Promise<void> => {
   const parsed = CreateOrderBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const [flags] = await db
+    .select({ marketplaceEnabled: featureFlagsTable.marketplaceEnabled })
+    .from(featureFlagsTable)
+    .where(eq(featureFlagsTable.id, 1));
+  if (flags && !flags.marketplaceEnabled) {
+    res.status(403).json({ error: "The marketplace is temporarily unavailable. Please check back soon." });
     return;
   }
 
