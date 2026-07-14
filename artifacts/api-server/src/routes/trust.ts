@@ -18,7 +18,7 @@ import { eq, and, desc, asc, ne, sql, count, isNull, isNotNull, gte, inArray } f
 import { logger } from "../lib/logger";
 import sharp from "sharp";
 import { randomUUID } from "crypto";
-import { objectStorageClient } from "../lib/objectStorage";
+import { putPublicObject } from "../lib/storage";
 import { requireSuperAdmin } from "../lib/staffAuth";
 
 const router: IRouter = Router();
@@ -54,20 +54,6 @@ const requireAuth: RequestHandler = (req, res, next) => {
   next();
 };
 
-function firstPublicSearchPath(): string {
-  const pathsStr = process.env.PUBLIC_OBJECT_SEARCH_PATHS || "";
-  const first = pathsStr.split(",").map((p) => p.trim()).filter(Boolean)[0];
-  if (!first) throw new Error("PUBLIC_OBJECT_SEARCH_PATHS not set.");
-  return first;
-}
-
-function parseObjectPath(path: string): { bucketName: string; objectName: string } {
-  const normalized = path.startsWith("/") ? path : `/${path}`;
-  const parts = normalized.split("/");
-  if (parts.length < 3) throw new Error("Invalid object storage path.");
-  return { bucketName: parts[1], objectName: parts.slice(2).join("/") };
-}
-
 async function processAndStoreIcon(buffer: Buffer, mimetype: string, folder: string): Promise<string> {
   let processed = buffer;
   if (mimetype !== "image/svg+xml") {
@@ -78,15 +64,10 @@ async function processAndStoreIcon(buffer: Buffer, mimetype: string, folder: str
   }
   const ext = mimetype === "image/svg+xml" ? "svg" : "webp";
   const relativePath = `${folder}/icon-${randomUUID()}.${ext}`;
-  const fullPath = `${firstPublicSearchPath()}/${relativePath}`;
-  const { bucketName, objectName } = parseObjectPath(fullPath);
-  const bucket = objectStorageClient.bucket(bucketName);
-  const file = bucket.file(objectName);
-  await file.save(processed, {
+  return putPublicObject(relativePath, processed, {
     contentType: mimetype === "image/svg+xml" ? "image/svg+xml" : "image/webp",
-    metadata: { cacheControl: "public, max-age=86400" },
+    cacheControl: "public, max-age=86400",
   });
-  return `/api/storage/public-objects/${relativePath}`;
 }
 
 async function ensureSettings() {

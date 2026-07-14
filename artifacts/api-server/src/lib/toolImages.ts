@@ -1,32 +1,12 @@
 import sharp from "sharp";
 import { randomUUID } from "crypto";
-import { objectStorageClient } from "./objectStorage";
+import { putPublicObject } from "./storage";
 
 // Standard square dimensions all tool logos are normalized to for a consistent
 // storefront grid. Uploaded images are checked against these exact dimensions;
 // any mismatch (wrong size and/or aspect ratio) prompts the admin to confirm
 // an automatic resize rather than silently distorting or rejecting the upload.
 export const STANDARD_IMAGE_SIZE = 512;
-
-function firstPublicSearchPath(): string {
-  const pathsStr = process.env.PUBLIC_OBJECT_SEARCH_PATHS || "";
-  const first = pathsStr.split(",").map((p) => p.trim()).filter(Boolean)[0];
-  if (!first) {
-    throw new Error(
-      "PUBLIC_OBJECT_SEARCH_PATHS not set. Object storage must be provisioned before uploading tool images.",
-    );
-  }
-  return first;
-}
-
-function parseObjectPath(path: string): { bucketName: string; objectName: string } {
-  const normalized = path.startsWith("/") ? path : `/${path}`;
-  const parts = normalized.split("/");
-  if (parts.length < 3) {
-    throw new Error("Invalid object storage path: must contain at least a bucket name");
-  }
-  return { bucketName: parts[1], objectName: parts.slice(2).join("/") };
-}
 
 export interface ImageDimensions {
   width: number;
@@ -64,15 +44,9 @@ export async function processAndStoreToolImage(
     .toBuffer();
 
   const relativePath = `tool-images/${productId}-${randomUUID()}.webp`;
-  const fullPath = `${firstPublicSearchPath()}/${relativePath}`;
-  const { bucketName, objectName } = parseObjectPath(fullPath);
 
-  const bucket = objectStorageClient.bucket(bucketName);
-  const file = bucket.file(objectName);
-  await file.save(processed, {
+  return putPublicObject(relativePath, processed, {
     contentType: "image/webp",
-    metadata: { cacheControl: "public, max-age=31536000, immutable" },
+    cacheControl: "public, max-age=31536000, immutable",
   });
-
-  return `/api/storage/public-objects/${relativePath}`;
 }

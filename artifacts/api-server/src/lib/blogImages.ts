@@ -1,28 +1,8 @@
 import sharp from "sharp";
 import { randomUUID } from "crypto";
-import { objectStorageClient } from "./objectStorage";
+import { putPublicObject } from "./storage";
 import { cleanFilename } from "./slugify";
 import { db, blogSettingsTable } from "@workspace/db";
-
-function firstPublicSearchPath(): string {
-  const pathsStr = process.env.PUBLIC_OBJECT_SEARCH_PATHS || "";
-  const first = pathsStr.split(",").map((p) => p.trim()).filter(Boolean)[0];
-  if (!first) {
-    throw new Error(
-      "PUBLIC_OBJECT_SEARCH_PATHS not set. Object storage must be provisioned before uploading blog images.",
-    );
-  }
-  return first;
-}
-
-function parseObjectPath(path: string): { bucketName: string; objectName: string } {
-  const normalized = path.startsWith("/") ? path : `/${path}`;
-  const parts = normalized.split("/");
-  if (parts.length < 3) {
-    throw new Error("Invalid object storage path: must contain at least a bucket name");
-  }
-  return { bucketName: parts[1], objectName: parts.slice(2).join("/") };
-}
 
 export type BlogImageKind = "featured" | "content" | "thumbnail" | "avatar";
 
@@ -100,18 +80,14 @@ export async function processAndStoreBlogImage(
   const finalMeta = await sharp(processed).metadata();
   const cleanName = cleanFilename(originalFilename).replace(/\.[a-z0-9]+$/i, "");
   const relativePath = `blog-media/${kind}/${cleanName}-${randomUUID().slice(0, 8)}.${format}`;
-  const fullPath = `${firstPublicSearchPath()}/${relativePath}`;
-  const { bucketName, objectName } = parseObjectPath(fullPath);
 
-  const bucket = objectStorageClient.bucket(bucketName);
-  const file = bucket.file(objectName);
-  await file.save(processed, {
+  const url = await putPublicObject(relativePath, processed, {
     contentType: `image/${format}`,
-    metadata: { cacheControl: "public, max-age=31536000, immutable" },
+    cacheControl: "public, max-age=31536000, immutable",
   });
 
   return {
-    url: `/api/storage/public-objects/${relativePath}`,
+    url,
     width: finalMeta.width ?? targetWidth,
     height: finalMeta.height ?? 0,
     fileSizeBytes: processed.length,

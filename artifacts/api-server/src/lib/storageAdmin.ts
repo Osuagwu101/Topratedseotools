@@ -7,12 +7,12 @@ import {
   staffUsersTable,
   paymentMethodsTable,
 } from "@workspace/db";
-import { objectStorageClient, ObjectStorageService } from "./objectStorage";
+import { getStorageBackend, invalidateStorageBackendCache, publicObjectUrl } from "./storage";
+import type { StorageObjectMeta } from "./storage/types";
 import type { ServiceHealth } from "./systemHealth";
 
 export interface StorageObjectInfo {
-  bucket: string;
-  path: string;
+  key: string;
   sizeBytes: number;
   updatedAt: string | null;
   referenced: boolean;
@@ -20,11 +20,11 @@ export interface StorageObjectInfo {
 }
 
 export interface StorageSummary {
+  backend: string;
   totalBytes: number;
   totalFiles: number;
   unusedFiles: number;
   unusedBytes: number;
-  buckets: { bucket: string; label: string; fileCount: number; totalBytes: number }[];
   objects: StorageObjectInfo[];
   computedAt: string;
 }
@@ -35,43 +35,23 @@ export interface StorageSummary {
 // that's simply mid-flow must never be swept up as garbage.
 const UNREFERENCED_GRACE_MS = 24 * 60 * 60 * 1000;
 
-function collectSearchPaths(): { bucket: string; prefix: string; label: string }[] {
-  const service = new ObjectStorageService();
-  const paths: { bucket: string; prefix: string; label: string }[] = [];
-  try {
-    const privateDir = service.getPrivateObjectDir();
-    const parts = privateDir.replace(/^\//, "").split("/");
-    paths.push({ bucket: parts[0], prefix: parts.slice(1).join("/"), label: "Private uploads" });
-  } catch {
-    // Not configured — skip.
-  }
-  try {
-    for (const p of service.getPublicObjectSearchPaths()) {
-      const parts = p.replace(/^\//, "").split("/");
-      paths.push({ bucket: parts[0], prefix: parts.slice(1).join("/"), label: "Public assets" });
-    }
-  } catch {
-    // Not configured — skip.
-  }
-  return paths;
-}
-
 /**
  * Every URL/path column across the app that can point at an uploaded object.
  * Used to distinguish "in use" from "orphaned" storage objects. New upload
  * call sites should add their column here so Storage Manager doesn't flag
  * live assets as unused.
  */
-async function collectReferencedPaths(): Promise<Set<string>> {
-  const service = new ObjectStorageService();
+async function collectReferencedKeys(): Promise<Set<string>> {
   const refs = new Set<string>();
   const addRaw = (value: string | null | undefined) => {
     if (!value) return;
-    const normalized = service.normalizeObjectEntityPath(value);
-    // Keep both the raw and normalized forms — object names in storage
-    // don't carry the "/objects/" prefix, so match on the tail segment too.
+    // Stored URLs look like "/api/storage/public-objects/<key>" — reduce to
+    // the bare key so it matches what listObjects() reports. Also keep the
+    // raw value in case any legacy row still stores a bare key or full URL.
+    const marker = "/api/storage/public-objects/";
+    const idx = value.indexOf(marker);
+    if (idx >= 0) refs.add(value.slice(idx + marker.length));
     refs.add(value);
-    refs.add(normalized);
   };
 
   // NOTE: siteSettings is treated like every other table here — select all
@@ -108,23 +88,15 @@ async function collectReferencedPaths(): Promise<Set<string>> {
   return refs;
 }
 
-function isReferenced(fullObjectPath: string, refs: Set<string>): boolean {
-  if (refs.has(fullObjectPath)) return true;
-  if (refs.has(`/${fullObjectPath}`)) return true;
-  // Also match on just the trailing entity id, which is how
-  // normalizeObjectEntityPath()'s "/objects/<id>" form compares.
-  const tail = fullObjectPath.split("/").pop();
-  if (tail) {
-    for (const r of refs) {
-      if (r.endsWith(tail)) return true;
-    }
-  }
+function isReferenced(key: string, refs: Set<string>): boolean {
+  if (refs.has(key)) return true;
+  if (refs.has(publicObjectUrl(key))) return true;
   return false;
 }
 
-// Listing every object's metadata from GCS is not cheap, so cache the result
-// briefly. Every mutating action below (delete/optimize) invalidates it
-// immediately so the admin never sees stale counts after acting.
+// Listing every object's metadata can be non-trivial work for large buckets,
+// so cache the result briefly. Every mutating action below (delete/optimize)
+// invalidates it immediately so the admin never sees stale counts after acting.
 let cache: { value: StorageSummary; expiresAt: number } | null = null;
 const CACHE_TTL_MS = 60_000;
 
@@ -133,34 +105,18 @@ export function invalidateStorageCache(): void {
 }
 
 async function computeSummary(): Promise<StorageSummary> {
-  const searchPaths = collectSearchPaths();
-  const refs = await collectReferencedPaths();
-  const objects: StorageObjectInfo[] = [];
-  const bucketTotals = new Map<string, { label: string; fileCount: number; totalBytes: number }>();
-
-  for (const { bucket, prefix, label } of searchPaths) {
-    const bucketRef = objectStorageClient.bucket(bucket);
-    const [files] = await bucketRef.getFiles({ prefix: prefix ? `${prefix}/` : undefined });
-    const existing = bucketTotals.get(bucket) ?? { label, fileCount: 0, totalBytes: 0 };
-    for (const file of files) {
-      const [metadata] = await file.getMetadata();
-      const size = Number(metadata.size ?? 0);
-      const fullPath = `${bucket}/${file.name}`;
-      existing.fileCount += 1;
-      existing.totalBytes += size;
-      objects.push({
-        bucket,
-        path: fullPath,
-        sizeBytes: size,
-        updatedAt: (metadata.updated as string) ?? null,
-        referenced: isReferenced(fullPath, refs),
-        contentHash: (metadata.md5Hash as string) ?? null,
-      });
-    }
-    bucketTotals.set(bucket, existing);
-  }
+  const backend = await getStorageBackend();
+  const [refs, rawObjects] = await Promise.all([collectReferencedKeys(), backend.listObjects()]);
 
   const now = Date.now();
+  const objects: StorageObjectInfo[] = rawObjects.map((obj: StorageObjectMeta) => ({
+    key: obj.key,
+    sizeBytes: obj.sizeBytes,
+    updatedAt: obj.updatedAt,
+    referenced: isReferenced(obj.key, refs),
+    contentHash: obj.contentHash,
+  }));
+
   let unusedFiles = 0;
   let unusedBytes = 0;
   for (const obj of objects) {
@@ -172,11 +128,11 @@ async function computeSummary(): Promise<StorageSummary> {
   }
 
   return {
+    backend: backend.kind,
     totalBytes: objects.reduce((sum, o) => sum + o.sizeBytes, 0),
     totalFiles: objects.length,
     unusedFiles,
     unusedBytes,
-    buckets: Array.from(bucketTotals.entries()).map(([bucket, v]) => ({ bucket, ...v })),
     objects,
     computedAt: new Date().toISOString(),
   };
@@ -192,9 +148,10 @@ export async function getStorageSummary(forceRefresh = false): Promise<StorageSu
 
 export async function getStorageHealth(): Promise<ServiceHealth> {
   try {
-    const searchPaths = collectSearchPaths();
-    if (searchPaths.length === 0) {
-      return { key: "storage", label: "Storage", status: "error", summary: "No object storage bucket is configured." };
+    const backend = await getStorageBackend();
+    const health = await backend.checkHealth();
+    if (!health.ok) {
+      return { key: "storage", label: "Storage", status: "error", summary: health.message };
     }
     const summary = await getStorageSummary();
     const mb = (summary.totalBytes / (1024 * 1024)).toFixed(1);
@@ -202,7 +159,7 @@ export async function getStorageHealth(): Promise<ServiceHealth> {
       key: "storage",
       label: "Storage",
       status: "healthy",
-      summary: `${summary.totalFiles} files, ${mb}MB used${summary.unusedFiles ? `, ${summary.unusedFiles} unused` : ""}.`,
+      summary: `[${backend.kind}] ${summary.totalFiles} files, ${mb}MB used${summary.unusedFiles ? `, ${summary.unusedFiles} unused` : ""}.`,
     };
   } catch (err) {
     return {
@@ -221,6 +178,7 @@ export async function getStorageHealth(): Promise<ServiceHealth> {
  * underlying storage object.
  */
 export async function deleteUnusedFiles(): Promise<{ deleted: number; freedBytes: number; errors: string[] }> {
+  const backend = await getStorageBackend();
   const summary = await getStorageSummary(true);
   const now = Date.now();
   const errors: string[] = [];
@@ -237,15 +195,14 @@ export async function deleteUnusedFiles(): Promise<{ deleted: number; freedBytes
     // unreferenced to referenced between the scan above and this delete
     // (e.g. an admin picks it as a new hero image right after the scan). A
     // stale snapshot must never cause a live asset to be deleted.
-    const freshRefs = await collectReferencedPaths();
-    if (isReferenced(obj.path, freshRefs)) continue;
+    const freshRefs = await collectReferencedKeys();
+    if (isReferenced(obj.key, freshRefs)) continue;
     try {
-      const objectName = obj.path.slice(obj.bucket.length + 1);
-      await objectStorageClient.bucket(obj.bucket).file(objectName).delete();
+      await backend.deleteObject(obj.key);
       deleted += 1;
       freedBytes += obj.sizeBytes;
     } catch (err) {
-      errors.push(`${obj.path}: ${err instanceof Error ? err.message : String(err)}`);
+      errors.push(`${obj.key}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -261,6 +218,7 @@ export async function deleteUnusedFiles(): Promise<{ deleted: number; freedBytes
  * consumer expects.
  */
 export async function optimizeStorage(): Promise<{ deleted: number; freedBytes: number; errors: string[] }> {
+  const backend = await getStorageBackend();
   const summary = await getStorageSummary(true);
   const now = Date.now();
   const unusedByHash = new Map<string, StorageObjectInfo[]>();
@@ -283,15 +241,14 @@ export async function optimizeStorage(): Promise<{ deleted: number; freedBytes: 
       // Re-check references immediately before deleting — same TOCTOU
       // concern as deleteUnusedFiles(): the scan above can be stale by the
       // time we get to this specific duplicate.
-      const freshRefs = await collectReferencedPaths();
-      if (isReferenced(dup.path, freshRefs)) continue;
+      const freshRefs = await collectReferencedKeys();
+      if (isReferenced(dup.key, freshRefs)) continue;
       try {
-        const objectName = dup.path.slice(dup.bucket.length + 1);
-        await objectStorageClient.bucket(dup.bucket).file(objectName).delete();
+        await backend.deleteObject(dup.key);
         deleted += 1;
         freedBytes += dup.sizeBytes;
       } catch (err) {
-        errors.push(`${dup.path}: ${err instanceof Error ? err.message : String(err)}`);
+        errors.push(`${dup.key}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }
@@ -299,3 +256,5 @@ export async function optimizeStorage(): Promise<{ deleted: number; freedBytes: 
   invalidateStorageCache();
   return { deleted, freedBytes, errors };
 }
+
+export { invalidateStorageBackendCache };

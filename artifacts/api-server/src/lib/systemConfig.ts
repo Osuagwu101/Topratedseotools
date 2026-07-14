@@ -139,6 +139,20 @@ export const CONFIG_DEFINITIONS: ConfigDefinition[] = [
     testConnection: testResendConnection,
   },
   {
+    key: "STORAGE_S3_ACCESS_KEY_ID",
+    label: "S3 Storage Access Key ID",
+    category: "infrastructure",
+    description:
+      "Credential for the S3-compatible file storage backend (AWS S3, MinIO, Spaces, etc.), selected in the Storage Manager. Only used when that backend is active.",
+  },
+  {
+    key: "STORAGE_S3_SECRET_ACCESS_KEY",
+    label: "S3 Storage Secret Access Key",
+    category: "infrastructure",
+    description:
+      "Secret half of the S3-compatible storage credential pair. Only used when the S3 storage backend is active.",
+  },
+  {
     key: "SESSION_SECRET",
     label: "Session Secret",
     category: "infrastructure",
