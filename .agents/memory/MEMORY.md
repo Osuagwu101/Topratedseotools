@@ -3,3 +3,5 @@
 - [Coupon & referral system design](coupon-referral-system-design.md) — discount-before-tax, credit debited at order creation not payment, referral fraud checks, reward payout model.
 - [Storage backend portability](storage-backend-portability.md) — swappable replit/s3/local storage backends; single-active-backend, no auto-migration; multi-path search & secret-rotation cache gotchas.
 - [Encrypted credential columns](encrypted-credential-columns.md) — retrofit encryption onto plaintext text columns via labeled sub-keys + mask-and-skip-on-unchanged admin UI pattern.
+- [Restore Manager scope semantics](restore-manager-scope-semantics.md) — why partial/downloads/full restore scopes each use a different write strategy.
+- [DB Integrity Checker repair safety](db-integrity-checker-repair-safety.md) — the test for which findings get one-click auto-repair vs. stay report-only.
