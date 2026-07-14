@@ -2817,6 +2817,7 @@ export default function AdminPanel() {
     | "customer-recovery"
   >("auth-manager");
   const [environment, setEnvironment] = useState<"development" | "production" | null>(null);
+  const [databaseHost, setDatabaseHost] = useState<string | null>(null);
   const { toast } = useToast();
 
   const authenticated = !!token;
@@ -2852,8 +2853,9 @@ export default function AdminPanel() {
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     fetch(`${base}/api/admin/deployment-safety`, { headers: { Authorization: token } })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { environment?: "development" | "production" } | null) => {
+      .then((data: { environment?: "development" | "production"; environmentInfo?: { databaseHost?: string | null } } | null) => {
         if (data?.environment) setEnvironment(data.environment);
+        if (data?.environmentInfo?.databaseHost) setDatabaseHost(data.environmentInfo.databaseHost);
       })
       .catch(() => {});
   }, [token]);
@@ -3087,6 +3089,7 @@ export default function AdminPanel() {
         </div>
         {environment && (
           <div
+            title={databaseHost ? `Database host: ${databaseHost}` : undefined}
             className={`px-4 md:px-6 py-1.5 text-center text-xs font-bold uppercase tracking-widest ${
               environment === "production" ? "bg-red-600 text-white" : "bg-emerald-600 text-white"
             }`}

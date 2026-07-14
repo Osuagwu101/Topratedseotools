@@ -5,6 +5,7 @@ import { getAiHealth } from "./aiHealth";
 import { getEmailHealth } from "./emailHealth";
 import { getAuthHealth } from "./authHealth";
 import { getStorageHealth } from "./storageAdmin";
+import { getEnvironmentInfo, type EnvironmentInfo } from "./environment";
 
 export type ServiceStatus = "healthy" | "warning" | "error";
 
@@ -19,6 +20,7 @@ export interface SystemHealthReport {
   status: ServiceStatus;
   services: ServiceHealth[];
   checkedAt: string;
+  environment: EnvironmentInfo;
 }
 
 async function getDatabaseHealth(): Promise<ServiceHealth> {
@@ -108,5 +110,5 @@ export async function getSystemHealth(): Promise<SystemHealthReport> {
       ? "warning"
       : "healthy";
 
-  return { status, services, checkedAt: new Date().toISOString() };
+  return { status, services, checkedAt: new Date().toISOString(), environment: getEnvironmentInfo() };
 }

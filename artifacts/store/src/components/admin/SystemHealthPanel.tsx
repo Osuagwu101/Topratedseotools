@@ -15,10 +15,19 @@ interface ServiceHealth {
   summary: string;
 }
 
+interface EnvironmentInfo {
+  environment: "development" | "production";
+  nodeEnv: string;
+  databaseHost: string | null;
+  processId: number;
+  uptimeSeconds: number;
+}
+
 interface SystemHealthReport {
   status: ServiceStatus;
   services: ServiceHealth[];
   checkedAt: string;
+  environment: EnvironmentInfo;
 }
 
 function StatusIcon({ status }: { status: ServiceStatus }) {
@@ -81,6 +90,26 @@ export default function SystemHealthPanel({ token }: { token: string }) {
               <div className="text-xs text-muted-foreground">Checked {new Date(report.checkedAt).toLocaleString()}</div>
             </div>
           </div>
+
+          {report.environment && (
+            <div
+              className={`rounded-xl border p-4 text-sm ${
+                report.environment.environment === "production" ? "border-red-200 bg-red-50/60" : "border-emerald-200 bg-emerald-50/60"
+              }`}
+            >
+              <div className={`font-bold ${report.environment.environment === "production" ? "text-red-700" : "text-emerald-700"}`}>
+                Running in {report.environment.environment === "production" ? "Production" : "Development"}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                <div>Database host: {report.environment.databaseHost ?? "unknown"}</div>
+                <div>Process uptime: {Math.floor(report.environment.uptimeSeconds / 60)}m</div>
+                <div>
+                  Production schema/data changes are made through Replit's Publish flow, not from inside this admin panel — see the
+                  Deployment Safety page for details.
+                </div>
+              </div>
+            </div>
+          )}
           <div className="grid sm:grid-cols-2 gap-3">
             {report.services.map((s) => (
               <div key={s.key} className={`rounded-xl border p-4 ${statusBg(s.status)}`}>

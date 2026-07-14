@@ -9,7 +9,7 @@ import {
 } from "./protectedData";
 import { logger } from "./logger";
 import { createBackup, type BackupScope } from "./backupEngine";
-import { getEnvironment, type Environment } from "./environment";
+import { getEnvironment, getEnvironmentInfo, type Environment, type EnvironmentInfo } from "./environment";
 
 /**
  * Registry of risky/bulk/import-style admin operations. This app has no
@@ -229,6 +229,7 @@ export { getEnvironment } from "./environment";
 
 export interface DeploymentSafetySummary {
   environment: Environment;
+  environmentInfo: EnvironmentInfo;
   protectedDatasets: DatasetStatus[];
   riskyOperations: OperationRiskAssessment[];
   explanation: string;
@@ -245,6 +246,7 @@ export async function getDeploymentSafetySummary(): Promise<DeploymentSafetySumm
   const [protectedDatasets, riskyOperations] = await Promise.all([listDatasetStatuses(), listAllRiskAssessments()]);
   return {
     environment: getEnvironment(),
+    environmentInfo: getEnvironmentInfo(),
     protectedDatasets,
     riskyOperations,
     explanation: EXPLANATION,

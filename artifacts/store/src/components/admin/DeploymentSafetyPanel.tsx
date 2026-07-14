@@ -20,8 +20,17 @@ interface OperationRiskAssessment {
   allUnlocked: boolean;
 }
 
+interface EnvironmentInfo {
+  environment: "development" | "production";
+  nodeEnv: string;
+  databaseHost: string | null;
+  processId: number;
+  uptimeSeconds: number;
+}
+
 interface DeploymentSafetySummary {
   environment: "development" | "production";
+  environmentInfo: EnvironmentInfo;
   protectedDatasets: DatasetStatus[];
   riskyOperations: OperationRiskAssessment[];
   explanation: string;
@@ -100,6 +109,11 @@ export default function DeploymentSafetyPanel({ token }: { token: string }) {
               ? "This is the live, customer-facing environment. Risky actions here affect real customers and real data."
               : "This is the development workspace. Changes here do not affect the published app until it's published."}
           </p>
+          {summary.environmentInfo?.databaseHost && (
+            <p className="text-[11px] text-muted-foreground/80 mt-1 font-mono">
+              Connected database host: {summary.environmentInfo.databaseHost}
+            </p>
+          )}
         </div>
       </div>
 
