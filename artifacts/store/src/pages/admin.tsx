@@ -38,6 +38,7 @@ import CacheMaintenancePanel from "@/components/admin/CacheMaintenancePanel";
 import StorageManagerPanel from "@/components/admin/StorageManagerPanel";
 import ProtectedDataPanel from "@/components/admin/ProtectedDataPanel";
 import DeploymentSafetyPanel from "@/components/admin/DeploymentSafetyPanel";
+import BackupsPanel from "@/components/admin/BackupsPanel";
 import SystemHealthPanel from "@/components/admin/SystemHealthPanel";
 import EmergencyRecoveryPanel from "@/components/admin/EmergencyRecoveryPanel";
 import {
@@ -2803,6 +2804,7 @@ export default function AdminPanel() {
     | "emergency-recovery"
     | "protected-data"
     | "deployment-safety"
+    | "backups"
   >("auth-manager");
   const [environment, setEnvironment] = useState<"development" | "production" | null>(null);
   const { toast } = useToast();
@@ -3008,6 +3010,7 @@ export default function AdminPanel() {
         { key: "emergency-recovery", label: "Emergency Recovery" },
         { key: "protected-data", label: "Protected Data" },
         { key: "deployment-safety", label: "Deployment Safety" },
+        { key: "backups", label: "Backups" },
       ],
     },
   ];
@@ -3276,6 +3279,7 @@ export default function AdminPanel() {
             {opsSubTab === "emergency-recovery" && <EmergencyRecoveryPanel token={token} />}
             {opsSubTab === "protected-data" && <ProtectedDataPanel token={token} />}
             {opsSubTab === "deployment-safety" && <DeploymentSafetyPanel token={token} />}
+            {opsSubTab === "backups" && <BackupsPanel token={token} />}
           </>
         )}
       </main>

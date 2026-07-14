@@ -25,3 +25,4 @@ export * from "./coupons";
 export * from "./referrals";
 export * from "./storageSettings";
 export * from "./protectedData";
+export * from "./backups";

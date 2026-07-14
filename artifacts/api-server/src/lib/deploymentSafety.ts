@@ -8,6 +8,7 @@ import {
   type DatasetStatus,
 } from "./protectedData";
 import { logger } from "./logger";
+import { createBackup, type BackupScope } from "./backupEngine";
 
 /**
  * Registry of risky/bulk/import-style admin operations. This app has no
@@ -23,6 +24,8 @@ export interface RiskyOperationDefinition {
   label: string;
   description: string;
   datasetKeys: string[];
+  /** Backup scope (see backupEngine.ts) to auto-snapshot before this operation proceeds. */
+  backupScope: BackupScope;
 }
 
 export const RISKY_OPERATIONS: RiskyOperationDefinition[] = [
@@ -31,48 +34,56 @@ export const RISKY_OPERATIONS: RiskyOperationDefinition[] = [
     label: "Bulk update products",
     description: "Changing price, visibility, or other fields on many products at once.",
     datasetKeys: ["products"],
+    backupScope: "products",
   },
   {
     key: "import_products",
     label: "Import products",
     description: "Creating or overwriting product records from an external file/feed.",
     datasetKeys: ["products"],
+    backupScope: "products",
   },
   {
     key: "bulk_update_users",
     label: "Bulk update users",
     description: "Changing access, entitlements, or device sessions for many customers at once.",
     datasetKeys: ["users"],
+    backupScope: "users",
   },
   {
     key: "restore_products",
     label: "Restore products from backup",
     description: "Overwriting current product records with a prior backup snapshot.",
     datasetKeys: ["products"],
+    backupScope: "products",
   },
   {
     key: "restore_orders",
     label: "Restore orders from backup",
     description: "Overwriting current order/purchase records with a prior backup snapshot.",
     datasetKeys: ["orders_purchases", "payment_history"],
+    backupScope: "orders",
   },
   {
     key: "restore_users",
     label: "Restore users from backup",
     description: "Overwriting current customer accounts with a prior backup snapshot.",
     datasetKeys: ["users"],
+    backupScope: "users",
   },
   {
     key: "restore_subscriptions",
     label: "Restore subscriptions from backup",
     description: "Overwriting current subscription/entitlement records with a prior backup snapshot.",
     datasetKeys: ["subscriptions"],
+    backupScope: "purchases",
   },
   {
     key: "reset_website_settings",
     label: "Reset website settings",
     description: "Reverting homepage, feature-flag, or site-wide settings to defaults.",
     datasetKeys: ["website_settings"],
+    backupScope: "settings",
   },
 ];
 
@@ -151,6 +162,19 @@ export function requireOperationClearance(operationKey: string): RequestHandler 
       }
       for (const datasetKey of def.datasetKeys) {
         await recordDatasetEvent({ datasetKey, action: "allowed_attempt", actor: req.staffUser, ipAddress: req.ip, reason: `Allowed risky operation: ${def.label}` });
+      }
+      // Real backup — not a placeholder — snapshots the affected scope
+      // before the risky write proceeds, so it's always recoverable even
+      // if the operation itself is not yet resumable (Restore Manager,
+      // next task, consumes this backup history).
+      try {
+        await createBackup({ scope: def.backupScope, trigger: def.key, actor: req.staffUser });
+      } catch (backupErr) {
+        logger.error({ err: backupErr, operationKey }, "Pre-operation backup failed; blocking the risky operation");
+        res.status(500).json({
+          error: `Could not create a safety backup before "${def.label}". The operation was blocked so no unrecoverable change could happen.`,
+        });
+        return;
       }
       next();
     } catch (err) {
