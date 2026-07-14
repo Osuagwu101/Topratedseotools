@@ -1,0 +1,377 @@
+PHASE 3 – Business Data Protection, Disaster Recovery & Deployment Safety
+
+Use the current Phase 2 codebase as the foundation.
+
+Do not redesign the UI or remove any existing functionality.
+
+The objective of this phase is to make the application resilient against deployments, Git operations, migrations, backups, restores, hosting changes, and accidental administrator mistakes.
+
+This phase focuses entirely on protecting business-critical data.
+
+---
+
+PRIMARY REQUIREMENT
+
+Completely separate APPLICATION CODE from BUSINESS DATA.
+
+Application code should be deployable, replaceable, and upgradeable without affecting production data.
+
+No deployment, Git operation, migration, import, export, restore, or update should ever erase business data unless explicitly authorised by the Super Admin.
+
+---
+
+1. Protected Business Data Manager
+
+Create a new "Protected Data" section inside the Super Admin Dashboard.
+
+Allow the Super Admin to protect critical datasets.
+
+The following must be protected by default:
+
+- Users
+- User Profiles
+- Products
+- Product Categories
+- Orders
+- Purchases
+- Payment History
+- Transactions
+- Downloads
+- Download Entitlements
+- Subscription Records
+- Expiry Dates
+- Coupons
+- Referral Data
+- Website Settings
+- Payment Settings
+- Email Settings
+- AI Settings
+- Configuration
+- Analytics
+- Audit Logs
+- System Logs
+
+Protected datasets cannot be deleted, overwritten, or reset unless temporarily unlocked by the Super Admin.
+
+Require confirmation before unlocking protected data.
+
+Log every unlock event.
+
+---
+
+2. Deployment Safety Centre
+
+Before any deployment, migration, Git pull, Git merge, Git restore, import, export, database migration, or restore:
+
+Automatically:
+
+- detect affected database tables
+- detect protected datasets
+- analyse possible destructive changes
+- warn the administrator
+- create a full backup
+
+If protected data would be modified:
+
+Block the operation until explicit confirmation is given.
+
+Display exactly what will change.
+
+---
+
+3. Automatic Backup System
+
+Implement scheduled and manual backups.
+
+Automatically create backups before:
+
+- Git Pull
+- Git Merge
+- Git Restore
+- Deployment
+- Database Migration
+- System Update
+- Product Import
+- Bulk Product Update
+- Configuration Changes
+
+Allow manual backup of:
+
+- Entire System
+- Database Only
+- Products Only
+- Orders Only
+- Users Only
+- Purchases Only
+- Settings Only
+
+Display:
+
+- Backup size
+- Backup date
+- Backup type
+- Backup status
+
+Allow downloading backups.
+
+---
+
+4. Restore Manager
+
+Create a Restore Centre.
+
+Allow restoring:
+
+- Users
+- Products
+- Orders
+- Purchases
+- Payment History
+- Downloads
+- Subscriptions
+- Coupons
+- Referral Data
+- Settings
+- Entire Database
+
+Before restoring:
+
+Display a preview of what will change.
+
+Require confirmation.
+
+Create a fresh backup before every restore.
+
+---
+
+5. Database Integrity Checker
+
+Create an automated integrity scanner.
+
+Detect:
+
+- Missing users
+- Missing products
+- Missing purchases
+- Missing subscriptions
+- Missing downloads
+- Broken payment records
+- Broken referral records
+- Duplicate records
+- Orphaned records
+- Invalid foreign-key relationships
+
+Provide one-click repair where it is safe to do so.
+
+Produce an integrity report.
+
+---
+
+6. Product Recovery Centre
+
+Create recovery tools for products.
+
+One-click actions:
+
+- Reload Products
+- Restore Missing Products
+- Rebuild Product Index
+- Verify Product Database
+- Repair Product Relationships
+- Refresh Product Cache
+
+The system should recover missing products without affecting customer purchases.
+
+---
+
+7. Payment Recovery Centre
+
+Create recovery tools.
+
+Include:
+
+- Verify Gateway
+- Repair Payment Configuration
+- Verify Webhooks
+- Verify Transaction Records
+- Reload Payment Services
+- Reconnect Payment Gateway
+
+Payment history must never be deleted.
+
+---
+
+8. Customer Recovery Centre
+
+Create tools for:
+
+- Verify Users
+- Verify Purchases
+- Verify Subscriptions
+- Verify Downloads
+- Verify Entitlements
+
+Repair missing links where possible.
+
+Never delete customer records during repairs.
+
+---
+
+9. Environment Management
+
+Automatically detect:
+
+- Development
+- Staging
+- Production
+
+Production data must never be overwritten by Development or Staging.
+
+Display the active environment clearly in the Admin Dashboard.
+
+---
+
+10. GitHub-Safe Synchronisation
+
+Refactor Git workflows so that Git operations update application code only.
+
+Git operations must never overwrite:
+
+- Users
+- Products
+- Purchases
+- Orders
+- Payment History
+- Subscription Records
+- Downloads
+- Coupons
+- Referral Data
+- Settings
+- Analytics
+
+If database migrations are required:
+
+Execute only versioned migrations.
+
+Never rebuild production tables.
+
+---
+
+11. Migration Safety
+
+Prepare the project for migration from Replit to Hostinger.
+
+The migration process must preserve:
+
+- Products
+- Images
+- Uploads
+- Downloads
+- Users
+- Purchases
+- Orders
+- Payment History
+- AI Configuration
+- Email Configuration
+- Coupons
+- Referral Data
+- Analytics
+
+Implement migration validation to verify that nothing is missing after migration.
+
+---
+
+12. Business Continuity Tools
+
+Create a Business Recovery Centre.
+
+Provide one-click actions:
+
+- Verify Entire System
+- Verify Database
+- Verify Products
+- Verify Customers
+- Verify Purchases
+- Verify Payments
+- Verify Downloads
+- Verify Referrals
+- Verify Coupons
+- Verify AI
+- Verify Email
+- Verify Authentication
+
+Generate a business health report.
+
+---
+
+13. Disaster Recovery Mode
+
+Create an Emergency Recovery Wizard.
+
+Allow the Super Admin to:
+
+- Restore from Backup
+- Repair Database
+- Recover Products
+- Recover Users
+- Recover Purchases
+- Recover Payment Records
+- Recover Downloads
+- Recover Configuration
+
+Guide the administrator step-by-step.
+
+---
+
+14. Audit Trail
+
+Every critical action must be recorded.
+
+Log:
+
+- Configuration Changes
+- Backup Creation
+- Backup Restore
+- Unlock Protected Data
+- Product Recovery
+- Payment Recovery
+- Administrator Actions
+- Failed Login Attempts
+- Security Events
+
+Allow searching and filtering.
+
+---
+
+15. Final Validation
+
+After implementation:
+
+- Test every existing feature.
+- Test products.
+- Test purchases.
+- Test payment flow.
+- Test subscriptions.
+- Test downloads.
+- Test coupons.
+- Test referrals.
+- Test authentication.
+- Test AI integrations.
+- Test backup creation.
+- Test restore procedures.
+- Test migration safety.
+- Test deployment safety.
+- Test GitHub synchronisation.
+- Confirm no existing functionality has been broken.
+
+Generate a comprehensive implementation report that includes:
+
+- Files created
+- Files modified
+- Database changes
+- Recovery features added
+- Backup features added
+- Deployment protection features
+- Remaining recommendations before production deployment
+
+This implementation must result in a production-grade SaaS platform where business data is resilient, recoverable, protected from accidental loss, and capable of surviving future deployments, GitHub synchronisations, host migrations, and software upgrades without compromising customer records or operational history.
