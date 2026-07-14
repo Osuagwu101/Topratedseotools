@@ -34,10 +34,18 @@ export const siteSettingsTable = pgTable("site_settings", {
   heroPrimaryButtonText: text("hero_primary_button_text").notNull().default("Browse Tools"),
   heroSecondaryButtonText: text("hero_secondary_button_text"),
   heroTrustLine: text("hero_trust_line").default("Trusted by professionals across Africa for affordable, verified tool access."),
+  // Optional custom link targets for the hero buttons. Null means "use the
+  // built-in default" (/catalog for primary, #popular-tools for secondary) so
+  // existing installs keep their current behavior unchanged.
+  heroPrimaryButtonLink: text("hero_primary_button_link"),
+  heroSecondaryButtonLink: text("hero_secondary_button_link"),
   // Final call-to-action section
   finalCtaHeadline: text("final_cta_headline").default("Ready to get started?"),
   finalCtaSubtext: text("final_cta_subtext").default("Join hundreds of professionals who already saved on their favorite tools."),
   finalCtaButtonText: text("final_cta_button_text").notNull().default("Browse Tools"),
+  // Optional custom link target for the final CTA button. Null means "use
+  // the built-in default" (/catalog).
+  finalCtaButtonLink: text("final_cta_button_link"),
   // Homepage SEO metadata
   seoTitle: text("seo_title"),
   seoDescription: text("seo_description"),

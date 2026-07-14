@@ -20,3 +20,4 @@ export * from "./seoGenerator";
 export * from "./systemConfig";
 export * from "./paymentSettings";
 export * from "./emailSettings";
+export * from "./featureFlags";
