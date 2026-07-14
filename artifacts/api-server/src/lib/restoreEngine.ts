@@ -82,7 +82,7 @@ async function getBackupOrThrow(backupId: number) {
   return backup;
 }
 
-async function loadEnvelope(storagePath: string): Promise<Record<string, unknown>> {
+export async function loadEnvelope(storagePath: string): Promise<Record<string, unknown>> {
   const backend = await getStorageBackend();
   const result = await backend.getObjectStream(storagePath);
   if (!result) throw new Error("Backup artifact is missing from storage.");

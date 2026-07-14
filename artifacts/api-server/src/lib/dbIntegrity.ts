@@ -531,9 +531,14 @@ export interface IntegrityReport {
   findings: IntegrityFinding[];
 }
 
-export async function runScan(actor: StaffUser | undefined, ipAddress?: string | null): Promise<IntegrityReport> {
+export async function runScan(
+  actor: StaffUser | undefined,
+  ipAddress?: string | null,
+  options?: { checkKeys?: string[] },
+): Promise<IntegrityReport> {
   const findings: IntegrityFinding[] = [];
-  for (const check of CHECKS) {
+  const checksToRun = options?.checkKeys ? CHECKS.filter((c) => options.checkKeys!.includes(c.key)) : CHECKS;
+  for (const check of checksToRun) {
     try {
       const result = await check.scan();
       if (result.count > 0) {
@@ -556,7 +561,11 @@ export async function runScan(actor: StaffUser | undefined, ipAddress?: string |
   const totalFindings = findings.reduce((sum, f) => sum + f.count, 0);
   await db.insert(integrityAuditLogTable).values({
     action: "scan_run",
-    summary: { totalFindings, findingCounts: Object.fromEntries(findings.map((f) => [f.key, f.count])) },
+    summary: {
+      totalFindings,
+      findingCounts: Object.fromEntries(findings.map((f) => [f.key, f.count])),
+      scoped: options?.checkKeys ? options.checkKeys : undefined,
+    },
     staffUserId: actor?.id ?? null,
     staffEmail: actor?.email ?? null,
     staffName: actor?.name ?? null,

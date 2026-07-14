@@ -28,3 +28,4 @@ export * from "./protectedData";
 export * from "./backups";
 export * from "./restores";
 export * from "./dbIntegrity";
+export * from "./productRecovery";

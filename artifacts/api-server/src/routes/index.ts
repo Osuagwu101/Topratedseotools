@@ -40,6 +40,7 @@ import deploymentSafetyRouter from "./deploymentSafety";
 import backupsRouter from "./backups";
 import restoresRouter from "./restores";
 import dbIntegrityRouter from "./dbIntegrity";
+import productRecoveryRouter from "./productRecovery";
 import { deviceTrackingMiddleware } from "../middlewares/deviceTracking";
 
 const router: IRouter = Router();
@@ -84,6 +85,7 @@ router.use(deploymentSafetyRouter);
 router.use(backupsRouter);
 router.use(restoresRouter);
 router.use(dbIntegrityRouter);
+router.use(productRecoveryRouter);
 router.use(autologinRouter);
 router.use(proxyRouter);
 
