@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToolCard } from "@/components/tool-card";
 import { CustomerCounter } from "@/components/CustomerCounter";
+import { useFeatureFlags } from "@/context/featureFlags";
 
 export default function Catalog() {
   const { data: products, isLoading } = useListProducts();
@@ -14,6 +15,22 @@ export default function Catalog() {
   const [, setLocation] = useLocation();
   const search = useSearch();
   const query = new URLSearchParams(search).get("q")?.trim() ?? "";
+  const { flags, loaded } = useFeatureFlags();
+
+  if (loaded && !flags.marketplaceEnabled) {
+    return (
+      <Layout>
+        <section className="container mx-auto px-4 md:px-6 py-24 text-center">
+          <h1 className="text-2xl md:text-3xl font-heading tracking-tight mb-4 uppercase text-foreground">
+            Marketplace <span className="text-primary">Temporarily Unavailable</span>
+          </h1>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Browsing and purchasing tools is temporarily disabled. Please check back soon.
+          </p>
+        </section>
+      </Layout>
+    );
+  }
 
   const filteredProducts = useMemo(() => {
     if (!products || !query) return products;

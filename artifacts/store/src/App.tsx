@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CurrencyProvider } from "@/context/currency";
 import { SiteSettingsProvider } from "@/context/siteSettings";
+import { FeatureFlagsProvider, useFeatureFlags } from "@/context/featureFlags";
 import Home from "@/pages/home";
 import Catalog from "@/pages/catalog";
 import ProductDetail from "@/pages/product";
@@ -216,7 +217,22 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+function FeatureDisabledNotice({ message }: { message: string }) {
+  return (
+    <div className="flex min-h-[100dvh] items-center justify-center bg-[#F7F8F9] px-4">
+      <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-10 max-w-md w-full text-center">
+        <h1 className="text-xl font-bold text-foreground mb-3">Temporarily Unavailable</h1>
+        <p className="text-muted-foreground text-sm leading-relaxed">{message}</p>
+      </div>
+    </div>
+  );
+}
+
 function SignInPage() {
+  const { flags, loaded } = useFeatureFlags();
+  if (loaded && !flags.loginEnabled) {
+    return <FeatureDisabledNotice message="Sign in is temporarily disabled. Please check back soon." />;
+  }
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-[#F7F8F9] px-4">
       <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
@@ -225,6 +241,10 @@ function SignInPage() {
 }
 
 function SignUpPage() {
+  const { flags, loaded } = useFeatureFlags();
+  if (loaded && !flags.registrationEnabled) {
+    return <FeatureDisabledNotice message="New sign-ups are temporarily disabled. Please check back soon." />;
+  }
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-[#F7F8F9] px-4">
       <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
@@ -293,6 +313,7 @@ function ClerkProviderWithRoutes() {
 
   return (
     <SiteSettingsProvider>
+    <FeatureFlagsProvider>
     <CurrencyProvider>
     <ClerkProvider
       publishableKey={clerkPubKey}
@@ -330,6 +351,7 @@ function ClerkProviderWithRoutes() {
       </QueryClientProvider>
     </ClerkProvider>
     </CurrencyProvider>
+    </FeatureFlagsProvider>
     </SiteSettingsProvider>
   );
 }

@@ -27,6 +27,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { ToolCard, LOGOS, BG_COLORS, getLogoKey } from "@/components/tool-card";
 import { ReviewPrompt } from "@/components/ReviewPrompt";
+import { useFeatureFlags } from "@/context/featureFlags";
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "success") {
@@ -189,6 +190,7 @@ export default function Dashboard() {
   const basePath = BASE_PATH;
 
   const { data: orders, isLoading } = useGetMyOrders();
+  const { flags: featureFlags } = useFeatureFlags();
 
   // Successful = verified by Paystack and tool granted (still within its access window).
   // Pending = initiated but not yet confirmed either way.
@@ -311,14 +313,14 @@ export default function Dashboard() {
                                   <div>
                                     <button
                                       type="button"
-                                      disabled={limitReached}
+                                      disabled={limitReached || !featureFlags.aiToolsEnabled}
                                       className={`flex items-center justify-center gap-2 w-full h-11 text-sm font-bold rounded-lg transition-colors ${
-                                        limitReached
+                                        limitReached || !featureFlags.aiToolsEnabled
                                           ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                                           : "bg-primary hover:bg-primary/90 text-white cursor-pointer"
                                       }`}
                                       onClick={() => {
-                                        if (limitReached) return;
+                                        if (limitReached || !featureFlags.aiToolsEnabled) return;
                                         const url = `${BASE_PATH}/api/proxy/${order.productId}/`;
                                         toast({
                                           title: `Opening ${order.productName}…`,
@@ -333,7 +335,11 @@ export default function Dashboard() {
                                       <ExternalLink className="w-4 h-4" />
                                       Launch
                                     </button>
-                                    {limitReached ? (
+                                    {!featureFlags.aiToolsEnabled ? (
+                                      <p className="text-center text-xs text-red-500 mt-2 font-semibold">
+                                        Tool launching is temporarily disabled.
+                                      </p>
+                                    ) : limitReached ? (
                                       <p className="text-center text-xs text-red-500 mt-2 font-semibold">
                                         Daily limit reached. Resets at midnight WAT.
                                       </p>

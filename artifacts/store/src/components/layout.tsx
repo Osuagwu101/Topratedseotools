@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { User, LogOut, LayoutDashboard, ChevronDown, Search, X, Menu } from "lucide-react";
 import { useCurrency, CURRENCIES } from "@/context/currency";
 import { useSiteSettings } from "@/context/siteSettings";
+import { useFeatureFlags } from "@/context/featureFlags";
 import { PaymentIcons } from "./PaymentIcons";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -114,6 +115,7 @@ function CurrencySwitcher() {
 function NavAuth() {
   const { user } = useUser();
   const { signOut } = useClerk();
+  const { flags } = useFeatureFlags();
 
   return (
     <>
@@ -145,16 +147,20 @@ function NavAuth() {
       </Show>
       <Show when="signed-out">
         <div className="flex items-center gap-2">
-          <Link href="/sign-in">
-            <Button variant="ghost" size="sm" className="font-bold uppercase tracking-wider text-foreground hover:text-primary text-xs h-9 px-4">
-              Login
-            </Button>
-          </Link>
-          <Link href="/sign-up">
-            <Button size="sm" className="bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-wider text-xs h-9 px-4 rounded-lg shadow-sm">
-              Sign Up
-            </Button>
-          </Link>
+          {flags.loginEnabled && (
+            <Link href="/sign-in">
+              <Button variant="ghost" size="sm" className="font-bold uppercase tracking-wider text-foreground hover:text-primary text-xs h-9 px-4">
+                Login
+              </Button>
+            </Link>
+          )}
+          {flags.registrationEnabled && (
+            <Link href="/sign-up">
+              <Button size="sm" className="bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-wider text-xs h-9 px-4 rounded-lg shadow-sm">
+                Sign Up
+              </Button>
+            </Link>
+          )}
         </div>
       </Show>
     </>

@@ -17,7 +17,7 @@
 
 import { Router, type RequestHandler } from "express";
 import { getAuth } from "@clerk/express";
-import { db, productsTable } from "@workspace/db";
+import { db, productsTable, featureFlagsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { resolveServerForUser } from "../lib/toolAccess";
 import { DEVICE_UA, getSession, invalidateSession } from "../lib/toolSession";
@@ -66,6 +66,17 @@ const proxyHandler: RequestHandler = async (req, res): Promise<void> => {
   const productId = parseInt((req.params as any).productId, 10);
   if (isNaN(productId)) {
     res.status(400).send("Invalid product ID");
+    return;
+  }
+
+  // Global kill-switch: when off, this overrides every individual tool's
+  // One-Click Auth setting below.
+  const [globalFlags] = await db
+    .select({ oneClickAuthEnabled: featureFlagsTable.oneClickAuthEnabled })
+    .from(featureFlagsTable)
+    .where(eq(featureFlagsTable.id, 1));
+  if (globalFlags && !globalFlags.oneClickAuthEnabled) {
+    res.status(403).send("One-Click Auth is temporarily disabled.");
     return;
   }
 

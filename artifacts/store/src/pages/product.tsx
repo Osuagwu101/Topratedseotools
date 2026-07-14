@@ -11,6 +11,7 @@ import { Check, Video, Bot, Shield, Pencil } from "lucide-react";
 import { ToolCard } from "@/components/tool-card";
 import { ReviewsSection } from "@/components/ReviewsSection";
 import { trackViewContent } from "@/lib/analytics";
+import { useFeatureFlags } from "@/context/featureFlags";
 
 function RecommendationRow({
   title,
@@ -94,6 +95,7 @@ export default function ProductDetail() {
   });
   const { data: allProducts } = useListProducts();
   const { formatPrice, currency, ratesReady } = useCurrency();
+  const { flags, loaded: flagsLoaded } = useFeatureFlags();
 
   // Fire ViewContent when product data is available.
   // Always report in NGN (the transaction currency) regardless of display currency.
@@ -124,6 +126,24 @@ export default function ProductDetail() {
           <h1 className="text-3xl font-heading mb-6 text-foreground uppercase">Product not found</h1>
           <Link href="/">
             <Button variant="outline" className="font-bold border-2 rounded-xl h-12 px-8 uppercase tracking-wider">Back to Catalog</Button>
+          </Link>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (flagsLoaded && !flags.marketplaceEnabled) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-24 text-center">
+          <h1 className="text-2xl md:text-3xl font-heading tracking-tight mb-4 uppercase text-foreground">
+            Marketplace <span className="text-primary">Temporarily Unavailable</span>
+          </h1>
+          <p className="text-muted-foreground max-w-md mx-auto mb-8">
+            Browsing and purchasing tools is temporarily disabled. Please check back soon.
+          </p>
+          <Link href="/">
+            <Button variant="outline" className="font-bold border-2 rounded-xl h-12 px-8 uppercase tracking-wider">Back to Home</Button>
           </Link>
         </div>
       </Layout>

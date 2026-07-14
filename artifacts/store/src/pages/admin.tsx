@@ -58,6 +58,7 @@ import {
   Menu,
   LayoutDashboard,
   Wrench,
+  Sliders,
   Users,
   FileText,
   LogOut,
@@ -2915,6 +2916,7 @@ export default function AdminPanel() {
         { key: "benefits", label: "Benefits" },
         { key: "steps", label: "How It Works" },
         { key: "faq", label: "FAQ" },
+        { key: "sections", label: "Section Order" },
       ],
     },
     {
@@ -2958,6 +2960,7 @@ export default function AdminPanel() {
     },
     { key: "payments-admin", label: "Payment Management", icon: CreditCard },
     { key: "ai-config", label: "AI Configuration", icon: Sparkles },
+    { key: "feature-management", label: "Feature Management", icon: Sliders },
     { key: "email-config", label: "Email Configuration", icon: Mail },
     { key: "system-config", label: "System Config", icon: KeyRound },
   ];
@@ -3198,6 +3201,8 @@ export default function AdminPanel() {
         {tab === "payments-admin" && <PaymentAdminPanel token={token} />}
 
         {tab === "ai-config" && <AiConfigPanel token={token} />}
+
+        {tab === "feature-management" && <FeatureManagementPanel token={token} />}
 
         {tab === "email-config" && <EmailConfigPanel token={token} />}
 
