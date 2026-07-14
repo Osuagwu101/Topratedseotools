@@ -40,6 +40,7 @@ import ProtectedDataPanel from "@/components/admin/ProtectedDataPanel";
 import DeploymentSafetyPanel from "@/components/admin/DeploymentSafetyPanel";
 import BackupsPanel from "@/components/admin/BackupsPanel";
 import RestoreCentrePanel from "@/components/admin/RestoreCentrePanel";
+import DbIntegrityPanel from "@/components/admin/DbIntegrityPanel";
 import SystemHealthPanel from "@/components/admin/SystemHealthPanel";
 import EmergencyRecoveryPanel from "@/components/admin/EmergencyRecoveryPanel";
 import {
@@ -2807,6 +2808,7 @@ export default function AdminPanel() {
     | "deployment-safety"
     | "backups"
     | "restore-centre"
+    | "db-integrity"
   >("auth-manager");
   const [environment, setEnvironment] = useState<"development" | "production" | null>(null);
   const { toast } = useToast();
@@ -3014,6 +3016,7 @@ export default function AdminPanel() {
         { key: "deployment-safety", label: "Deployment Safety" },
         { key: "backups", label: "Backups" },
         { key: "restore-centre", label: "Restore Centre" },
+        { key: "db-integrity", label: "Database Integrity" },
       ],
     },
   ];
@@ -3284,6 +3287,7 @@ export default function AdminPanel() {
             {opsSubTab === "deployment-safety" && <DeploymentSafetyPanel token={token} />}
             {opsSubTab === "backups" && <BackupsPanel token={token} />}
             {opsSubTab === "restore-centre" && <RestoreCentrePanel token={token} />}
+            {opsSubTab === "db-integrity" && <DbIntegrityPanel token={token} />}
           </>
         )}
       </main>

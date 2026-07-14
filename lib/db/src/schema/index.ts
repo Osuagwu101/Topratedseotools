@@ -27,3 +27,4 @@ export * from "./storageSettings";
 export * from "./protectedData";
 export * from "./backups";
 export * from "./restores";
+export * from "./dbIntegrity";
