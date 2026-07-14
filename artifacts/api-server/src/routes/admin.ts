@@ -25,6 +25,7 @@ import { analyzeImage, processAndStoreToolImage, STANDARD_IMAGE_SIZE } from "../
 import { loginToTool, setSession, invalidateSessionsForProduct } from "../lib/toolSession";
 import { getDisplayedCustomersServed } from "./trust";
 import { requireSuperAdmin } from "../lib/staffAuth";
+import { requireDatasetUnlocked } from "../lib/protectedData";
 import {
   encryptToolField,
   maskServerCredentials,
@@ -672,7 +673,10 @@ router.put("/admin/servers/:id", requireAdmin, async (req, res): Promise<void> =
   res.json(maskServerCredentials(updated));
 });
 
-router.delete("/admin/servers/:id", requireAdmin, async (req, res): Promise<void> => {
+// Permanently removes a tool server row — gated behind the "products"
+// protected dataset (Protected Data centre) since tool servers back live
+// product listings.
+router.delete("/admin/servers/:id", requireAdmin, requireDatasetUnlocked("products"), async (req, res): Promise<void> => {
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid server id" });
@@ -758,7 +762,9 @@ router.get("/admin/device-sessions", requireAdmin, async (_req, res): Promise<vo
   );
 });
 
-router.delete("/admin/device-sessions/:userId", requireAdmin, async (req, res): Promise<void> => {
+// Deletes a customer's device session rows — gated behind the "users"
+// protected dataset.
+router.delete("/admin/device-sessions/:userId", requireAdmin, requireDatasetUnlocked("users"), async (req, res): Promise<void> => {
   const userId = String(req.params.userId ?? "").trim();
   if (!userId) {
     res.status(400).json({ error: "userId is required" });

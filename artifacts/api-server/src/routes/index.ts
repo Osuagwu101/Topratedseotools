@@ -35,6 +35,7 @@ import systemHealthRouter from "./systemHealth";
 import storageAdminRouter from "./storageAdmin";
 import cacheMaintenanceRouter from "./cacheMaintenance";
 import emergencyRecoveryRouter from "./emergencyRecovery";
+import protectedDataRouter from "./protectedData";
 import { deviceTrackingMiddleware } from "../middlewares/deviceTracking";
 
 const router: IRouter = Router();
@@ -74,6 +75,7 @@ router.use(systemHealthRouter);
 router.use(storageAdminRouter);
 router.use(cacheMaintenanceRouter);
 router.use(emergencyRecoveryRouter);
+router.use(protectedDataRouter);
 router.use(autologinRouter);
 router.use(proxyRouter);
 

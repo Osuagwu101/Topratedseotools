@@ -36,6 +36,7 @@ import ReferralsAdminPanel from "@/components/admin/ReferralsAdminPanel";
 import AuthenticationManagerPanel from "@/components/admin/AuthenticationManagerPanel";
 import CacheMaintenancePanel from "@/components/admin/CacheMaintenancePanel";
 import StorageManagerPanel from "@/components/admin/StorageManagerPanel";
+import ProtectedDataPanel from "@/components/admin/ProtectedDataPanel";
 import SystemHealthPanel from "@/components/admin/SystemHealthPanel";
 import EmergencyRecoveryPanel from "@/components/admin/EmergencyRecoveryPanel";
 import {
@@ -2794,7 +2795,7 @@ export default function AdminPanel() {
   const [homeSubTab, setHomeSubTab] = useState<HomeTab>("hero");
   const [trustSubTab, setTrustSubTab] = useState<TrustAdminTab>("contact");
   const [opsSubTab, setOpsSubTab] = useState<
-    "auth-manager" | "cache-maintenance" | "storage-manager" | "system-health" | "emergency-recovery"
+    "auth-manager" | "cache-maintenance" | "storage-manager" | "system-health" | "emergency-recovery" | "protected-data"
   >("auth-manager");
   const { toast } = useToast();
 
@@ -2986,6 +2987,7 @@ export default function AdminPanel() {
         { key: "storage-manager", label: "Storage Manager" },
         { key: "system-health", label: "System Health" },
         { key: "emergency-recovery", label: "Emergency Recovery" },
+        { key: "protected-data", label: "Protected Data" },
       ],
     },
   ];
@@ -3243,6 +3245,7 @@ export default function AdminPanel() {
             {opsSubTab === "storage-manager" && <StorageManagerPanel token={token} />}
             {opsSubTab === "system-health" && <SystemHealthPanel token={token} />}
             {opsSubTab === "emergency-recovery" && <EmergencyRecoveryPanel token={token} />}
+            {opsSubTab === "protected-data" && <ProtectedDataPanel token={token} />}
           </>
         )}
       </main>

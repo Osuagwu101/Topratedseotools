@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { requireSuperAdmin } from "../lib/staffAuth";
+import { requireDatasetUnlocked } from "../lib/protectedData";
 import {
   getStorageSummary,
   deleteUnusedFiles,
@@ -115,7 +116,10 @@ router.post("/admin/storage/clear-cache", requireSuperAdmin, async (_req, res): 
   res.json({ ok: true, detail: "Cleared the cached storage listing. The next load will re-scan the bucket." });
 });
 
-router.post("/admin/storage/delete-unused", requireSuperAdmin, async (req, res): Promise<void> => {
+// Deletes files from the storage backend — gated behind the "downloads"
+// protected dataset (Protected Data centre) since it removes objects that
+// may back customer downloads.
+router.post("/admin/storage/delete-unused", requireSuperAdmin, requireDatasetUnlocked("downloads"), async (req, res): Promise<void> => {
   try {
     const result = await deleteUnusedFiles();
     logger.info({ staffId: req.staffUser?.id, result }, "Deleted unused storage files");
@@ -126,7 +130,7 @@ router.post("/admin/storage/delete-unused", requireSuperAdmin, async (req, res):
   }
 });
 
-router.post("/admin/storage/optimize", requireSuperAdmin, async (req, res): Promise<void> => {
+router.post("/admin/storage/optimize", requireSuperAdmin, requireDatasetUnlocked("downloads"), async (req, res): Promise<void> => {
   try {
     const result = await optimizeStorage();
     logger.info({ staffId: req.staffUser?.id, result }, "Optimized storage (removed duplicate unused files)");
