@@ -53,9 +53,11 @@ async function ensureSeeded(): Promise<void> {
     .onConflictDoNothing();
 }
 
+export type DatasetLogAction = "unlocked" | "relocked" | "auto_relocked" | "blocked_attempt" | "allowed_attempt";
+
 async function writeLog(entry: {
   datasetKey: string;
-  action: "unlocked" | "relocked" | "auto_relocked" | "blocked_attempt";
+  action: DatasetLogAction;
   actor?: StaffUser | undefined;
   reason?: string | null;
   ipAddress?: string | null;
@@ -69,6 +71,22 @@ async function writeLog(entry: {
     reason: entry.reason ?? null,
     ipAddress: entry.ipAddress ?? null,
   });
+}
+
+/**
+ * Shared audit-log writer, exported for other centres (e.g. Deployment
+ * Safety) that need to record events against this same append-only log —
+ * keeps every protected-dataset event (unlock/relock/blocked/allowed risky
+ * operation) in one searchable place instead of fragmenting the audit trail.
+ */
+export async function recordDatasetEvent(entry: {
+  datasetKey: string;
+  action: DatasetLogAction;
+  actor?: StaffUser | undefined;
+  reason?: string | null;
+  ipAddress?: string | null;
+}): Promise<void> {
+  await writeLog(entry);
 }
 
 /** Relocks a row in-place if its unlock window has expired. Returns the (possibly updated) row. */

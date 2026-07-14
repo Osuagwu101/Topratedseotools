@@ -37,6 +37,7 @@ import AuthenticationManagerPanel from "@/components/admin/AuthenticationManager
 import CacheMaintenancePanel from "@/components/admin/CacheMaintenancePanel";
 import StorageManagerPanel from "@/components/admin/StorageManagerPanel";
 import ProtectedDataPanel from "@/components/admin/ProtectedDataPanel";
+import DeploymentSafetyPanel from "@/components/admin/DeploymentSafetyPanel";
 import SystemHealthPanel from "@/components/admin/SystemHealthPanel";
 import EmergencyRecoveryPanel from "@/components/admin/EmergencyRecoveryPanel";
 import {
@@ -2795,8 +2796,15 @@ export default function AdminPanel() {
   const [homeSubTab, setHomeSubTab] = useState<HomeTab>("hero");
   const [trustSubTab, setTrustSubTab] = useState<TrustAdminTab>("contact");
   const [opsSubTab, setOpsSubTab] = useState<
-    "auth-manager" | "cache-maintenance" | "storage-manager" | "system-health" | "emergency-recovery" | "protected-data"
+    | "auth-manager"
+    | "cache-maintenance"
+    | "storage-manager"
+    | "system-health"
+    | "emergency-recovery"
+    | "protected-data"
+    | "deployment-safety"
   >("auth-manager");
+  const [environment, setEnvironment] = useState<"development" | "production" | null>(null);
   const { toast } = useToast();
 
   const authenticated = !!token;
@@ -2826,6 +2834,17 @@ export default function AdminPanel() {
   useEffect(() => {
     if (token) load(token);
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    fetch(`${base}/api/admin/deployment-safety`, { headers: { Authorization: token } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { environment?: "development" | "production" } | null) => {
+        if (data?.environment) setEnvironment(data.environment);
+      })
+      .catch(() => {});
+  }, [token]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -2988,6 +3007,7 @@ export default function AdminPanel() {
         { key: "system-health", label: "System Health" },
         { key: "emergency-recovery", label: "Emergency Recovery" },
         { key: "protected-data", label: "Protected Data" },
+        { key: "deployment-safety", label: "Deployment Safety" },
       ],
     },
   ];
@@ -3047,6 +3067,15 @@ export default function AdminPanel() {
             Logout
           </Button>
         </div>
+        {environment && (
+          <div
+            className={`px-4 md:px-6 py-1.5 text-center text-xs font-bold uppercase tracking-widest ${
+              environment === "production" ? "bg-red-600 text-white" : "bg-emerald-600 text-white"
+            }`}
+          >
+            {environment === "production" ? "Production — live customer data" : "Development environment"}
+          </div>
+        )}
       </header>
 
       {/* ── Slide-in menu ─────────────────────────────────────────────── */}
@@ -3246,6 +3275,7 @@ export default function AdminPanel() {
             {opsSubTab === "system-health" && <SystemHealthPanel token={token} />}
             {opsSubTab === "emergency-recovery" && <EmergencyRecoveryPanel token={token} />}
             {opsSubTab === "protected-data" && <ProtectedDataPanel token={token} />}
+            {opsSubTab === "deployment-safety" && <DeploymentSafetyPanel token={token} />}
           </>
         )}
       </main>
