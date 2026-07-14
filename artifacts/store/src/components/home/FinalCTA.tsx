@@ -3,8 +3,11 @@ import { Button } from "@/components/ui/button";
 import { useSiteSettings } from "@/context/siteSettings";
 import { trackBrowseToolsClicked } from "@/lib/analytics";
 
+const isExternalOrAnchorLink = (href: string) => /^(https?:\/\/|#|mailto:|tel:)/.test(href);
+
 export function FinalCTA() {
   const { settings } = useSiteSettings();
+  const href = settings.finalCtaButtonLink?.trim() || "/catalog";
 
   return (
     <section className="py-20 bg-primary text-white" data-testid="section-final-cta">
@@ -17,16 +20,29 @@ export function FinalCTA() {
             {settings.finalCtaSubtext}
           </p>
         )}
-        <Link href="/catalog">
-          <Button
-            size="lg"
-            className="rounded-lg px-10 h-14 text-lg font-bold bg-white text-primary hover:bg-white/90 shadow-md hover:shadow-lg transition-all"
-            data-testid="button-final-cta"
-            onClick={() => trackBrowseToolsClicked("final_cta")}
-          >
-            {settings.finalCtaButtonText}
-          </Button>
-        </Link>
+        {isExternalOrAnchorLink(href) ? (
+          <a href={href}>
+            <Button
+              size="lg"
+              className="rounded-lg px-10 h-14 text-lg font-bold bg-white text-primary hover:bg-white/90 shadow-md hover:shadow-lg transition-all"
+              data-testid="button-final-cta"
+              onClick={() => trackBrowseToolsClicked("final_cta")}
+            >
+              {settings.finalCtaButtonText}
+            </Button>
+          </a>
+        ) : (
+          <Link href={href}>
+            <Button
+              size="lg"
+              className="rounded-lg px-10 h-14 text-lg font-bold bg-white text-primary hover:bg-white/90 shadow-md hover:shadow-lg transition-all"
+              data-testid="button-final-cta"
+              onClick={() => trackBrowseToolsClicked("final_cta")}
+            >
+              {settings.finalCtaButtonText}
+            </Button>
+          </Link>
+        )}
       </div>
     </section>
   );

@@ -9,20 +9,69 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Loader2, Plus, Trash2, GripVertical, Save, Upload, X } from "lucide-react";
 import { HOME_ICON_NAMES } from "@/components/home/icon-map";
 
-export type HomeTab = "hero" | "seo" | "popular" | "benefits" | "steps" | "faq";
+export type HomeTab = "hero" | "seo" | "popular" | "benefits" | "steps" | "faq" | "sections";
 
 interface SiteSettings {
   heroImageUrl: string | null;
   heroPrimaryButtonText: string;
   heroSecondaryButtonText: string | null;
   heroTrustLine: string | null;
+  heroPrimaryButtonLink: string | null;
+  heroSecondaryButtonLink: string | null;
   finalCtaHeadline: string | null;
   finalCtaSubtext: string | null;
   finalCtaButtonText: string;
+  finalCtaButtonLink: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
   seoCanonicalUrl: string | null;
   seoOgImageUrl: string | null;
+  homepageSectionsConfig: string | null;
+}
+
+export const HOMEPAGE_SECTION_LABELS: Record<string, string> = {
+  hero: "Hero",
+  trustStrip: "Trust Strip",
+  whyChooseUs: "Why Choose Us",
+  howItWorks: "How It Works",
+  popularTools: "Popular Tools",
+  whoItsFor: "Who It's For",
+  testimonials: "Testimonials",
+  supportCredibility: "Support & Credibility",
+  securePayments: "Secure Payments",
+  faq: "FAQ",
+  finalCta: "Final Call-To-Action",
+};
+
+const HOMEPAGE_SECTION_KEYS = Object.keys(HOMEPAGE_SECTION_LABELS);
+
+interface SectionConfigEntry {
+  key: string;
+  visible: boolean;
+}
+
+function parseSectionsConfig(raw: string | null): SectionConfigEntry[] {
+  let parsed: SectionConfigEntry[] = [];
+  if (raw) {
+    try {
+      const data = JSON.parse(raw);
+      if (Array.isArray(data)) {
+        parsed = data.filter(
+          (e): e is SectionConfigEntry =>
+            e && typeof e.key === "string" && HOMEPAGE_SECTION_KEYS.includes(e.key),
+        );
+      }
+    } catch {
+      // fall through to default order below
+    }
+  }
+  // Ensure every known section is present exactly once, appending any
+  // missing ones (e.g. newly added sections) at the end as visible.
+  const seen = new Set(parsed.map((e) => e.key));
+  for (const key of HOMEPAGE_SECTION_KEYS) {
+    if (!seen.has(key)) parsed.push({ key, visible: true });
+  }
+  return parsed;
 }
 
 interface BenefitCard {
@@ -108,6 +157,11 @@ export default function HomepageAdminPanel({
   const [editingFaq, setEditingFaq] = useState<FaqItem | null>(null);
   const [deleteFaqId, setDeleteFaqId] = useState<number | null>(null);
 
+  const [sections, setSections] = useState<SectionConfigEntry[]>(parseSectionsConfig(null));
+  const [savingSections, setSavingSections] = useState(false);
+  const [sectionDragKey, setSectionDragKey] = useState<string | null>(null);
+  const [sectionDragOverKey, setSectionDragOverKey] = useState<string | null>(null);
+
   const [blurbDrafts, setBlurbDrafts] = useState<Record<number, string>>({});
   const [savingProductId, setSavingProductId] = useState<number | null>(null);
   const [featuredIds, setFeaturedIds] = useState<number[]>([]);
@@ -118,7 +172,9 @@ export default function HomepageAdminPanel({
   const loadSettings = async () => {
     const res = await fetch(`${API}/admin/site-settings`, { headers: authHeaders });
     if (!res.ok) throw new Error("Failed to load settings");
-    setSettings(await res.json());
+    const data = await res.json();
+    setSettings(data);
+    setSections(parseSectionsConfig(data.homepageSectionsConfig));
   };
 
   const loadBenefitCards = async () => {
@@ -329,6 +385,98 @@ export default function HomepageAdminPanel({
     syncFeaturedOrder(current);
   };
 
+  const saveSections = async (next: SectionConfigEntry[]) => {
+    setSavingSections(true);
+    try {
+      await saveSettings({ homepageSectionsConfig: JSON.stringify(next) });
+    } catch (e) {
+      toast({ title: "Error", description: e instanceof Error ? e.message : "Failed to save section order", variant: "destructive" });
+    } finally {
+      setSavingSections(false);
+    }
+  };
+
+  const toggleSectionVisible = (key: string) => {
+    const next = sections.map((s) => (s.key === key ? { ...s, visible: !s.visible } : s));
+    setSections(next);
+    saveSections(next);
+  };
+
+  const handleSectionDrop = (targetKey: string) => {
+    if (sectionDragKey === null || sectionDragKey === targetKey) {
+      setSectionDragKey(null);
+      setSectionDragOverKey(null);
+      return;
+    }
+    const current = [...sections];
+    const fromIdx = current.findIndex((s) => s.key === sectionDragKey);
+    const toIdx = current.findIndex((s) => s.key === targetKey);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const [moved] = current.splice(fromIdx, 1);
+    current.splice(toIdx, 0, moved);
+    setSections(current);
+    setSectionDragKey(null);
+    setSectionDragOverKey(null);
+    saveSections(current);
+  };
+
+  // ── Section visibility & order tab ──────────────────────────────────────
+  const SectionsTab = () => (
+    <Card className="p-6">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-lg font-bold">Homepage Sections</h3>
+        {savingSections && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+      </div>
+      <p className="text-sm text-muted-foreground mb-4">
+        Drag to reorder sections, or hide a section without deleting its content. The Hero always renders first.
+      </p>
+      <div className="space-y-2">
+        {sections.map((s) => {
+          const isDragging = sectionDragKey === s.key;
+          const isDragOver = sectionDragOverKey === s.key && sectionDragKey !== s.key;
+          return (
+            <div
+              key={s.key}
+              draggable
+              onDragStart={() => setSectionDragKey(s.key)}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (sectionDragOverKey !== s.key) setSectionDragOverKey(s.key);
+              }}
+              onDragEnd={() => {
+                setSectionDragKey(null);
+                setSectionDragOverKey(null);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleSectionDrop(s.key);
+              }}
+              className={`flex items-center gap-3 p-3 border rounded-lg bg-white transition-colors ${
+                isDragging ? "opacity-40" : ""
+              } ${isDragOver ? "border-primary border-2" : "border-gray-100"}`}
+            >
+              <button
+                type="button"
+                className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0"
+                aria-label={`Drag to reorder ${HOMEPAGE_SECTION_LABELS[s.key]}`}
+                title="Drag to reorder"
+              >
+                <GripVertical className="w-5 h-5" />
+              </button>
+              <div className={`font-bold flex-1 ${s.visible ? "text-foreground" : "text-muted-foreground"}`}>
+                {HOMEPAGE_SECTION_LABELS[s.key]}
+                {!s.visible && <span className="ml-2 text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-gray-200 text-gray-500">Hidden</span>}
+              </div>
+              <Button size="sm" variant="outline" onClick={() => toggleSectionVisible(s.key)}>
+                {s.visible ? "Hide" : "Show"}
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+
   // ── Hero & CTA tab ───────────────────────────────────────────────────────
   const HeroTab = () => (
     <div className="space-y-6">
@@ -340,8 +488,16 @@ export default function HomepageAdminPanel({
             <Input value={settings?.heroPrimaryButtonText ?? ""} onChange={(e) => setSettings((s) => ({ ...s!, heroPrimaryButtonText: e.target.value }))} placeholder="Browse Tools" />
           </div>
           <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">Primary Button Link (optional)</label>
+            <Input value={settings?.heroPrimaryButtonLink ?? ""} onChange={(e) => setSettings((s) => ({ ...s!, heroPrimaryButtonLink: e.target.value }))} placeholder="/catalog (default if left blank)" />
+          </div>
+          <div>
             <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">Secondary Button Text (optional)</label>
             <Input value={settings?.heroSecondaryButtonText ?? ""} onChange={(e) => setSettings((s) => ({ ...s!, heroSecondaryButtonText: e.target.value }))} placeholder="See Popular Tools" />
+          </div>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">Secondary Button Link (optional)</label>
+            <Input value={settings?.heroSecondaryButtonLink ?? ""} onChange={(e) => setSettings((s) => ({ ...s!, heroSecondaryButtonLink: e.target.value }))} placeholder="#popular-tools (default if left blank)" />
           </div>
           <div>
             <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">Trust Line</label>
@@ -378,6 +534,8 @@ export default function HomepageAdminPanel({
                   heroPrimaryButtonText: settings?.heroPrimaryButtonText ?? "Browse Tools",
                   heroSecondaryButtonText: settings?.heroSecondaryButtonText ?? null,
                   heroTrustLine: settings?.heroTrustLine ?? null,
+                  heroPrimaryButtonLink: settings?.heroPrimaryButtonLink ?? null,
+                  heroSecondaryButtonLink: settings?.heroSecondaryButtonLink ?? null,
                 })
               }
               className="bg-primary hover:bg-primary/90 text-white"
@@ -403,6 +561,10 @@ export default function HomepageAdminPanel({
             <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">Button Text</label>
             <Input value={settings?.finalCtaButtonText ?? ""} onChange={(e) => setSettings((s) => ({ ...s!, finalCtaButtonText: e.target.value }))} placeholder="Browse Tools" />
           </div>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5 block">Button Link (optional)</label>
+            <Input value={settings?.finalCtaButtonLink ?? ""} onChange={(e) => setSettings((s) => ({ ...s!, finalCtaButtonLink: e.target.value }))} placeholder="/catalog (default if left blank)" />
+          </div>
           <div className="flex justify-end">
             <Button
               onClick={() =>
@@ -410,6 +572,7 @@ export default function HomepageAdminPanel({
                   finalCtaHeadline: settings?.finalCtaHeadline ?? null,
                   finalCtaSubtext: settings?.finalCtaSubtext ?? null,
                   finalCtaButtonText: settings?.finalCtaButtonText ?? "Browse Tools",
+                  finalCtaButtonLink: settings?.finalCtaButtonLink ?? null,
                 })
               }
               className="bg-primary hover:bg-primary/90 text-white"
@@ -819,6 +982,7 @@ export default function HomepageAdminPanel({
           <TabsTrigger value="benefits">Why Choose Us</TabsTrigger>
           <TabsTrigger value="steps">How It Works</TabsTrigger>
           <TabsTrigger value="faq">FAQ</TabsTrigger>
+          <TabsTrigger value="sections">Section Order</TabsTrigger>
           <TabsTrigger value="seo">SEO</TabsTrigger>
         </TabsList>
 
@@ -827,6 +991,7 @@ export default function HomepageAdminPanel({
         <TabsContent value="benefits"><BenefitsTab /></TabsContent>
         <TabsContent value="steps"><StepsTab /></TabsContent>
         <TabsContent value="faq"><FaqTab /></TabsContent>
+        <TabsContent value="sections"><SectionsTab /></TabsContent>
         <TabsContent value="seo"><SeoTab /></TabsContent>
       </Tabs>
     </div>

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type ComponentType } from "react";
 import { Layout } from "@/components/layout";
 import { Hero } from "@/components/home/Hero";
 import { TrustStrip } from "@/components/home/TrustStrip";
@@ -14,8 +14,68 @@ import { FinalCTA } from "@/components/home/FinalCTA";
 import { useSiteSettings } from "@/context/siteSettings";
 import { trackHomepageViewed } from "@/lib/analytics";
 
+// Canonical section keys/order, matching HomepageAdminPanel's
+// HOMEPAGE_SECTION_LABELS. Kept as a component map so admin-configured
+// visibility/order (site_settings.homepageSectionsConfig) can reorder or
+// hide sections without touching this file's fixed default order.
+const SECTION_COMPONENTS: Record<string, ComponentType> = {
+  hero: Hero,
+  trustStrip: TrustStrip,
+  whyChooseUs: WhyChooseUs,
+  howItWorks: HowItWorks,
+  popularTools: PopularTools,
+  whoItsFor: WhoItsFor,
+  testimonials: () => <Testimonials page="home" />,
+  supportCredibility: SupportCredibility,
+  securePayments: SecurePayments,
+  faq: FAQ,
+  finalCta: FinalCTA,
+};
+
+const DEFAULT_SECTION_ORDER = [
+  "hero",
+  "trustStrip",
+  "whyChooseUs",
+  "howItWorks",
+  "popularTools",
+  "whoItsFor",
+  "testimonials",
+  "supportCredibility",
+  "securePayments",
+  "faq",
+  "finalCta",
+];
+
+interface SectionConfigEntry {
+  key: string;
+  visible: boolean;
+}
+
+function resolveSectionOrder(raw: string | null): string[] {
+  if (!raw) return DEFAULT_SECTION_ORDER;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return DEFAULT_SECTION_ORDER;
+    const entries = parsed.filter(
+      (e): e is SectionConfigEntry =>
+        e && typeof e.key === "string" && typeof e.visible === "boolean" && DEFAULT_SECTION_ORDER.includes(e.key),
+    );
+    if (entries.length === 0) return DEFAULT_SECTION_ORDER;
+    const visibleKeys = entries.filter((e) => e.visible).map((e) => e.key);
+    // Append any section missing from a stale/older config so new sections
+    // introduced after the config was saved still render.
+    for (const key of DEFAULT_SECTION_ORDER) {
+      if (!entries.some((e) => e.key === key)) visibleKeys.push(key);
+    }
+    return visibleKeys;
+  } catch {
+    return DEFAULT_SECTION_ORDER;
+  }
+}
+
 export default function Home() {
   const { settings } = useSiteSettings();
+  const sectionOrder = resolveSectionOrder(settings.homepageSectionsConfig);
 
   useEffect(() => {
     trackHomepageViewed();
@@ -86,17 +146,10 @@ export default function Home() {
 
   return (
     <Layout>
-      <Hero />
-      <TrustStrip />
-      <WhyChooseUs />
-      <HowItWorks />
-      <PopularTools />
-      <WhoItsFor />
-      <Testimonials page="home" />
-      <SupportCredibility />
-      <SecurePayments />
-      <FAQ />
-      <FinalCTA />
+      {sectionOrder.map((key) => {
+        const Section = SECTION_COMPONENTS[key];
+        return Section ? <Section key={key} /> : null;
+      })}
     </Layout>
   );
 }

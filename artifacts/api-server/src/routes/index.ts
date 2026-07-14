@@ -27,6 +27,7 @@ import systemConfigRouter from "./systemConfig";
 import paymentSettingsRouter from "./paymentSettings";
 import aiConfigRouter from "./aiConfig";
 import emailRouter from "./email";
+import featureFlagsRouter from "./featureFlags";
 import { deviceTrackingMiddleware } from "../middlewares/deviceTracking";
 
 const router: IRouter = Router();
@@ -58,6 +59,7 @@ router.use(systemConfigRouter);
 router.use(paymentSettingsRouter);
 router.use(aiConfigRouter);
 router.use(emailRouter);
+router.use(featureFlagsRouter);
 router.use(autologinRouter);
 router.use(proxyRouter);
 

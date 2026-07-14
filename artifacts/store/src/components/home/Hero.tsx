@@ -4,8 +4,12 @@ import { useSiteSettings } from "@/context/siteSettings";
 import { ShieldCheck } from "lucide-react";
 import { trackBrowseToolsClicked } from "@/lib/analytics";
 
+const isExternalOrAnchorLink = (href: string) => /^(https?:\/\/|#|mailto:|tel:)/.test(href);
+
 export function Hero() {
   const { settings } = useSiteSettings();
+  const primaryHref = settings.heroPrimaryButtonLink?.trim() || "/catalog";
+  const secondaryHref = settings.heroSecondaryButtonLink?.trim() || "#popular-tools";
 
   return (
     <section className="bg-white border-b border-border py-16 md:py-24">
@@ -19,27 +23,53 @@ export function Hero() {
           </p>
 
           <div className="pt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/catalog">
-              <Button
-                size="lg"
-                className="rounded-lg px-10 h-14 text-lg font-bold bg-primary hover:bg-primary/90 text-white shadow-md hover:shadow-lg transition-all"
-                data-testid="button-browse-tools"
-                onClick={() => trackBrowseToolsClicked("hero")}
-              >
-                {settings.heroPrimaryButtonText}
-              </Button>
-            </Link>
-            {settings.heroSecondaryButtonText && (
-              <a href="#popular-tools">
+            {isExternalOrAnchorLink(primaryHref) ? (
+              <a href={primaryHref}>
                 <Button
                   size="lg"
-                  variant="outline"
-                  className="rounded-lg px-10 h-14 text-lg font-bold border-2 border-primary text-primary hover:bg-primary hover:text-white transition-all"
-                  data-testid="button-hero-secondary"
+                  className="rounded-lg px-10 h-14 text-lg font-bold bg-primary hover:bg-primary/90 text-white shadow-md hover:shadow-lg transition-all"
+                  data-testid="button-browse-tools"
+                  onClick={() => trackBrowseToolsClicked("hero")}
                 >
-                  {settings.heroSecondaryButtonText}
+                  {settings.heroPrimaryButtonText}
                 </Button>
               </a>
+            ) : (
+              <Link href={primaryHref}>
+                <Button
+                  size="lg"
+                  className="rounded-lg px-10 h-14 text-lg font-bold bg-primary hover:bg-primary/90 text-white shadow-md hover:shadow-lg transition-all"
+                  data-testid="button-browse-tools"
+                  onClick={() => trackBrowseToolsClicked("hero")}
+                >
+                  {settings.heroPrimaryButtonText}
+                </Button>
+              </Link>
+            )}
+            {settings.heroSecondaryButtonText && (
+              isExternalOrAnchorLink(secondaryHref) ? (
+                <a href={secondaryHref}>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="rounded-lg px-10 h-14 text-lg font-bold border-2 border-primary text-primary hover:bg-primary hover:text-white transition-all"
+                    data-testid="button-hero-secondary"
+                  >
+                    {settings.heroSecondaryButtonText}
+                  </Button>
+                </a>
+              ) : (
+                <Link href={secondaryHref}>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="rounded-lg px-10 h-14 text-lg font-bold border-2 border-primary text-primary hover:bg-primary hover:text-white transition-all"
+                    data-testid="button-hero-secondary"
+                  >
+                    {settings.heroSecondaryButtonText}
+                  </Button>
+                </Link>
+              )
             )}
           </div>
 

@@ -97,9 +97,12 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
       heroPrimaryButtonText,
       heroSecondaryButtonText,
       heroTrustLine,
+      heroPrimaryButtonLink,
+      heroSecondaryButtonLink,
       finalCtaHeadline,
       finalCtaSubtext,
       finalCtaButtonText,
+      finalCtaButtonLink,
       seoTitle,
       seoDescription,
       seoCanonicalUrl,
@@ -130,9 +133,12 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
       heroPrimaryButtonText?: string;
       heroSecondaryButtonText?: string | null;
       heroTrustLine?: string | null;
+      heroPrimaryButtonLink?: string | null;
+      heroSecondaryButtonLink?: string | null;
       finalCtaHeadline?: string | null;
       finalCtaSubtext?: string | null;
       finalCtaButtonText?: string;
+      finalCtaButtonLink?: string | null;
       seoTitle?: string | null;
       seoDescription?: string | null;
       seoCanonicalUrl?: string | null;
@@ -223,9 +229,12 @@ router.put("/admin/site-settings", requireAdmin, async (req, res): Promise<void>
     if (heroPrimaryButtonText !== undefined) updates.heroPrimaryButtonText = heroPrimaryButtonText.trim();
     if (heroSecondaryButtonText !== undefined) updates.heroSecondaryButtonText = heroSecondaryButtonText ? heroSecondaryButtonText.trim() : null;
     if (heroTrustLine !== undefined) updates.heroTrustLine = heroTrustLine ? heroTrustLine.trim() : null;
+    if (heroPrimaryButtonLink !== undefined) updates.heroPrimaryButtonLink = heroPrimaryButtonLink ? heroPrimaryButtonLink.trim() : null;
+    if (heroSecondaryButtonLink !== undefined) updates.heroSecondaryButtonLink = heroSecondaryButtonLink ? heroSecondaryButtonLink.trim() : null;
     if (finalCtaHeadline !== undefined) updates.finalCtaHeadline = finalCtaHeadline ? finalCtaHeadline.trim() : null;
     if (finalCtaSubtext !== undefined) updates.finalCtaSubtext = finalCtaSubtext ? finalCtaSubtext.trim() : null;
     if (finalCtaButtonText !== undefined) updates.finalCtaButtonText = finalCtaButtonText.trim();
+    if (finalCtaButtonLink !== undefined) updates.finalCtaButtonLink = finalCtaButtonLink ? finalCtaButtonLink.trim() : null;
     if (seoTitle !== undefined) updates.seoTitle = seoTitle ? seoTitle.trim() : null;
     if (seoDescription !== undefined) updates.seoDescription = seoDescription ? seoDescription.trim() : null;
     if (seoCanonicalUrl !== undefined) updates.seoCanonicalUrl = seoCanonicalUrl ? seoCanonicalUrl.trim() : null;

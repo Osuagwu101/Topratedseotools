@@ -30,6 +30,7 @@ import SystemConfigPanel from "@/components/admin/SystemConfigPanel";
 import PaymentAdminPanel from "@/components/admin/PaymentAdminPanel";
 import AiConfigPanel from "@/components/admin/AiConfigPanel";
 import EmailConfigPanel from "@/components/admin/EmailConfigPanel";
+import FeatureManagementPanel from "@/components/admin/FeatureManagementPanel";
 import {
   Eye,
   EyeOff,
@@ -2775,7 +2776,7 @@ export default function AdminPanel() {
   const [products, setProducts] = useState<ProductWithServers[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"dashboard" | "tools" | "devices" | "users" | "branding" | "analytics" | "trust" | "homepage" | "blog" | "system-config" | "payments-admin" | "ai-config" | "email-config">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "tools" | "devices" | "users" | "branding" | "analytics" | "trust" | "homepage" | "blog" | "system-config" | "payments-admin" | "ai-config" | "email-config" | "feature-management">("dashboard");
   const [addToolOpen, setAddToolOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [expandedNavKey, setExpandedNavKey] = useState<string | null>(null);

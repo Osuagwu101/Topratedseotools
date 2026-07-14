@@ -36,10 +36,13 @@ export interface SiteSettings {
   heroPrimaryButtonText: string;
   heroSecondaryButtonText: string | null;
   heroTrustLine: string | null;
+  heroPrimaryButtonLink: string | null;
+  heroSecondaryButtonLink: string | null;
   // Final CTA section
   finalCtaHeadline: string | null;
   finalCtaSubtext: string | null;
   finalCtaButtonText: string;
+  finalCtaButtonLink: string | null;
   // SEO
   seoTitle: string | null;
   seoDescription: string | null;
@@ -79,9 +82,12 @@ const DEFAULTS: SiteSettings = {
   heroPrimaryButtonText: "Browse Tools",
   heroSecondaryButtonText: null,
   heroTrustLine: "Trusted by professionals across Africa for affordable, verified tool access.",
+  heroPrimaryButtonLink: null,
+  heroSecondaryButtonLink: null,
   finalCtaHeadline: "Ready to get started?",
   finalCtaSubtext: "Join hundreds of professionals who already saved on their favorite tools.",
   finalCtaButtonText: "Browse Tools",
+  finalCtaButtonLink: null,
   seoTitle: null,
   seoDescription: null,
   seoCanonicalUrl: null,
