@@ -19,13 +19,14 @@ import {
   analyticsSettingsTable,
   storageSettingsTable,
   systemConfigTable,
+  seoGeneratorSettingsTable,
   type StaffUser,
 } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
 import { getStorageBackend } from "./storage";
 import { logger } from "./logger";
 
-export type BackupScope = "full" | "database" | "products" | "orders" | "users" | "purchases" | "settings";
+export type BackupScope = "full" | "database" | "products" | "orders" | "users" | "purchases" | "settings" | "downloads";
 
 export interface BackupScopeDefinition {
   key: BackupScope;
@@ -51,7 +52,8 @@ export const BACKUP_SCOPES: BackupScopeDefinition[] = [
   { key: "orders", label: "Orders only", description: "Orders and their attribution records.", type: "partial" },
   { key: "users", label: "Users only", description: "Locally-mirrored device sessions and daily usage (customer accounts themselves live in Clerk).", type: "partial" },
   { key: "purchases", label: "Purchases only", description: "Tool entitlements — what each customer currently has access to.", type: "partial" },
-  { key: "settings", label: "Settings only", description: "Site, payment, email, feature-flag, analytics, and storage settings.", type: "partial" },
+  { key: "settings", label: "Settings only", description: "Site, payment, email, feature-flag, analytics, storage, and AI settings.", type: "partial" },
+  { key: "downloads", label: "Downloads only", description: "Every file currently in object storage, captured before a storage-cleanup action.", type: "partial" },
 ];
 
 const scopesByKey = new Map<string, BackupScopeDefinition>(BACKUP_SCOPES.map((s) => [s.key, s]));
@@ -116,7 +118,33 @@ async function buildPartialPayload(scope: BackupScope): Promise<Record<string, u
         // Centre) — the ciphertext is harmless to include and lets a
         // restore bring back saved API/payment credentials verbatim.
         systemConfig: await db.select().from(systemConfigTable),
+        aiSettings: await db.select().from(seoGeneratorSettingsTable),
       };
+    case "downloads": {
+      // Captures the actual file bytes (base64), not just a manifest — this
+      // scope exists specifically to back up storage-cleanup actions
+      // (delete-unused / optimize) that permanently discard object bytes,
+      // so "backup" has to mean something recoverable, not just a listing.
+      const backend = await getStorageBackend();
+      const objects = await backend.listObjects();
+      const files: { key: string; sizeBytes: number; updatedAt: string | null; contentBase64: string | null }[] = [];
+      for (const obj of objects) {
+        try {
+          const result = await backend.getObjectStream(obj.key);
+          if (!result) {
+            files.push({ key: obj.key, sizeBytes: obj.sizeBytes, updatedAt: obj.updatedAt, contentBase64: null });
+            continue;
+          }
+          const chunks: Buffer[] = [];
+          for await (const chunk of result.stream) chunks.push(chunk as Buffer);
+          files.push({ key: obj.key, sizeBytes: obj.sizeBytes, updatedAt: obj.updatedAt, contentBase64: Buffer.concat(chunks).toString("base64") });
+        } catch (err) {
+          logger.error({ err, key: obj.key }, "Failed to read storage object for downloads backup");
+          files.push({ key: obj.key, sizeBytes: obj.sizeBytes, updatedAt: obj.updatedAt, contentBase64: null });
+        }
+      }
+      return { files };
+    }
     default:
       throw new Error(`Unknown partial backup scope: ${scope}`);
   }

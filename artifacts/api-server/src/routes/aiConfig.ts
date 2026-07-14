@@ -8,7 +8,7 @@ import { ALLOWED_AI_MODELS } from "../lib/openaiClient";
 import { ALLOWED_GEMINI_MODELS } from "../lib/geminiClient";
 import { testConfigConnection } from "../lib/systemConfig";
 import { getAiHealth } from "../lib/aiHealth";
-import { requireDatasetUnlocked } from "../lib/protectedData";
+import { requireOperationClearance } from "../lib/deploymentSafety";
 
 // Dedicated top-level "AI Configuration Centre" for Super Admin -- reads and
 // writes the exact same singleton seo_generator_settings row the Blog AI
@@ -107,7 +107,7 @@ router.put("/admin/ai-config", async (req, res): Promise<void> => {
 
 // Resets AI generator settings to defaults — gated behind the "ai_settings"
 // protected dataset (Protected Data centre).
-router.post("/admin/ai-config/reset-default", requireDatasetUnlocked("ai_settings"), async (req, res): Promise<void> => {
+router.post("/admin/ai-config/reset-default", requireOperationClearance("reset_ai_settings"), async (req, res): Promise<void> => {
   try {
     const current = await getOrCreateSettings();
     const [updated] = await db

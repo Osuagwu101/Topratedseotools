@@ -85,6 +85,45 @@ export const RISKY_OPERATIONS: RiskyOperationDefinition[] = [
     datasetKeys: ["website_settings"],
     backupScope: "settings",
   },
+  // The operations below are wired to endpoints that already exist and
+  // already destroy protected data today (Task 1's Protected Data centre
+  // only gated them on dataset-unlock; this task adds the real pre-write
+  // backup on top of that same gate).
+  {
+    key: "delete_product",
+    label: "Delete a product",
+    description: "Permanently removing a product/tool-server record.",
+    datasetKeys: ["products"],
+    backupScope: "products",
+  },
+  {
+    key: "delete_device_sessions",
+    label: "Delete a user's device sessions",
+    description: "Clearing a customer's registered devices, forcing re-activation.",
+    datasetKeys: ["users"],
+    backupScope: "users",
+  },
+  {
+    key: "delete_unused_storage",
+    label: "Delete unused storage files",
+    description: "Permanently removing files from object storage that nothing currently references.",
+    datasetKeys: ["downloads"],
+    backupScope: "downloads",
+  },
+  {
+    key: "optimize_storage",
+    label: "Optimize storage (remove duplicates)",
+    description: "Permanently removing duplicate unused files from object storage.",
+    datasetKeys: ["downloads"],
+    backupScope: "downloads",
+  },
+  {
+    key: "reset_ai_settings",
+    label: "Reset AI settings to defaults",
+    description: "Reverting the AI content generator's configuration to defaults.",
+    datasetKeys: ["ai_settings"],
+    backupScope: "settings",
+  },
 ];
 
 const definitionsByKey = new Map(RISKY_OPERATIONS.map((d) => [d.key, d]));
