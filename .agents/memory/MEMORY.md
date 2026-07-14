@@ -2,3 +2,4 @@
 - [Admin Basic-Auth hardening](admin-auth-hardening.md) — swap the shared-secret check for a real per-user DB lookup behind the same Basic-Auth header; no frontend rewrite needed.
 - [Coupon & referral system design](coupon-referral-system-design.md) — discount-before-tax, credit debited at order creation not payment, referral fraud checks, reward payout model.
 - [Storage backend portability](storage-backend-portability.md) — swappable replit/s3/local storage backends; single-active-backend, no auto-migration; multi-path search & secret-rotation cache gotchas.
+- [Encrypted credential columns](encrypted-credential-columns.md) — retrofit encryption onto plaintext text columns via labeled sub-keys + mask-and-skip-on-unchanged admin UI pattern.

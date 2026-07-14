@@ -2,6 +2,7 @@ import { logger } from "./lib/logger";
 import { validateStartupSecrets } from "./lib/startupValidation";
 import { hydrateProcessEnvFromConfig } from "./lib/systemConfig";
 import { bootstrapSuperAdminIfNeeded } from "./lib/staffAuth";
+import { migrateLegacyToolCredentials } from "./lib/toolCredentials";
 
 const rawPort = process.env["PORT"];
 
@@ -25,6 +26,7 @@ validateStartupSecrets();
 async function boot(): Promise<void> {
   await hydrateProcessEnvFromConfig();
   await bootstrapSuperAdminIfNeeded();
+  await migrateLegacyToolCredentials();
 
   // `./app` (and everything it statically imports — routes, middlewares,
   // etc.) is only loaded now, after hydration has finished mirroring any

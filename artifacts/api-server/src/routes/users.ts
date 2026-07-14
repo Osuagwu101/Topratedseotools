@@ -3,6 +3,7 @@ import { getAuth } from "@clerk/express";
 import { db, ordersTable, productsTable, toolServersTable, toolEntitlementsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { getDailyUsage } from "../lib/dailyUsage";
+import { decryptToolField } from "../lib/toolCredentials";
 
 const router: IRouter = Router();
 
@@ -64,8 +65,8 @@ router.get("/users/me/orders", async (req, res): Promise<void> => {
       const isActive = r.status === "success" && isEntitled;
 
       const fallback = r.credUsername === null ? fallbackByProduct.get(r.productId) : undefined;
-      const credUsername = r.credUsername ?? fallback?.username ?? null;
-      const credPassword = r.credPassword ?? fallback?.password ?? null;
+      const credUsername = decryptToolField(r.credUsername ?? fallback?.username ?? null);
+      const credPassword = decryptToolField(r.credPassword ?? fallback?.password ?? null);
       const isAutoLogin = r.isAutoLogin ?? fallback?.isAutoLogin ?? null;
       // The one-click button is only usable when the tool is both an
       // auto-login server AND the admin has switched One-Click Auth on for

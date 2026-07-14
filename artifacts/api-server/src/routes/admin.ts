@@ -25,6 +25,11 @@ import { analyzeImage, processAndStoreToolImage, STANDARD_IMAGE_SIZE } from "../
 import { loginToTool, setSession, invalidateSessionsForProduct } from "../lib/toolSession";
 import { getDisplayedCustomersServed } from "./trust";
 import { requireSuperAdmin } from "../lib/staffAuth";
+import {
+  encryptToolField,
+  maskServerCredentials,
+  isUnchangedMaskedValue,
+} from "../lib/toolCredentials";
 
 const router: IRouter = Router();
 
@@ -87,9 +92,9 @@ router.get("/admin/products", requireAdmin, async (_req, res): Promise<void> => 
     .orderBy(productsTable.id);
   const servers = await db.select().from(toolServersTable).orderBy(toolServersTable.id);
 
-  const serversByProduct: Record<number, (typeof toolServersTable.$inferSelect)[]> = {};
+  const serversByProduct: Record<number, ReturnType<typeof maskServerCredentials>[]> = {};
   for (const s of servers) {
-    (serversByProduct[s.productId] ??= []).push(s);
+    (serversByProduct[s.productId] ??= []).push(maskServerCredentials(s));
   }
 
   res.json(
@@ -596,13 +601,16 @@ router.post("/admin/servers", requireAdmin, async (req, res): Promise<void> => {
     return;
   }
 
+  // Credentials arrive as plaintext from the admin form (there's no
+  // existing masked value to compare against on create) and are encrypted
+  // before ever touching the database.
   const [created] = await db
     .insert(toolServersTable)
     .values({
       productId,
       label: typeof body.label === "string" && body.label.trim() ? body.label : "Server",
-      username: typeof body.username === "string" ? body.username : undefined,
-      password: typeof body.password === "string" ? body.password : undefined,
+      username: typeof body.username === "string" ? encryptToolField(body.username) : undefined,
+      password: typeof body.password === "string" ? encryptToolField(body.password) : undefined,
       loginUrl: typeof body.loginUrl === "string" ? body.loginUrl : undefined,
       usernameField: typeof body.usernameField === "string" ? body.usernameField : undefined,
       passwordField: typeof body.passwordField === "string" ? body.passwordField : undefined,
@@ -611,7 +619,7 @@ router.post("/admin/servers", requireAdmin, async (req, res): Promise<void> => {
     })
     .returning();
 
-  res.status(201).json(created);
+  res.status(201).json(maskServerCredentials(created));
 });
 
 router.put("/admin/servers/:id", requireAdmin, async (req, res): Promise<void> => {
@@ -632,10 +640,17 @@ router.put("/admin/servers/:id", requireAdmin, async (req, res): Promise<void> =
     notes?: unknown;
   };
 
+  // GET /admin/products only ever shows masked username/password, so a
+  // resubmitted masked placeholder (the admin never edited that field)
+  // means "leave the stored credential alone" — never encrypt the mask
+  // itself over the top of the real value.
+  const rawUsername = typeof body.username === "string" ? body.username : undefined;
+  const rawPassword = typeof body.password === "string" ? body.password : undefined;
+
   const fields = {
     label: typeof body.label === "string" ? body.label : undefined,
-    username: typeof body.username === "string" ? body.username : undefined,
-    password: typeof body.password === "string" ? body.password : undefined,
+    username: rawUsername !== undefined && !isUnchangedMaskedValue(rawUsername) ? encryptToolField(rawUsername) : undefined,
+    password: rawPassword !== undefined && !isUnchangedMaskedValue(rawPassword) ? encryptToolField(rawPassword) : undefined,
     loginUrl: typeof body.loginUrl === "string" ? body.loginUrl : undefined,
     usernameField: typeof body.usernameField === "string" ? body.usernameField : undefined,
     passwordField: typeof body.passwordField === "string" ? body.passwordField : undefined,
@@ -654,7 +669,7 @@ router.put("/admin/servers/:id", requireAdmin, async (req, res): Promise<void> =
     return;
   }
 
-  res.json(updated);
+  res.json(maskServerCredentials(updated));
 });
 
 router.delete("/admin/servers/:id", requireAdmin, async (req, res): Promise<void> => {

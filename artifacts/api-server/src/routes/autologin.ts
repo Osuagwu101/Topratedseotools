@@ -3,6 +3,7 @@ import { getAuth } from "@clerk/express";
 import { db, productsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { resolveServerForUser } from "../lib/toolAccess";
+import { decryptServerCredentials } from "../lib/toolCredentials";
 
 const router: IRouter = Router();
 
@@ -25,9 +26,9 @@ router.get("/tools/:productId/autologin", async (req, res): Promise<void> => {
 
   // Resolve the specific server credential set assigned to this user's active
   // entitlement (same source of truth as the proxy).
-  const server = await resolveServerForUser(userId, productId);
+  const serverRow = await resolveServerForUser(userId, productId);
 
-  if (!server) {
+  if (!serverRow) {
     res.status(403).send(`
       <!DOCTYPE html>
       <html>
@@ -41,6 +42,10 @@ router.get("/tools/:productId/autologin", async (req, res): Promise<void> => {
     `);
     return;
   }
+
+  // Only decrypt once we know we actually need the plaintext credentials
+  // below (the one-click/proxy branch never touches them directly).
+  const server = decryptServerCredentials(serverRow);
 
   // For isAutoLogin tools, redirect to the reverse proxy (single IP / device)
   // — but only if the admin has switched on One-Click Auth for this tool.

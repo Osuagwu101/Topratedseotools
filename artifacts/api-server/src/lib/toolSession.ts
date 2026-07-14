@@ -6,6 +6,7 @@
 
 import { db, toolServersTable } from "@workspace/db";
 import { and, eq } from "drizzle-orm";
+import { decryptServerCredentials } from "./toolCredentials";
 
 // ── Single device fingerprint — shared across proxy + admin login capture ───
 export const DEVICE_UA =
@@ -22,8 +23,9 @@ export interface ToolSession {
 const sessions = new Map<number, ToolSession>();
 
 export async function loginToTool(
-  server: typeof toolServersTable.$inferSelect,
+  serverRow: typeof toolServersTable.$inferSelect,
 ): Promise<ToolSession | null> {
+  const server = decryptServerCredentials(serverRow);
   if (!server.loginUrl || !server.username || !server.password) return null;
 
   let toolOrigin: string;
