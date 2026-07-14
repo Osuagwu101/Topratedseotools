@@ -38,6 +38,7 @@ import emergencyRecoveryRouter from "./emergencyRecovery";
 import protectedDataRouter from "./protectedData";
 import deploymentSafetyRouter from "./deploymentSafety";
 import backupsRouter from "./backups";
+import restoresRouter from "./restores";
 import { deviceTrackingMiddleware } from "../middlewares/deviceTracking";
 
 const router: IRouter = Router();
@@ -80,6 +81,7 @@ router.use(emergencyRecoveryRouter);
 router.use(protectedDataRouter);
 router.use(deploymentSafetyRouter);
 router.use(backupsRouter);
+router.use(restoresRouter);
 router.use(autologinRouter);
 router.use(proxyRouter);
 

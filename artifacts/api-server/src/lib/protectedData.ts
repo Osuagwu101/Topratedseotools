@@ -53,7 +53,16 @@ async function ensureSeeded(): Promise<void> {
     .onConflictDoNothing();
 }
 
-export type DatasetLogAction = "unlocked" | "relocked" | "auto_relocked" | "blocked_attempt" | "allowed_attempt";
+export type DatasetLogAction =
+  | "unlocked"
+  | "relocked"
+  | "auto_relocked"
+  | "blocked_attempt"
+  | "allowed_attempt"
+  | "restore_previewed"
+  | "restore_requested"
+  | "restore_applied"
+  | "restore_failed";
 
 async function writeLog(entry: {
   datasetKey: string;

@@ -9,6 +9,7 @@ import {
 } from "./protectedData";
 import { logger } from "./logger";
 import { createBackup, type BackupScope } from "./backupEngine";
+import { getEnvironment, type Environment } from "./environment";
 
 /**
  * Registry of risky/bulk/import-style admin operations. This app has no
@@ -223,11 +224,8 @@ export function requireOperationClearance(operationKey: string): RequestHandler 
   };
 }
 
-export type Environment = "development" | "production";
-
-export function getEnvironment(): Environment {
-  return process.env.NODE_ENV === "production" ? "production" : "development";
-}
+export type { Environment } from "./environment";
+export { getEnvironment } from "./environment";
 
 export interface DeploymentSafetySummary {
   environment: Environment;

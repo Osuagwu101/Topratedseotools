@@ -25,6 +25,7 @@ import {
 import { desc, eq } from "drizzle-orm";
 import { getStorageBackend } from "./storage";
 import { logger } from "./logger";
+import { getEnvironment } from "./environment";
 
 export type BackupScope = "full" | "database" | "products" | "orders" | "users" | "purchases" | "settings" | "downloads";
 
@@ -71,7 +72,11 @@ function runPgDump(): Promise<string> {
     }
     execFile(
       "pg_dump",
-      ["--no-owner", "--no-privileges", databaseUrl],
+      // --clean --if-exists makes the dump self-contained for restore: it
+      // drops each object before recreating it, so replaying the dump onto
+      // an already-populated database (the normal restore case) doesn't
+      // fail on "relation already exists".
+      ["--no-owner", "--no-privileges", "--clean", "--if-exists", databaseUrl],
       { maxBuffer: 1024 * 1024 * 512 },
       (err, stdout, stderr) => {
         if (err) {
@@ -177,6 +182,7 @@ export async function createBackup(opts: CreateBackupOptions): Promise<{ id: num
       trigger: opts.trigger,
       createdByStaffId: opts.actor?.id ?? null,
       createdByEmail: opts.actor?.email ?? null,
+      environment: getEnvironment(),
     })
     .returning();
 

@@ -22,6 +22,10 @@ export const backupsTable = pgTable("backups", {
   createdByStaffId: integer("created_by_staff_id"),
   createdByEmail: text("created_by_email"),
   errorMessage: text("error_message"),
+  // "development" or "production" — captured at backup time so the Restore
+  // Manager can flag (and require extra confirmation for) restoring a
+  // backup taken in a different environment than the one it's applied to.
+  environment: text("environment").notNull().default("development"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
 });
