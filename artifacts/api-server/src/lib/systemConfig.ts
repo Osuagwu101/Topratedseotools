@@ -30,8 +30,7 @@ export interface ConfigDefinition {
   envOnly?: boolean;
 }
 
-async function testPaystackConnection(): Promise<{ ok: boolean; message: string }> {
-  const key = (await getConfigValue("PAYSTACK_SECRET_KEY")) || process.env.PAYSTACK_API_KEY;
+async function testPaystackKey(key: string | null): Promise<{ ok: boolean; message: string }> {
   if (!key) return { ok: false, message: "No Paystack secret key configured." };
   try {
     const res = await fetch("https://api.paystack.co/transaction/totals", {
@@ -43,6 +42,16 @@ async function testPaystackConnection(): Promise<{ ok: boolean; message: string 
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : "Could not reach Paystack." };
   }
+}
+
+async function testPaystackLiveConnection(): Promise<{ ok: boolean; message: string }> {
+  const key = (await getConfigValue("PAYSTACK_SECRET_KEY")) || process.env.PAYSTACK_API_KEY || null;
+  return testPaystackKey(key);
+}
+
+async function testPaystackTestConnection(): Promise<{ ok: boolean; message: string }> {
+  const key = (await getConfigValue("PAYSTACK_TEST_SECRET_KEY")) || null;
+  return testPaystackKey(key);
 }
 
 async function testOpenAIConnection(): Promise<{ ok: boolean; message: string }> {
@@ -68,11 +77,19 @@ async function testGeminiConnection(): Promise<{ ok: boolean; message: string }>
 export const CONFIG_DEFINITIONS: ConfigDefinition[] = [
   {
     key: "PAYSTACK_SECRET_KEY",
-    label: "Paystack Secret Key",
+    label: "Paystack Secret Key (Live)",
     category: "payment",
-    description: "Server-side key used to initialize and verify Paystack transactions for checkout.",
+    description: "Server-side key used to initialize and verify Paystack transactions for checkout in Live mode.",
     envFallbackKeys: ["PAYSTACK_SECRET_KEY", "PAYSTACK_API_KEY"],
-    testConnection: testPaystackConnection,
+    testConnection: testPaystackLiveConnection,
+  },
+  {
+    key: "PAYSTACK_TEST_SECRET_KEY",
+    label: "Paystack Secret Key (Test)",
+    category: "payment",
+    description:
+      "Server-side key used instead of the live key when Test Mode is enabled in the Payment Management Centre.",
+    testConnection: testPaystackTestConnection,
   },
   {
     key: "CLERK_SECRET_KEY",

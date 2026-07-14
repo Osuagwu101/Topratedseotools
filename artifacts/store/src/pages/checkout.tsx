@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/react";
 import { useGetProduct, getGetProductQueryKey, useCreateOrder, useInitializePayment } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout";
@@ -17,6 +17,39 @@ const DURATION_LABELS: Record<Duration, string> = {
   12: "12 Months",
 };
 
+const BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+interface PublicPaymentSettings {
+  enabled: boolean;
+  currency: string;
+  taxPercent: number;
+  feePercent: number;
+  feeFlatKobo: number;
+  minPurchaseKobo: number;
+  maxPurchaseKobo: number | null;
+}
+
+function usePaymentSettings() {
+  const [settings, setSettings] = useState<PublicPaymentSettings | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${BASE_PATH}/api/payment-settings`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setSettings(data);
+      })
+      .catch(() => {
+        // Non-fatal — checkout falls back to no tax/fee/limits if this can't be reached.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return settings;
+}
+
 export default function Checkout() {
   const searchParams = new URLSearchParams(window.location.search);
   const productId = parseInt(searchParams.get("productId") || "0", 10);
@@ -25,6 +58,7 @@ export default function Checkout() {
   const [duration, setDuration] = useState<Duration>(1);
   const { toast } = useToast();
   const { user } = useUser();
+  const paymentSettings = usePaymentSettings();
 
   const { data: product, isLoading: isProductLoading } = useGetProduct(productId, {
     query: { enabled: !!productId, queryKey: getGetProductQueryKey(productId) }
@@ -59,12 +93,35 @@ export default function Checkout() {
   }, [product]);
 
   const selectedOption = availableDurations.find((o) => o.duration === duration) ?? availableDurations[0];
+  const baseKobo = selectedOption?.priceKobo ?? product?.priceKobo ?? 0;
+
+  const breakdown = useMemo(() => {
+    if (!paymentSettings) return { taxKobo: 0, feeKobo: 0, totalKobo: baseKobo };
+    const taxKobo = Math.round(baseKobo * ((paymentSettings.taxPercent || 0) / 100));
+    const feeKobo =
+      Math.round(baseKobo * ((paymentSettings.feePercent || 0) / 100)) + Math.max(0, paymentSettings.feeFlatKobo || 0);
+    return { taxKobo, feeKobo, totalKobo: baseKobo + taxKobo + feeKobo };
+  }, [baseKobo, paymentSettings]);
+
+  const outOfRangeMessage = useMemo(() => {
+    if (!paymentSettings) return null;
+    if (paymentSettings.minPurchaseKobo > 0 && baseKobo < paymentSettings.minPurchaseKobo) {
+      return `This plan is below the minimum allowed purchase amount.`;
+    }
+    if (paymentSettings.maxPurchaseKobo != null && baseKobo > paymentSettings.maxPurchaseKobo) {
+      return `This plan exceeds the maximum allowed purchase amount.`;
+    }
+    return null;
+  }, [baseKobo, paymentSettings]);
+
+  const gatewayDisabled = paymentSettings?.enabled === false;
+  const checkoutBlocked = gatewayDisabled || !!outOfRangeMessage;
 
   const name = user?.fullName || user?.username || "Top Rated SEO Tools User";
   const email = user?.primaryEmailAddress?.emailAddress || "";
 
   const handleCheckout = async () => {
-    if (!product || !email) return;
+    if (!product || !email || checkoutBlocked) return;
 
     setIsProcessing(true);
 
@@ -193,17 +250,25 @@ export default function Checkout() {
                   </div>
                 )}
 
+                {checkoutBlocked && (
+                  <p className="text-sm text-red-500 font-semibold text-center" data-testid="text-checkout-blocked">
+                    {gatewayDisabled
+                      ? "Payments are temporarily unavailable. Please check back shortly."
+                      : outOfRangeMessage}
+                  </p>
+                )}
+
                 <Button
                   type="button"
                   onClick={handleCheckout}
-                  disabled={isProcessing || !email}
+                  disabled={isProcessing || !email || checkoutBlocked}
                   className="w-full h-16 text-lg font-bold bg-primary hover:bg-primary/90 text-white rounded-xl uppercase tracking-wider shadow-md transition-all mt-4"
                   data-testid="button-pay"
                 >
                   {isProcessing ? (
                     <><Loader2 className="w-5 h-5 mr-3 animate-spin" /> Processing...</>
                   ) : (
-                    `Pay ₦${((selectedOption?.priceKobo ?? product.priceKobo) / 100).toLocaleString()}`
+                    `Pay ₦${(breakdown.totalKobo / 100).toLocaleString()}`
                   )}
                 </Button>
 
@@ -234,18 +299,24 @@ export default function Checkout() {
               <div className="pt-6 border-t border-border space-y-4 mb-8 font-semibold text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>₦{((selectedOption?.priceKobo ?? product.priceKobo) / 100).toLocaleString()}</span>
+                  <span>₦{(baseKobo / 100).toLocaleString()}</span>
                 </div>
+                {breakdown.taxKobo > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tax</span>
+                    <span>₦{(breakdown.taxKobo / 100).toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-primary">
                   <span>Fees</span>
-                  <span>Free</span>
+                  <span>{breakdown.feeKobo > 0 ? `₦${(breakdown.feeKobo / 100).toLocaleString()}` : "Free"}</span>
                 </div>
               </div>
 
               <div className="flex justify-between items-center pt-6 border-t border-border">
                 <span className="font-heading text-2xl uppercase">Total</span>
                 <span className="font-heading text-3xl text-primary">
-                  ₦{((selectedOption?.priceKobo ?? product.priceKobo) / 100).toLocaleString()}
+                  ₦{(breakdown.totalKobo / 100).toLocaleString()}
                 </span>
               </div>
             </div>

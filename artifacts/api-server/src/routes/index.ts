@@ -24,6 +24,7 @@ import blogSettingsRouter from "./blogSettings";
 import blogRedirectsRouter from "./blogRedirects";
 import seoGeneratorRouter from "./seoGenerator";
 import systemConfigRouter from "./systemConfig";
+import paymentSettingsRouter from "./paymentSettings";
 import { deviceTrackingMiddleware } from "../middlewares/deviceTracking";
 
 const router: IRouter = Router();
@@ -52,6 +53,7 @@ router.use(deviceTrackingMiddleware);
 router.use(usersRouter);
 router.use(adminRouter);
 router.use(systemConfigRouter);
+router.use(paymentSettingsRouter);
 router.use(autologinRouter);
 router.use(proxyRouter);
 

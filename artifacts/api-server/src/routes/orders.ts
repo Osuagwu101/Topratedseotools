@@ -10,6 +10,8 @@ import {
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 import { logger } from "../lib/logger";
+import { getPaymentSettings } from "../lib/paymentSettings";
+import { computeOrderAmounts } from "../lib/paymentCalculation";
 
 const router: IRouter = Router();
 
@@ -30,6 +32,12 @@ router.post("/orders", async (req, res): Promise<void> => {
     return;
   }
 
+  const paymentSettings = await getPaymentSettings();
+  if (!paymentSettings.enabled) {
+    res.status(400).json({ error: "Payments are currently unavailable. Please try again later." });
+    return;
+  }
+
   const reference = `SUB-${crypto.randomBytes(8).toString("hex").toUpperCase()}`;
 
   // Associate order with logged-in user if authenticated
@@ -42,11 +50,23 @@ router.post("/orders", async (req, res): Promise<void> => {
     3: product.price3MonthKobo,
     12: product.price12MonthKobo,
   };
-  const amountKobo = priceByDuration[durationMonths];
-  if (durationMonths !== 1 && (amountKobo === undefined || amountKobo === null)) {
+  const priceForDuration = priceByDuration[durationMonths];
+  if (durationMonths !== 1 && (priceForDuration === undefined || priceForDuration === null)) {
     res.status(400).json({ error: `No price configured for ${durationMonths}-month duration` });
     return;
   }
+  const baseAmountKobo = priceForDuration ?? product.priceKobo;
+
+  if (paymentSettings.minPurchaseKobo > 0 && baseAmountKobo < paymentSettings.minPurchaseKobo) {
+    res.status(400).json({ error: `This purchase is below the minimum allowed amount.` });
+    return;
+  }
+  if (paymentSettings.maxPurchaseKobo != null && baseAmountKobo > paymentSettings.maxPurchaseKobo) {
+    res.status(400).json({ error: `This purchase exceeds the maximum allowed amount.` });
+    return;
+  }
+
+  const breakdown = computeOrderAmounts(baseAmountKobo, paymentSettings);
 
   const [order] = await db
     .insert(ordersTable)
@@ -54,7 +74,11 @@ router.post("/orders", async (req, res): Promise<void> => {
       productId: parsed.data.productId,
       customerEmail: parsed.data.customerEmail,
       customerName: parsed.data.customerName,
-      amountKobo: amountKobo ?? product.priceKobo,
+      amountKobo: breakdown.totalKobo,
+      baseAmountKobo: breakdown.baseAmountKobo,
+      taxKobo: breakdown.taxKobo,
+      feeKobo: breakdown.feeKobo,
+      currency: paymentSettings.currency,
       status: "pending",
       reference,
       clerkUserId,

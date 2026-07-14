@@ -11,15 +11,17 @@ import crypto from "crypto";
 import { logger } from "../lib/logger";
 import { activateOrderByReference, markOrderFailed } from "../lib/activateOrder";
 import { sendCapiEvent } from "../lib/metaCapi";
+import { getPaymentSettings, resolveActivePaystackSecretKey, recordWebhookReceived } from "../lib/paymentSettings";
 
 const router: IRouter = Router();
 
-// Read live on every call rather than caching at module load — an admin can
-// set/rotate this key from the System Configuration Centre while the server
-// is running (see lib/systemConfig.ts), and setConfigValue() mirrors that
-// change into process.env immediately, so this must not be a frozen constant.
-function getPaystackSecretKey(): string {
-  return process.env.PAYSTACK_SECRET_KEY ?? process.env.PAYSTACK_API_KEY ?? "";
+// Resolves the secret key that should be used *right now*, honoring both the
+// admin's test/live mode toggle (payment_settings) and live key rotation from
+// the System Configuration Centre (setConfigValue mirrors into process.env
+// immediately — see lib/systemConfig.ts) — so neither requires a restart.
+async function getPaystackSecretKey(): Promise<string> {
+  const settings = await getPaymentSettings();
+  return resolveActivePaystackSecretKey(settings);
 }
 
 /**
@@ -78,16 +80,23 @@ router.post("/paystack/initialize", async (req, res): Promise<void> => {
     return;
   }
 
+  const paymentSettings = await getPaymentSettings();
+  if (!paymentSettings.enabled) {
+    res.status(400).json({ error: "Payments are currently unavailable. Please try again later." });
+    return;
+  }
+
   try {
     const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${getPaystackSecretKey()}`,
+        Authorization: `Bearer ${resolveActivePaystackSecretKey(paymentSettings)}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         email: order.customerEmail,
         amount: order.amountKobo,
+        currency: order.currency ?? paymentSettings.currency,
         reference: order.reference,
         metadata: { orderId, customerName: order.customerName },
       }),
@@ -124,7 +133,7 @@ router.post("/paystack/webhook", async (req, res): Promise<void> => {
   const signature = req.headers["x-paystack-signature"];
   const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
 
-  const paystackSecretKey = getPaystackSecretKey();
+  const paystackSecretKey = await getPaystackSecretKey();
   if (!paystackSecretKey || !rawBody || typeof signature !== "string") {
     logger.error("Paystack webhook missing signature or raw body");
     res.status(400).send("Invalid request");
@@ -142,6 +151,10 @@ router.post("/paystack/webhook", async (req, res): Promise<void> => {
     return;
   }
 
+  // Signature is valid, so this is a genuine delivery from Paystack — record it
+  // for the Verify Webhooks diagnostic regardless of event type or outcome below.
+  void recordWebhookReceived();
+
   const event = req.body as {
     event?: string;
     data?: { reference?: string; amount?: number };
@@ -158,7 +171,7 @@ router.post("/paystack/webhook", async (req, res): Promise<void> => {
       // Never trust the webhook body amount alone — re-verify server-side with Paystack.
       const verifyRes = await fetch(
         `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-        { headers: { Authorization: `Bearer ${getPaystackSecretKey()}` } },
+        { headers: { Authorization: `Bearer ${paystackSecretKey}` } },
       );
       const verifyData = (await verifyRes.json()) as {
         status: boolean;
@@ -206,7 +219,7 @@ router.get("/paystack/verify/:reference", async (req, res): Promise<void> => {
       `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
       {
         headers: {
-          Authorization: `Bearer ${getPaystackSecretKey()}`,
+          Authorization: `Bearer ${await getPaystackSecretKey()}`,
         },
       },
     );

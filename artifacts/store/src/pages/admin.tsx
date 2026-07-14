@@ -27,6 +27,7 @@ import HomepageAdminPanel, { type HomeTab } from "@/components/admin/HomepageAdm
 import BlogAdminPanel, { type BlogAdminTab } from "@/components/admin/BlogAdminPanel";
 import DashboardPanel from "@/components/admin/DashboardPanel";
 import SystemConfigPanel from "@/components/admin/SystemConfigPanel";
+import PaymentAdminPanel from "@/components/admin/PaymentAdminPanel";
 import {
   Eye,
   EyeOff,
@@ -59,6 +60,7 @@ import {
   LogOut,
   ChevronDown,
   KeyRound,
+  CreditCard,
 } from "lucide-react";
 
 interface ToolServer {
@@ -2769,7 +2771,7 @@ export default function AdminPanel() {
   const [products, setProducts] = useState<ProductWithServers[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"dashboard" | "tools" | "devices" | "users" | "branding" | "analytics" | "trust" | "homepage" | "blog" | "system-config">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "tools" | "devices" | "users" | "branding" | "analytics" | "trust" | "homepage" | "blog" | "system-config" | "payments-admin">("dashboard");
   const [addToolOpen, setAddToolOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [expandedNavKey, setExpandedNavKey] = useState<string | null>(null);
@@ -2949,6 +2951,7 @@ export default function AdminPanel() {
         { key: "ai-generator", label: "AI Generator" },
       ],
     },
+    { key: "payments-admin", label: "Payment Management", icon: CreditCard },
     { key: "system-config", label: "System Config", icon: KeyRound },
   ];
 
@@ -3184,6 +3187,8 @@ export default function AdminPanel() {
             onActiveTabChange={setBlogSubTab}
           />
         )}
+
+        {tab === "payments-admin" && <PaymentAdminPanel token={token} />}
 
         {tab === "system-config" && <SystemConfigPanel token={token} />}
       </main>

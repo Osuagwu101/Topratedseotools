@@ -14,6 +14,13 @@ export const ordersTable = pgTable("orders", {
   reference: text("reference").notNull().unique(),
   clerkUserId: text("clerk_user_id"),
   durationMonths: integer("duration_months").notNull().default(1),
+  // Breakdown of amountKobo at the time of purchase, for transparency/support and as
+  // the integration point for future coupon/discount math (applied to baseAmountKobo
+  // before tax/fee). Null on orders created before this breakdown existed.
+  baseAmountKobo: integer("base_amount_kobo"),
+  taxKobo: integer("tax_kobo"),
+  feeKobo: integer("fee_kobo"),
+  currency: text("currency"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

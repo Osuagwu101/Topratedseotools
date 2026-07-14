@@ -18,3 +18,4 @@ export * from "./staffUsers";
 export * from "./blog";
 export * from "./seoGenerator";
 export * from "./systemConfig";
+export * from "./paymentSettings";
