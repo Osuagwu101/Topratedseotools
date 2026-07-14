@@ -6,3 +6,4 @@
 - [Restore Manager scope semantics](restore-manager-scope-semantics.md) — why partial/downloads/full restore scopes each use a different write strategy.
 - [DB Integrity Checker repair safety](db-integrity-checker-repair-safety.md) — the test for which findings get one-click auto-repair vs. stay report-only.
 - [Recovery centre pattern](recovery-centre-pattern.md) — detect missing rows via FK cross-reference, restore only from backups by exact id, never touch referencing rows.
+- [Migration/restore diff engine reuse](migration-and-restore-diff-engine.md) — previewRestore is the one "backup vs live" comparison primitive; pg_dump empty-table parsing gotcha + TABLE_MAP coverage gap.

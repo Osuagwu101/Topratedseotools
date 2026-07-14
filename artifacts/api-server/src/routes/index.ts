@@ -43,6 +43,7 @@ import dbIntegrityRouter from "./dbIntegrity";
 import productRecoveryRouter from "./productRecovery";
 import paymentRecoveryRouter from "./paymentRecovery";
 import customerRecoveryRouter from "./customerRecovery";
+import migrationReadinessRouter from "./migrationReadiness";
 import { deviceTrackingMiddleware } from "../middlewares/deviceTracking";
 
 const router: IRouter = Router();
@@ -90,6 +91,7 @@ router.use(dbIntegrityRouter);
 router.use(productRecoveryRouter);
 router.use(paymentRecoveryRouter);
 router.use(customerRecoveryRouter);
+router.use(migrationReadinessRouter);
 router.use(autologinRouter);
 router.use(proxyRouter);
 

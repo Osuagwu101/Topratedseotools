@@ -259,13 +259,21 @@ async function summarizeSqlDump(sqlDump: string): Promise<{ table: string; backu
   // pg_dump's default plain-text format uses COPY ... FROM stdin blocks for
   // data, not one INSERT per row — counting the lines inside each block is
   // the cheap way to get a per-table row count without executing anything.
-  const copyBlockRegex = /^COPY\s+(?:public\.)?"?([a-zA-Z0-9_]+)"?\s*\([^)]*\)\s+FROM stdin;\n([\s\S]*?)\n\\\.$/gm;
+  // Anchoring on a bare "\." *line* (not a literal "\n\\." two-char
+  // sequence) matters: pg_dump emits "FROM stdin;\n\.\n" for an empty
+  // table — only one newline separates "stdin;" from "\.". Requiring two
+  // newlines made the old regex fail to match empty tables at all, so the
+  // lazy capture group ran on into the *next* table's COPY block and
+  // silently misattributed its row count. Counting "\n" inside the
+  // captured body (which now always ends with the last row's own newline,
+  // or is empty) gives the row count directly for both cases.
+  const copyBlockRegex = /^COPY\s+(?:public\.)?"?([a-zA-Z0-9_]+)"?\s*\([^)]*\)\s+FROM stdin;\n([\s\S]*?)\\\.$/gm;
   const summary: { table: string; backupRowCount: number }[] = [];
   let match: RegExpExecArray | null;
   while ((match = copyBlockRegex.exec(sqlDump)) !== null) {
     const table = match[1];
     const body = match[2];
-    const rowCount = body.length === 0 ? 0 : body.split("\n").length;
+    const rowCount = body === "" ? 0 : (body.match(/\n/g) ?? []).length;
     summary.push({ table, backupRowCount: rowCount });
   }
   const results: { table: string; backupRowCount: number; currentRowCount: number | null }[] = [];

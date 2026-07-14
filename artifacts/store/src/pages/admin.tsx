@@ -44,6 +44,7 @@ import DbIntegrityPanel from "@/components/admin/DbIntegrityPanel";
 import ProductRecoveryPanel from "@/components/admin/ProductRecoveryPanel";
 import PaymentRecoveryPanel from "@/components/admin/PaymentRecoveryPanel";
 import CustomerRecoveryPanel from "@/components/admin/CustomerRecoveryPanel";
+import MigrationReadinessPanel from "@/components/admin/MigrationReadinessPanel";
 import SystemHealthPanel from "@/components/admin/SystemHealthPanel";
 import EmergencyRecoveryPanel from "@/components/admin/EmergencyRecoveryPanel";
 import {
@@ -2815,6 +2816,7 @@ export default function AdminPanel() {
     | "product-recovery"
     | "payment-recovery"
     | "customer-recovery"
+    | "migration-readiness"
   >("auth-manager");
   const [environment, setEnvironment] = useState<"development" | "production" | null>(null);
   const [databaseHost, setDatabaseHost] = useState<string | null>(null);
@@ -3028,6 +3030,7 @@ export default function AdminPanel() {
         { key: "product-recovery", label: "Product Recovery" },
         { key: "payment-recovery", label: "Payment Recovery" },
         { key: "customer-recovery", label: "Customer Recovery" },
+        { key: "migration-readiness", label: "Migration Readiness" },
       ],
     },
   ];
@@ -3303,6 +3306,7 @@ export default function AdminPanel() {
             {opsSubTab === "product-recovery" && <ProductRecoveryPanel token={token} />}
             {opsSubTab === "payment-recovery" && <PaymentRecoveryPanel token={token} />}
             {opsSubTab === "customer-recovery" && <CustomerRecoveryPanel token={token} />}
+            {opsSubTab === "migration-readiness" && <MigrationReadinessPanel token={token} />}
           </>
         )}
       </main>
