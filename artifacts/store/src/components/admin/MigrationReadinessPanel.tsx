@@ -48,7 +48,7 @@ interface MigrationValidationReport {
   crossEnvironment: boolean;
   checkedAt: string;
   categories: CategoryValidationResult[];
-  overallStatus: "match" | "mismatch";
+  overallStatus: "match" | "mismatch" | "inconclusive";
   warning?: string;
 }
 
@@ -108,12 +108,19 @@ export default function MigrationReadinessPanel({ token }: { token: string }) {
       if (!res.ok) throw new Error(await res.text());
       const result: MigrationValidationReport = await res.json();
       setValidation(result);
+      const titles: Record<MigrationValidationReport["overallStatus"], string> = {
+        match: "Validation passed",
+        mismatch: "Mismatches found",
+        inconclusive: "Inconclusive — some categories could not be checked",
+      };
+      const descriptions: Record<MigrationValidationReport["overallStatus"], string> = {
+        match: "Every category was checked and matches this backup exactly.",
+        mismatch: "One or more categories differ from this backup — review the details below.",
+        inconclusive: "No mismatches were found, but at least one category's live data could not be checked — treat this as unverified, not a pass.",
+      };
       toast({
-        title: result.overallStatus === "match" ? "Validation passed" : "Mismatches found",
-        description:
-          result.overallStatus === "match"
-            ? "Every category matches this backup exactly."
-            : "One or more categories differ from this backup — review the details below.",
+        title: titles[result.overallStatus],
+        description: descriptions[result.overallStatus],
         variant: result.overallStatus === "match" ? "default" : "destructive",
       });
     } catch (e: unknown) {
@@ -234,16 +241,34 @@ export default function MigrationReadinessPanel({ token }: { token: string }) {
                 )}
                 <div
                   className={`rounded-xl border p-3 flex items-center gap-2 ${
-                    validation.overallStatus === "match" ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"
+                    validation.overallStatus === "match"
+                      ? "bg-emerald-50 border-emerald-200"
+                      : validation.overallStatus === "inconclusive"
+                        ? "bg-amber-50 border-amber-200"
+                        : "bg-red-50 border-red-200"
                   }`}
                 >
                   {validation.overallStatus === "match" ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  ) : validation.overallStatus === "inconclusive" ? (
+                    <AlertTriangle className="w-4 h-4 text-amber-600" />
                   ) : (
                     <XCircle className="w-4 h-4 text-red-600" />
                   )}
-                  <span className={`text-sm font-bold ${validation.overallStatus === "match" ? "text-emerald-700" : "text-red-700"}`}>
-                    {validation.overallStatus === "match" ? "Every category matches" : "Mismatches found"}
+                  <span
+                    className={`text-sm font-bold ${
+                      validation.overallStatus === "match"
+                        ? "text-emerald-700"
+                        : validation.overallStatus === "inconclusive"
+                          ? "text-amber-700"
+                          : "text-red-700"
+                    }`}
+                  >
+                    {validation.overallStatus === "match"
+                      ? "Every category was checked and matches"
+                      : validation.overallStatus === "inconclusive"
+                        ? "Inconclusive — some categories could not be checked"
+                        : "Mismatches found"}
                   </span>
                 </div>
                 {validation.categories.map((c) => (

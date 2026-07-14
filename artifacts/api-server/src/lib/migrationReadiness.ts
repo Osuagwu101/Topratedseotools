@@ -27,6 +27,12 @@ import {
   reviewsTable,
   testimonialsTable,
   blogPostsTable,
+  backupsTable,
+  restoresTable,
+  configAuditLogTable,
+  integrityAuditLogTable,
+  protectedDataUnlockLogTable,
+  protectedDatasetsTable,
 } from "@workspace/db";
 import type { PgTableWithColumns } from "drizzle-orm/pg-core";
 import { getStorageBackend } from "./storage";
@@ -121,6 +127,9 @@ export async function getMigrationReadinessReport(): Promise<MigrationReadinessR
     reviewsCount,
     testimonialsCount,
     blogPostsCount,
+    backupsCount,
+    restoresCount,
+    auditLogCount,
   ] = await Promise.all([
     count(productsTable),
     count(toolServersTable),
@@ -148,6 +157,9 @@ export async function getMigrationReadinessReport(): Promise<MigrationReadinessR
     count(reviewsTable),
     count(testimonialsTable),
     count(blogPostsTable),
+    count(backupsTable),
+    count(restoresTable),
+    Promise.all([count(configAuditLogTable), count(integrityAuditLogTable), count(protectedDataUnlockLogTable), count(protectedDatasetsTable)]).then((r) => r.reduce((a, b) => a + b, 0)),
   ]);
 
   const categories: MigrationCategory[] = [
@@ -277,6 +289,15 @@ export async function getMigrationReadinessReport(): Promise<MigrationReadinessR
       portable: true,
       note: null,
     },
+    {
+      key: "audit_system_logs",
+      label: "Audit & System Logs",
+      description: "Backup/restore history and the admin-tooling audit trails (config changes, integrity checks, protected-data unlocks, recovery actions). Operational metadata, not customer data.",
+      medium: "postgres",
+      recordCount: backupsCount + restoresCount + auditLogCount,
+      portable: true,
+      note: null,
+    },
   ];
 
   const overallPortable = categories.every((c) => c.portable);
@@ -345,6 +366,42 @@ const CATEGORY_BY_TABLE_KEY: Record<string, string> = {
   testimonials: "website_settings",
   blog_posts: "website_settings",
   payment_methods: "payment_settings",
+  // Blog/content sub-tables and homepage content — all part of Website & Content Settings.
+  blog_categories: "website_settings",
+  blog_tags: "website_settings",
+  blog_post_tags: "website_settings",
+  blog_media: "website_settings",
+  blog_redirects: "website_settings",
+  blog_comments: "website_settings",
+  blog_settings: "website_settings",
+  newsletter_subscribers: "website_settings",
+  benefit_cards: "website_settings",
+  how_it_works_steps: "website_settings",
+  faq_items: "website_settings",
+  review_prompts: "website_settings",
+  customer_counter_audit: "website_settings",
+  // AI content-generation pipeline sub-tables — all part of AI Configuration.
+  keyword_research_sessions: "ai_settings",
+  keyword_research_items: "ai_settings",
+  content_briefs: "ai_settings",
+  generation_jobs: "ai_settings",
+  post_section_versions: "ai_settings",
+  seo_quality_reports: "ai_settings",
+  banned_phrases: "ai_settings",
+  generation_usage_log: "ai_settings",
+  seo_link_insights: "ai_settings",
+  // Operational metadata about this app's own admin tooling — not customer
+  // business data, but still real rows worth accounting for explicitly
+  // rather than leaving them in an unlabeled bucket.
+  backups: "audit_system_logs",
+  restores: "audit_system_logs",
+  config_audit_log: "audit_system_logs",
+  integrity_audit_log: "audit_system_logs",
+  customer_recovery_log: "audit_system_logs",
+  payment_recovery_log: "audit_system_logs",
+  product_recovery_log: "audit_system_logs",
+  protected_data_unlock_log: "audit_system_logs",
+  protected_datasets: "audit_system_logs",
 };
 
 function categoryLabel(key: string): string {
@@ -363,6 +420,7 @@ function categoryLabel(key: string): string {
     payment_settings: "Payment Configuration",
     website_settings: "Website & Content Settings",
     analytics: "Analytics",
+    audit_system_logs: "Audit & System Logs",
     uncategorized: "Other",
   };
   return labels[key] ?? key;
@@ -383,7 +441,14 @@ export interface MigrationValidationReport {
   crossEnvironment: boolean;
   checkedAt: string;
   categories: CategoryValidationResult[];
-  overallStatus: "match" | "mismatch";
+  /**
+   * "match" only when every category was actually checked and matched.
+   * "mismatch" when at least one category differs. "inconclusive" when
+   * nothing mismatched but at least one category could not be checked
+   * (its live count wasn't available) — this must never be reported to an
+   * admin as a pass, since unchecked data could just as easily be wrong.
+   */
+  overallStatus: "match" | "mismatch" | "inconclusive";
   warning?: string;
 }
 
@@ -448,7 +513,11 @@ export async function validateMigrationAgainstBackup(backupId: number): Promise<
   }
 
   const categories = Array.from(grouped.values()).sort((a, b) => a.categoryLabel.localeCompare(b.categoryLabel));
-  const overallStatus: "match" | "mismatch" = categories.some((c) => c.status === "mismatch") ? "mismatch" : "match";
+  const overallStatus: "match" | "mismatch" | "inconclusive" = categories.some((c) => c.status === "mismatch")
+    ? "mismatch"
+    : categories.some((c) => c.status === "unknown")
+      ? "inconclusive"
+      : "match";
 
   return {
     backupId: preview.backupId,
