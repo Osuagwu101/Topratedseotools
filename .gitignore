@@ -47,3 +47,10 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Local-disk storage backend (artifacts/api-server/src/lib/storage/localBackend.ts) and any
+# directory an admin points it at (default "./storage-data", configurable via storage_settings.local_dir).
+# Holds real uploaded files plus Task 3's local backup snapshots (business data) — must never be
+# committed. Matches at any depth so a differently-named/relocated instance is still caught.
+storage-data/
+**/storage-data/
