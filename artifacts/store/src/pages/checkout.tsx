@@ -18,6 +18,7 @@ import { Loader2, ShieldCheck, Tag, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { trackInitiateCheckout } from "@/lib/analytics";
 import { getAttribution, getFbc, getFbp, getReferralCode } from "@/lib/attribution";
+import { useFeatureFlags } from "@/context/featureFlags";
 
 type Duration = 1 | 3 | 12;
 
@@ -72,6 +73,7 @@ export default function Checkout() {
   const [useStoreCredit, setUseStoreCredit] = useState(false);
   const { toast } = useToast();
   const { user } = useUser();
+  const { flags } = useFeatureFlags();
   const paymentSettings = usePaymentSettings();
   const validateCoupon = useValidateCouponCode();
   const { data: credit } = useGetMyCredit({ query: { enabled: !!user, queryKey: getGetMyCreditQueryKey() } });
@@ -168,7 +170,7 @@ export default function Checkout() {
   }, [baseKobo, paymentSettings]);
 
   const gatewayDisabled = paymentSettings?.enabled === false;
-  const checkoutBlocked = gatewayDisabled || !!outOfRangeMessage;
+  const checkoutBlocked = gatewayDisabled || !!outOfRangeMessage || flags.readOnlyMode;
 
   const name = user?.fullName || user?.username || "Top Rated SEO Tools User";
   const email = user?.primaryEmailAddress?.emailAddress || "";
@@ -366,9 +368,11 @@ export default function Checkout() {
 
                 {checkoutBlocked && (
                   <p className="text-sm text-red-500 font-semibold text-center" data-testid="text-checkout-blocked">
-                    {gatewayDisabled
-                      ? "Payments are temporarily unavailable. Please check back shortly."
-                      : outOfRangeMessage}
+                    {flags.readOnlyMode
+                      ? "The store is in read-only mode right now, so new purchases can't be completed. Please check back shortly."
+                      : gatewayDisabled
+                        ? "Payments are temporarily unavailable. Please check back shortly."
+                        : outOfRangeMessage}
                   </p>
                 )}
 

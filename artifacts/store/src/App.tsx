@@ -266,6 +266,49 @@ function ProtectedDashboard() {
   );
 }
 
+// ── Maintenance / Coming Soon takeover ────────────────────────────────────────
+// Full-screen takeover shown for every non-admin route while one of these
+// modes is on. /admin/* is always excluded so staff can sign in and turn the
+// mode back off. Backend enforcement (routes/orders.ts, routes/paystack.ts)
+// covers the case where a client ignores this screen entirely.
+function TakeoverScreen({ heading, message }: { heading: string; message: string }) {
+  return (
+    <div className="flex min-h-[100dvh] items-center justify-center bg-[#F7F8F9] px-4">
+      <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-10 max-w-md w-full text-center">
+        <h1 className="text-2xl font-bold text-foreground mb-3">{heading}</h1>
+        <p className="text-muted-foreground text-sm leading-relaxed">{message}</p>
+      </div>
+    </div>
+  );
+}
+
+function StorefrontGate({ children }: { children: React.ReactNode }) {
+  const { flags, loaded } = useFeatureFlags();
+  const [location] = useLocation();
+  const isAdminRoute = location.startsWith("/admin");
+
+  if (loaded && !isAdminRoute) {
+    if (flags.maintenanceMode) {
+      return (
+        <TakeoverScreen
+          heading="Down for Maintenance"
+          message={flags.maintenanceMessage || "We're making some improvements. Please check back shortly."}
+        />
+      );
+    }
+    if (flags.comingSoonMode) {
+      return (
+        <TakeoverScreen
+          heading="Coming Soon"
+          message={flags.maintenanceMessage || "We're putting the finishing touches on things. Check back soon!"}
+        />
+      );
+    }
+  }
+
+  return <>{children}</>;
+}
+
 function ProtectedCheckout() {
   return (
     <>
@@ -344,7 +387,7 @@ function ClerkProviderWithRoutes() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <ClerkQueryClientCacheInvalidator />
-          {isSuspended ? <SuspendedScreen /> : <Router />}
+          {isSuspended ? <SuspendedScreen /> : <StorefrontGate><Router /></StorefrontGate>}
           <Toaster />
           <CookieConsent />
           <WhatsAppButton />

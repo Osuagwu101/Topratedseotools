@@ -12,6 +12,7 @@ import { logger } from "../lib/logger";
 import { activateOrderByReference, markOrderFailed } from "../lib/activateOrder";
 import { sendCapiEvent } from "../lib/metaCapi";
 import { getPaymentSettings, resolveActivePaystackSecretKey, recordWebhookReceived } from "../lib/paymentSettings";
+import { checkCheckoutWritesAllowed } from "../lib/storefrontMode";
 
 const router: IRouter = Router();
 
@@ -69,6 +70,12 @@ router.post("/paystack/initialize", async (req, res): Promise<void> => {
   }
 
   const { orderId } = parsed.data;
+
+  const storefrontMode = await checkCheckoutWritesAllowed();
+  if (!storefrontMode.allowed) {
+    res.status(403).json({ error: storefrontMode.message });
+    return;
+  }
 
   const [order] = await db
     .select()

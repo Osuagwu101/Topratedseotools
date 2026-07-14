@@ -14,6 +14,7 @@ import { getPaymentSettings } from "../lib/paymentSettings";
 import { computeOrderAmounts } from "../lib/paymentCalculation";
 import { validateCoupon, normalizeCouponCode, reserveCouponUsage } from "../lib/coupons";
 import { adjustCredit, lockCreditBalanceForUpdate } from "../lib/credits";
+import { checkCheckoutWritesAllowed } from "../lib/storefrontMode";
 
 const router: IRouter = Router();
 
@@ -30,6 +31,12 @@ router.post("/orders", async (req, res): Promise<void> => {
     .where(eq(featureFlagsTable.id, 1));
   if (flags && !flags.marketplaceEnabled) {
     res.status(403).json({ error: "The marketplace is temporarily unavailable. Please check back soon." });
+    return;
+  }
+
+  const storefrontMode = await checkCheckoutWritesAllowed();
+  if (!storefrontMode.allowed) {
+    res.status(403).json({ error: storefrontMode.message });
     return;
   }
 

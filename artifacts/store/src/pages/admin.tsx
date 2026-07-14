@@ -33,6 +33,11 @@ import EmailConfigPanel from "@/components/admin/EmailConfigPanel";
 import FeatureManagementPanel from "@/components/admin/FeatureManagementPanel";
 import CouponsAdminPanel from "@/components/admin/CouponsAdminPanel";
 import ReferralsAdminPanel from "@/components/admin/ReferralsAdminPanel";
+import AuthenticationManagerPanel from "@/components/admin/AuthenticationManagerPanel";
+import CacheMaintenancePanel from "@/components/admin/CacheMaintenancePanel";
+import StorageManagerPanel from "@/components/admin/StorageManagerPanel";
+import SystemHealthPanel from "@/components/admin/SystemHealthPanel";
+import EmergencyRecoveryPanel from "@/components/admin/EmergencyRecoveryPanel";
 import {
   Eye,
   EyeOff,
@@ -2780,7 +2785,7 @@ export default function AdminPanel() {
   const [products, setProducts] = useState<ProductWithServers[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"dashboard" | "tools" | "devices" | "users" | "branding" | "analytics" | "trust" | "homepage" | "blog" | "system-config" | "payments-admin" | "coupons" | "referrals" | "ai-config" | "email-config" | "feature-management">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "tools" | "devices" | "users" | "branding" | "analytics" | "trust" | "homepage" | "blog" | "system-config" | "payments-admin" | "coupons" | "referrals" | "ai-config" | "email-config" | "feature-management" | "operations">("dashboard");
   const [addToolOpen, setAddToolOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [expandedNavKey, setExpandedNavKey] = useState<string | null>(null);
@@ -2788,6 +2793,9 @@ export default function AdminPanel() {
   const [analyticsSubTab, setAnalyticsSubTab] = useState<AnalyticsSubPage>("all");
   const [homeSubTab, setHomeSubTab] = useState<HomeTab>("hero");
   const [trustSubTab, setTrustSubTab] = useState<TrustAdminTab>("contact");
+  const [opsSubTab, setOpsSubTab] = useState<
+    "auth-manager" | "cache-maintenance" | "storage-manager" | "system-health" | "emergency-recovery"
+  >("auth-manager");
   const { toast } = useToast();
 
   const authenticated = !!token;
@@ -2968,6 +2976,18 @@ export default function AdminPanel() {
     { key: "feature-management", label: "Feature Management", icon: Sliders },
     { key: "email-config", label: "Email Configuration", icon: Mail },
     { key: "system-config", label: "System Config", icon: KeyRound },
+    {
+      key: "operations",
+      label: "Operations Centre",
+      icon: ShieldCheck,
+      children: [
+        { key: "auth-manager", label: "Authentication Manager" },
+        { key: "cache-maintenance", label: "Cache & Maintenance" },
+        { key: "storage-manager", label: "Storage Manager" },
+        { key: "system-health", label: "System Health" },
+        { key: "emergency-recovery", label: "Emergency Recovery" },
+      ],
+    },
   ];
 
   const handleLogout = () => {
@@ -2990,6 +3010,7 @@ export default function AdminPanel() {
     if (parentKey === "analytics") setAnalyticsSubTab(childKey as AnalyticsSubPage);
     if (parentKey === "homepage") setHomeSubTab(childKey as HomeTab);
     if (parentKey === "trust") setTrustSubTab(childKey as TrustAdminTab);
+    if (parentKey === "operations") setOpsSubTab(childKey as typeof opsSubTab);
     setMenuOpen(false);
   };
 
@@ -3214,6 +3235,16 @@ export default function AdminPanel() {
         {tab === "email-config" && <EmailConfigPanel token={token} />}
 
         {tab === "system-config" && <SystemConfigPanel token={token} />}
+
+        {tab === "operations" && (
+          <>
+            {opsSubTab === "auth-manager" && <AuthenticationManagerPanel token={token} />}
+            {opsSubTab === "cache-maintenance" && <CacheMaintenancePanel token={token} />}
+            {opsSubTab === "storage-manager" && <StorageManagerPanel token={token} />}
+            {opsSubTab === "system-health" && <SystemHealthPanel token={token} />}
+            {opsSubTab === "emergency-recovery" && <EmergencyRecoveryPanel token={token} />}
+          </>
+        )}
       </main>
 
       <AddToolDialog

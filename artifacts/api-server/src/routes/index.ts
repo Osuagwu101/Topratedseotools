@@ -30,6 +30,11 @@ import emailRouter from "./email";
 import featureFlagsRouter from "./featureFlags";
 import couponsRouter from "./coupons";
 import referralsRouter from "./referrals";
+import authManagerRouter from "./authManager";
+import systemHealthRouter from "./systemHealth";
+import storageAdminRouter from "./storageAdmin";
+import cacheMaintenanceRouter from "./cacheMaintenance";
+import emergencyRecoveryRouter from "./emergencyRecovery";
 import { deviceTrackingMiddleware } from "../middlewares/deviceTracking";
 
 const router: IRouter = Router();
@@ -64,6 +69,11 @@ router.use(emailRouter);
 router.use(featureFlagsRouter);
 router.use(couponsRouter);
 router.use(referralsRouter);
+router.use(authManagerRouter);
+router.use(systemHealthRouter);
+router.use(storageAdminRouter);
+router.use(cacheMaintenanceRouter);
+router.use(emergencyRecoveryRouter);
 router.use(autologinRouter);
 router.use(proxyRouter);
 

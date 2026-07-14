@@ -9,6 +9,10 @@ export interface FeatureFlags {
   loginEnabled: boolean;
   guestCheckoutEnabled: boolean;
   oneClickAuthEnabled: boolean;
+  maintenanceMode: boolean;
+  comingSoonMode: boolean;
+  readOnlyMode: boolean;
+  maintenanceMessage: string | null;
 }
 
 // Fail open: if the flags endpoint hasn't loaded yet (or errors), every
@@ -22,6 +26,10 @@ const DEFAULTS: FeatureFlags = {
   loginEnabled: true,
   guestCheckoutEnabled: false,
   oneClickAuthEnabled: true,
+  maintenanceMode: false,
+  comingSoonMode: false,
+  readOnlyMode: false,
+  maintenanceMessage: null,
 };
 
 interface FeatureFlagsCtx {
