@@ -1,0 +1,374 @@
+PHASE 2 – Build the Production Management System
+
+Use the migration analysis completed in Phase 1 as the implementation guide.
+
+Do not redesign the website or remove any existing functionality. Preserve the current UI, user experience, products, authentication, payment flow, AI tools, subscriptions, downloads, admin dashboard, SEO tools, and all existing features.
+
+This phase is focused on transforming the application into a production-ready platform that can be managed almost entirely from the Super Admin Dashboard without requiring code edits or direct server access. The application should also be portable to Hostinger Business Hosting or a Hostinger VPS.
+
+---
+
+1. Build a Secure System Configuration Centre
+
+Create a new System Configuration section inside the Super Admin Dashboard.
+
+This will become the central control panel for all application configuration.
+
+Allow secure management of:
+
+- Paystack Secret Key
+- Paystack Public Key
+- Clerk Secret Key
+- Clerk Publishable Key
+- OpenAI API Key
+- Gemini API Key
+- Resend API Key
+- Session Secret
+- JWT Secret
+- Encryption Key
+- Any future API credentials
+
+Requirements:
+
+- Encrypt secrets at rest.
+- Never store secrets in plain text.
+- Only Super Admin can access.
+- Show/Hide values.
+- Edit and Save.
+- Validate before saving.
+- Test Connection button.
+- Display connection status.
+- Display last updated date.
+- Display who updated the configuration.
+- Keep an audit log of every configuration change.
+
+---
+
+2. Payment Management Centre
+
+Create a dedicated Payment Management page.
+
+Allow Super Admin to manage:
+
+- Enable/Disable Paystack
+- Test Mode / Live Mode
+- Currency
+- Tax Percentage
+- Processing Fee
+- Minimum Purchase
+- Maximum Purchase
+
+Provide one-click tools:
+
+- Test Payment
+- Verify API Connection
+- Verify Webhooks
+- Reload Payment Configuration
+- Refresh Payment Cache
+- Repair Payment Configuration
+
+Display payment gateway health status.
+
+---
+
+3. AI Configuration Centre
+
+Create an AI Management page.
+
+Allow management of:
+
+- OpenAI
+- Gemini
+
+Allow configuration of:
+
+- Enable/Disable
+- Default Provider
+- Model Selection
+- Temperature
+- Max Tokens
+- Daily Usage Limit
+- Monthly Usage Limit
+
+Include:
+
+- API Connection Test
+- Health Status
+- Save
+- Reset to Default
+
+---
+
+4. Email Configuration Centre
+
+Create an Email Management page.
+
+Allow configuration of:
+
+- Resend API
+- Sender Email
+- Sender Name
+- Reply-To Address
+
+Include:
+
+- Save
+- Test Email
+- Verify Configuration
+- Health Status
+
+---
+
+5. Homepage Management
+
+Allow Super Admin to edit:
+
+- Hero Title
+- Hero Subtitle
+- Hero Banner
+- Featured Products
+- Featured Categories
+- Featured SEO Tools
+- Homepage Sections
+- Call-to-Action Buttons
+
+without modifying code.
+
+---
+
+6. Feature Management Centre
+
+Create a Feature Management page that allows the Super Admin to enable, disable, and configure website modules without editing code.
+
+For existing modules, include switches for:
+
+- AI Tools
+- Marketplace
+- Registration
+- Login
+- Guest Checkout
+- One-Click Authentication
+
+Build a Complete Coupon Management System
+
+Implement a full coupon and discount system.
+
+The Super Admin should be able to:
+
+- Create unlimited coupons.
+- Edit coupons.
+- Delete coupons.
+- Activate or deactivate coupons.
+- Generate random coupon codes.
+- Create custom coupon codes.
+- Set percentage discounts.
+- Set fixed-value discounts.
+- Apply coupons to all products or selected products.
+- Set minimum purchase amount.
+- Set maximum discount amount.
+- Set usage limits.
+- Limit usage per customer.
+- Set start and expiry dates.
+- Restrict coupons to logged-in users if desired.
+- View coupon analytics.
+- View redemption history.
+- Enable or disable coupons instantly.
+
+Customers should be able to apply coupon codes during checkout.
+
+Build a Complete Referral System
+
+Create a production-ready referral programme.
+
+Every registered user should automatically receive:
+
+- A unique referral code.
+- A referral link.
+- A referral dashboard.
+
+Allow the Super Admin to configure:
+
+- Reward type.
+- Reward amount.
+- Percentage reward.
+- Fixed reward.
+- Store credit.
+- Free product rewards.
+- Minimum purchase requirement.
+- Campaign start date.
+- Campaign end date.
+- Maximum referral rewards.
+- Enable/Disable referral programme.
+
+The system must automatically:
+
+- Track referrals.
+- Track pending referrals.
+- Track completed referrals.
+- Track rewards.
+- Prevent duplicate referrals.
+- Prevent fraud.
+- Record referral history.
+- Notify users of rewards.
+
+Create an Admin Referral Dashboard showing:
+
+- Total referrals.
+- Pending referrals.
+- Successful referrals.
+- Conversion rate.
+- Top referrers.
+- Reward history.
+
+The system must integrate seamlessly with payments, products, subscriptions, and user accounts.
+
+---
+
+7. Authentication Manager
+
+Provide backend management for:
+
+- Clerk Authentication
+- Google Login
+- GitHub Login
+- Email Login
+- One-Click Login
+- Two-Factor Authentication
+
+Display authentication health status.
+
+---
+
+8. Cache & Maintenance Centre
+
+Provide one-click tools:
+
+- Clear Cache
+- Refresh Cache
+- Rebuild Cache
+- Refresh Products
+- Refresh AI Configuration
+- Refresh Website
+
+Include:
+
+- Maintenance Mode
+- Coming Soon Mode
+- Read-Only Mode
+
+---
+
+9. Storage Manager
+
+Create a Storage Management page.
+
+Display:
+
+- Storage Usage
+- Uploaded Files
+- Images
+- Downloads
+
+Provide tools to:
+
+- Delete Unused Files
+- Remove Cache
+- Optimise Storage
+
+If uploads currently depend on Replit Storage, refactor the application to use a storage abstraction layer that can easily be switched to Hostinger storage without changing application logic.
+
+---
+
+10. Security Centre
+
+Implement all security recommendations discovered during Phase 1.
+
+Specifically:
+
+- Remove hardcoded secrets.
+- Remove insecure SESSION_SECRET fallback behaviour.
+- Encrypt sensitive credentials.
+- Eliminate plaintext credentials.
+- Validate secrets during application startup.
+- Prevent the application from running with insecure defaults.
+- Add configuration validation checks.
+- Log all security-related configuration changes.
+
+---
+
+11. System Health Dashboard
+
+Create a real-time health dashboard showing:
+
+- Database Status
+- Payment Gateway Status
+- AI Services Status
+- Email Service Status
+- Authentication Status
+- Storage Status
+- Server Status
+
+Each service should clearly display:
+
+- Healthy
+- Warning
+- Error
+
+---
+
+12. Emergency Recovery Centre
+
+Create one-click recovery tools.
+
+Include:
+
+- Verify All Services
+- Reload Configuration
+- Repair Configuration
+- Refresh API Connections
+- Verify Payment Gateway
+- Verify Authentication
+- Verify AI Providers
+- Verify Email Service
+
+These tools should safely recover configuration issues without affecting products, users, purchases, subscriptions, or other business data.
+
+---
+
+13. Hostinger Portability
+
+Refactor the project so it no longer depends on Replit-specific infrastructure.
+
+Prepare the application to run cleanly on Hostinger Business Hosting or a Hostinger VPS.
+
+Configuration, uploads, storage, API integrations, and system settings should remain portable across hosting providers.
+
+---
+
+14. Validation and Testing
+
+When Phase 2 is complete:
+
+- Test every existing feature.
+- Test payment processing.
+- Test authentication.
+- Test AI integrations.
+- Test email delivery.
+- Test downloads.
+- Test products.
+- Test subscriptions.
+- Test the new Coupon System.
+- Test the new Referral System.
+- Verify that no existing functionality has been broken.
+
+Finally, generate a comprehensive implementation report containing:
+
+- Files created.
+- Files modified.
+- Security improvements implemented.
+- New database changes.
+- New Admin Dashboard pages.
+- New API endpoints.
+- Remaining recommendations before Phase 3.
+
+This phase must not modify, migrate, reset, overwrite, or delete customer records, products, purchases, subscriptions, payment history, download history, analytics, or any other business data. Phase 3 will focus exclusively on protecting and preserving those assets across deployments, Git operations, backups, restores, and future migrations.
